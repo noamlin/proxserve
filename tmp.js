@@ -22,17 +22,20 @@ prox.test1.test2.rnd = [
 	}
 ];
 
+function onChange(change) {
+	console.log('current object: ', this);
+	console.log('change: ', change);
+	console.log('----');
+	
+}
+prox.test1.test2.rnd[1].$on('change', onChange);
+prox.test1.test2.rnd.$on('change', onChange);
+prox.test1.test2.$on('change', onChange);
+prox.test1.$on('change', onChange);
+prox.$on('change', onChange);
+
+
 prox.test1.test2.rnd[1].bKey = 'c';
-
 delete prox.test1.test2.rnd;
-
-prox.test1.test2.$on('change', (change) => {
-	console.log(change);
-});
-prox.test1.$on('change', (change) => {
-	console.log(change);
-});
-prox.$on('change', (change) => {
-	console.log(change);
-});
 prox.test1.test2.new = 'this is new';
+delete prox.test1.test2;

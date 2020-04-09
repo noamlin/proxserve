@@ -74,7 +74,15 @@ function $on(event, listener) {
 	}
 }
 
-function $emit(target, property, oldValue, newValue, changeType) {
+/**
+ * 
+ * @param {Object|Array} target 
+ * @param {String} path 
+ * @param {*} oldValue 
+ * @param {*} newValue 
+ * @param {String} [changeType]
+ */
+function $emit(target, path, oldValue, newValue, changeType) {
 	if(typeof changeType === 'undefined') {
 		if(oldValue === undefined && newValue !== undefined) {
 			changeType = 'create';
@@ -91,17 +99,22 @@ function $emit(target, property, oldValue, newValue, changeType) {
 	}
 
 	let data = objectsData.get(target);
+	let change = {
+		'path': path,
+		'oldValue': oldValue,
+		'value': newValue,
+		'type': changeType,
+		'path': path
+	};
+
 	for(let item of data.listeners) { //item = [event, listener]
 		if(item[0] === 'change' || item[0] === changeType) {
-			item[1]({
-				'target': target,
-				'property': property,
-				'oldValue': oldValue,
-				'value': newValue,
-				'type': changeType,
-				'path': data.path
-			});
+			item[1].call(target, change);
 		}
+	}
+
+	if(data.parent !== null) { //we haven't reach root object
+		$emit(data.parent, `${data.property}.${path}`, oldValue, newValue, changeType);
 	}
 }
 
