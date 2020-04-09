@@ -20,15 +20,16 @@ function isNumeric(variable) {
 	else return !isNaN(variable);
 }
 
-let acceptableTypes = ['Object', 'Array']; //acceptable types to be proxied
+let acceptableTypes = ['Object', 'Array', 'Map']; //acceptable types to be proxied
 let objectsDetails = new WeakMap();
 
 return class Proxserve {
 	constructor(target) {
-		let parent = null, path = '';
+		let parent = null, path = '', currentProperty = '';
 		if(arguments.length > 1) {
-			parent = arguments[1];
-			path = arguments[2];
+			parent = arguments[1]; //the parent target
+			path = arguments[2]; //the path up to this target
+			currentProperty = arguments[3]; //this target property name
 		}
 
 		let typeoftarget = realtypeof(target);
@@ -36,18 +37,27 @@ return class Proxserve {
 		if(acceptableTypes.includes(typeoftarget)) {
 			let revocable = Proxy.revocable(target, {
 				get: function(target, property, receiver) {
-					console.log(objectsDetails.get(target));
 					return target[property];
 				},
 			
 				set: function(target, property, value, receiver) {
 					let typeofvalue = realtypeof(value);
 					if(acceptableTypes.includes(typeofvalue)) {
-						console.log(value);
-						value = new Proxserve(value, target, `${path}.${property}`);
+						value = new Proxserve(value, target, `${path}.${currentProperty}`, property); //if trying to add a new value which is an object then make it a proxy
 					}
 					target[property] = value;
 					return true;
+				},
+
+				deleteProperty: function(target, property) {
+					if(property in target) {
+						Proxserve.destroy(target[property]);
+						delete target[property];
+						return true;
+					}
+					else {
+						return false;
+					}
 				}
 			});
 
@@ -57,14 +67,14 @@ return class Proxserve {
 				'proxy': revocable.proxy,
 				'revoke': revocable.revoke
 			};
-			objectsDetails.set(target, details);
+			objectsDetails.set(target, details); //save important details regarding the original (raw) object
 
 			if(typeoftarget === 'Object') {
 				let keys = Object.keys(target);
 				for(let key of keys) {
 					let typeofproperty = realtypeof(target[key]);
 					if(acceptableTypes.includes(typeofproperty)) {
-						target[key] = new Proxserve(target[key], target, `${path}.${key}`);
+						target[key] = new Proxserve(target[key], target, `${path}.${currentProperty}`, key); //recursively make child objects also proxies
 					}
 				}
 			}
@@ -72,7 +82,7 @@ return class Proxserve {
 				for(let i = 0; i < target.length; i++) {
 					let typeofproperty = realtypeof(target[i]);
 					if(acceptableTypes.includes(typeofproperty)) {
-						target[i] = new Proxserve(target[i], target, `${path}.${i}`);
+						target[i] = new Proxserve(target[i], target, `${path}.${currentProperty}`, i); //recursively make child objects also proxies
 					}
 				}
 			}
@@ -81,6 +91,35 @@ return class Proxserve {
 		}
 		else {
 			throw new Error('Must observe an '+acceptableTypes.join('/'));
+		}
+	}
+
+	/**
+	 * Recursively revoke proxies
+	 * @param {*} target 
+	 */
+	static destroy(target) {
+		let typeoftarget = realtypeof(target);
+		if(acceptableTypes.includes(typeoftarget)) {
+			if(typeoftarget === 'Object') {
+				let keys = Object.keys(target);
+				for(let key of keys) {
+					let typeofproperty = realtypeof(target[key]);
+					if(acceptableTypes.includes(typeofproperty)) {
+						Proxserve.destroy(target[key]);
+					}
+				}
+			}
+			else if(typeoftarget === 'Array') {
+				for(let i = target.length - 1; i >= 0; i--) {
+					let typeofproperty = realtypeof(target[i]);
+					if(acceptableTypes.includes(typeofproperty)) {
+						Proxserve.destroy(target[i]);
+					}
+				}
+			}
+			objectsDetails.get(target).revoke();
+			//objectsDetails.delete(target); //not necessary because it's a WeakMap so garbage collector will clean unused objects anyway
 		}
 	}
 }

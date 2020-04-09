@@ -11,5 +11,13 @@ let prox = new Proxserve({
 	num: 6
 });
 
-prox.test1.test2.num = [{'a':'a', arr:[0,1,2]}];
-console.log(prox.test1.test2.num[0].arr[1]);
+prox.test1.test2.num = [
+	{
+		'a':'a',
+		arr: [0,1,2]
+	},
+	{
+		'b':'b',
+		arr: [5,6,[7,8,[9,10] ] ]
+	}
+];
