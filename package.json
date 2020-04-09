@@ -1,0 +1,30 @@
+{
+	"name": "proxserve",
+	"version": "0.1.0",
+	"description": "Proxy Observe on objects and properties changes",
+	"license": "",
+	"main": "index.js",
+	"scripts": {
+		"start": "node index.js",
+		"test": "jest"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"jest": "^25.1.0"
+	},
+	"engines": {
+		"node": "13.3.0"
+	},
+	"keywords": [
+		"proxy",
+		"observe",
+		"proxy observer"
+	],
+	"author": "Noam Lin",
+	"contributors": [
+		"Noam Lin <noamlin@gmail.com>"
+	],
+	"jest": {
+		"testEnvironment": "node"
+	}
+}
