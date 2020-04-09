@@ -21,7 +21,89 @@ function isNumeric(variable) {
 }
 
 let acceptableTypes = ['Object', 'Array', 'Map']; //acceptable types to be proxied
-let objectsDetails = new WeakMap();
+let acceptableEvents = ['change', 'create', 'update', 'delete'];
+let objectsData = new WeakMap();
+let proxiesData = new WeakMap();
+
+/**
+ * deep extraction of proxy's target and all sub proxies targets.
+ * recursively get complete objects behind proxy
+ * @param {*} proxy 
+ */
+function getOriginalTarget(proxy) {
+	if(proxiesData.has(proxy)) {
+		let target = proxiesData.get(proxy).target;
+		let typeoftarget = realtypeof(target);
+
+		if(typeoftarget === 'Object') {
+			let returnObj = {};
+			let keys = Object.keys(target);
+			for(let key of keys) {
+				returnObj[key] = getOriginalTarget(target[key]);
+			}
+			return returnObj;
+		}
+		else if(typeoftarget === 'Array') {
+			let returnArr = [];
+			for(let i = 0; i < target.length; i++) {
+				returnArr[i] = getOriginalTarget(target[i]);
+			}
+			return returnArr;
+		}
+		else if(typeoftarget === 'Map') {
+			console.warn('Not Implemented');
+			return null;
+		}
+	}
+	else {
+		return proxy; //not in proxies list so is probably a primitive
+	}
+}
+
+/**
+ * add event listener on a proxy
+ * @param {String} event 
+ * @param {Function} listener 
+ */
+function $on(event, listener) {
+	if(acceptableEvents.includes(event)) {
+		objectsData.get(this).listeners.push([event, listener]);
+	}
+	else {
+		throw new Error(`${event} is not a valid event. valid events are ${acceptableEvents.join(',')}`);
+	}
+}
+
+function $emit(target, property, oldValue, newValue, changeType) {
+	if(typeof changeType === 'undefined') {
+		if(oldValue === undefined && newValue !== undefined) {
+			changeType = 'create';
+		}
+		else if(oldValue !== undefined && newValue === undefined) {
+			changeType = 'delete';
+		}
+		else if(oldValue !== newValue) {
+			changeType = 'update';
+		}
+		else {
+			throw new Error('tried to emit something impossible');
+		}
+	}
+
+	let data = objectsData.get(target);
+	for(let item of data.listeners) { //item = [event, listener]
+		if(item[0] === 'change' || item[0] === changeType) {
+			item[1]({
+				'target': target,
+				'property': property,
+				'oldValue': oldValue,
+				'value': newValue,
+				'type': changeType,
+				'path': data.path
+			});
+		}
+	}
+}
 
 return class Proxserve {
 	constructor(target) {
@@ -37,7 +119,12 @@ return class Proxserve {
 		if(acceptableTypes.includes(typeoftarget)) {
 			let revocable = Proxy.revocable(target, {
 				get: function(target, property, receiver) {
-					return target[property];
+					if(property === '$on') {
+						return $on.bind(target);
+					}
+					else {
+						return target[property];
+					}
 				},
 			
 				set: function(target, property, value, receiver) {
@@ -45,14 +132,20 @@ return class Proxserve {
 					if(acceptableTypes.includes(typeofvalue)) {
 						value = new Proxserve(value, target, `${path}.${currentProperty}`, property); //if trying to add a new value which is an object then make it a proxy
 					}
-					target[property] = value;
+					let oldValue = getOriginalTarget(target[property]);
+					target[property] = value; //assign new value
+
+					$emit(target, property, oldValue, value);
 					return true;
 				},
 
 				deleteProperty: function(target, property) {
 					if(property in target) {
+						let oldValue = getOriginalTarget(target[property]);
 						Proxserve.destroy(target[property]);
-						delete target[property];
+						delete target[property]; //actual delete
+
+						$emit(target, property, oldValue, undefined, 'delete');
 						return true;
 					}
 					else {
@@ -64,10 +157,15 @@ return class Proxserve {
 			let details = {
 				'parent': parent,
 				'path': path,
+				'property': currentProperty,
 				'proxy': revocable.proxy,
-				'revoke': revocable.revoke
+				'revoke': revocable.revoke,
+				'listeners': []
 			};
-			objectsDetails.set(target, details); //save important details regarding the original (raw) object
+			objectsData.set(target, details); //save important details regarding the original (raw) object
+			proxiesData.set(revocable.proxy, {
+				'target': target
+			});
 
 			if(typeoftarget === 'Object') {
 				let keys = Object.keys(target);
@@ -86,6 +184,9 @@ return class Proxserve {
 					}
 				}
 			}
+			else if(typeoftarget === 'Map') {
+				console.warn('Not Implemented');
+			}
 
 			return revocable.proxy;
 		}
@@ -96,12 +197,13 @@ return class Proxserve {
 
 	/**
 	 * Recursively revoke proxies
-	 * @param {*} target 
+	 * @param {*} proxy 
 	 */
-	static destroy(target) {
-		let typeoftarget = realtypeof(target);
-		if(acceptableTypes.includes(typeoftarget)) {
-			if(typeoftarget === 'Object') {
+	static destroy(proxy) {
+		let typeofproxy = realtypeof(proxy);
+		if(acceptableTypes.includes(typeofproxy)) {
+			let target = proxiesData.get(proxy).target;
+			if(typeofproxy === 'Object') {
 				let keys = Object.keys(target);
 				for(let key of keys) {
 					let typeofproperty = realtypeof(target[key]);
@@ -110,7 +212,7 @@ return class Proxserve {
 					}
 				}
 			}
-			else if(typeoftarget === 'Array') {
+			else if(typeofproxy === 'Array') {
 				for(let i = target.length - 1; i >= 0; i--) {
 					let typeofproperty = realtypeof(target[i]);
 					if(acceptableTypes.includes(typeofproperty)) {
@@ -118,8 +220,14 @@ return class Proxserve {
 					}
 				}
 			}
-			objectsDetails.get(target).revoke();
-			//objectsDetails.delete(target); //not necessary because it's a WeakMap so garbage collector will clean unused objects anyway
+			else if(typeofproxy === 'Map') {
+				console.warn('Not Implemented');
+			}
+
+			if(objectsData.has(target)) {
+				objectsData.get(target).revoke();
+				//objectsData.delete(target); //not necessary because it's a WeakMap so garbage collector will clean unused objects anyway
+			}
 		}
 	}
 }
