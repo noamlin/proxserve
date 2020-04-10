@@ -9,7 +9,7 @@ let prox = new Proxserve({
 		}
 	},
 	num: 6
-});
+}, 1000);
 
 prox.test1.test2.rnd = [
 	{
@@ -21,23 +21,18 @@ prox.test1.test2.rnd = [
 		arr: [5,6,[7,8,[9,10] ] ]
 	}
 ];
-prox.test1.test2.rnd.block();
-console.log(prox.test1.test2.rnd[0]);
-prox.test1.test2.rnd[0].aKey = 'aaa';
-console.log(prox.test1.test2.rnd[0]);
-delete prox.test1.test2.rnd[0].aKey;
-console.log(prox.test1.test2.rnd[0]);
 
 function onChange(change) {
 	console.log('current object: ', this);
 	console.log('change: ', change);
+	console.log('time: ', Date.now()/1000);
 	console.log('----');
 	
 }
-prox.test1.test2.rnd[1].arr[2][2].on('change', onChange);
-prox.test1.test2.rnd.on('change', onChange);
-prox.test1.test2.on('change', onChange);
-prox.test1.on('change', onChange);
+// prox.test1.test2.rnd[1].arr[2][2].on('change', onChange);
+// prox.test1.test2.rnd.on('change', onChange);
+// prox.test1.test2.on('change', onChange);
+// prox.test1.on('change', onChange);
 prox.on('change', onChange);
 
 // prox.test1.test2.rnd[1].arr[2][2][1]++;
@@ -45,7 +40,9 @@ prox.on('change', onChange);
 // prox.test1.test2.rnd[1].arr[2][2][1] = 20;
 // prox.test1.test2.rnd[1].arr[2][2][2] = 30;
 // prox.test1.test2.rnd[1].arr[2][2].splice(1,1,...[1,2,3,4]);
-// prox.test1.test2.rnd[1].bKey = 'c';
-// delete prox.test1.test2.rnd;
-// prox.test1.test2.new = 'this is new';
-// delete prox.test1.test2;
+prox.test1.test2.rnd[1].bKey = 'c';
+delete prox.test1.test2.rnd;
+prox.test1.test2.new = 'this is new';
+delete prox.test1.test2;
+
+console.log('time: ', Date.now()/1000);

@@ -22,7 +22,7 @@ function isNumeric(variable) {
 
 let acceptableTypes = ['Object', 'Array', 'Map']; //acceptable types to be proxied
 let acceptableEvents = ['change', 'create', 'update', 'delete'];
-let statuses = ['active', 'paused', 'stopped', 'blocked']; //statuses of proxies
+let statuses = ['active', 'stopped', 'blocked']; //statuses of proxies
 let reservedFunctions = {}; //functions reserved as property names
 let objectData = new WeakMap();
 let proxyData = new WeakMap();
@@ -66,14 +66,6 @@ function getOriginalTarget(proxy) {
  * stop object and children from emitting change events
  */
 reservedFunctions.stop = function() {
-	objectData.get(this).status = statuses[2];
-}
-
-/**
- * pause object and children from emitting change events.
- * all events are accumulated and will be fired upon resume
- */
-reservedFunctions.pause = function() {
 	objectData.get(this).status = statuses[1];
 }
 
@@ -82,11 +74,11 @@ reservedFunctions.pause = function() {
  * user can't set nor delete any property
  */
 reservedFunctions.block = function() {
-	objectData.get(this).status = statuses[3];
+	objectData.get(this).status = statuses[2];
 }
 
 /**
- * resume default behavior of emitting change events, inherited from parent. will fire all changes since last pause
+ * resume default behavior of emitting change events, inherited from parent
  * @param {Boolean} [force] - force being active regardless of parent
  */
 reservedFunctions.activate = function(force=false) {
@@ -148,14 +140,29 @@ for(let i = reservedFunctionsNames.length - 1; i >= 0; i--) {
 }
 
 /**
+ * Convert property name to valid path segment
+ * @param {*} obj 
+ * @param {String} property 
+ */
+function property2path(obj, property) {
+	let typeofobj = realtypeof(obj);
+	switch(typeofobj) {
+		case 'Object': return `.${property}`;
+		case 'Array': return `[${property}]`;
+		default: console.warn('Not Implemented'); return property;
+	}
+}
+
+/**
  * emit an event upon a change to a proxy's property
  * @param {Object|Array} target 
  * @param {String} property 
  * @param {*} oldValue 
  * @param {*} newValue 
  * @param {String} [changeType]
+ * @param {Boolean} [immediate] - should fire event immediately
  */
-function $emit(target, property, oldValue, newValue, changeType) {
+function $emit(target, property, oldValue, newValue, changeType, immediate=false) {
 	if(typeof changeType === 'undefined') {
 		if(oldValue === newValue) {
 			return; //no new change was made
@@ -174,8 +181,28 @@ function $emit(target, property, oldValue, newValue, changeType) {
 
 	let path = property2path(target, property);
 	let data = objectData.get(target);
+	
+	if(!immediate && data.events.delay > 0) {
+		data.events.pool.push([target, property, oldValue, newValue, changeType]);
+
+		if(!data.events.inProgress) {
+			setTimeout(function() {
+				for(let item of data.events.pool) {
+					$emit(item[0], item[1], item[2], item[3], item[4], true);
+				}
+				data.events.pool = []; //empty the pool
+			}, data.events.delay);
+			data.events.inProgress = true;
+		}
+
+		return; //don't fire events at this point
+	}
 
 	do {
+		if(data.status === statuses[1]) { //stopped
+			return;
+		}
+
 		let change = {
 			'path': path,
 			'oldValue': oldValue,
@@ -189,44 +216,33 @@ function $emit(target, property, oldValue, newValue, changeType) {
 			}
 		}
 	
-		path = `${data.property}${path}`; //get path ready for next iteratin
+		path = `${data.pathProperty}${path}`; //get path ready for next iteratin
 	} while((data = Object.getPrototypeOf(data)) !== Object.prototype);
-}
-
-/**
- * Convert property name to valid path segment
- * @param {*} obj 
- * @param {String} property 
- */
-function property2path(obj, property) {
-	let typeofobj = realtypeof(obj);
-	switch(typeofobj) {
-		case 'Object': return `.${property}`;
-		case 'Array': return `[${property}]`;
-		default: console.warn('Not Implemented'); return property;
-	}
 }
 
 return class Proxserve {
 	/**
 	 * construct a new proxy from a target object
 	 * @param {Object|Array} target 
-	 * @param {Boolean} [delayEmits] - delay change-event emitting for a few milliseconds, letting them pile up and then fire all at once
-	 * @param {Object|Array} arguments[1] - parent
-	 * @param {String} arguments[2] - path
-	 * @param {String} arguments[3] - current property
+	 * @param {Number} [delay] - delay change-event emitting in milliseconds, letting them pile up and then fire all at once
+	 * @param {Object|Array} arguments[2] - parent
+	 * @param {String} arguments[3] - path
+	 * @param {String} arguments[4] - current property
 	 */
-	constructor(target, delayEmits=true) {
-		let parent = null, path = '', currentProperty = '';
-		if(arguments.length > 1) {
-			parent = arguments[1]; //the parent target
-			path = arguments[2]; //the path up to this target
-			currentProperty = property2path(parent, arguments[3]);
+	constructor(target, delay=10) {
+		let parent = null, path = '', currentProperty = '', currentPathProperty = '';
+		if(arguments.length > 2) {
+			parent = arguments[2]; //the parent target
+			path = arguments[3]; //the path up to this target
+			currentProperty = arguments[4];
+			currentPathProperty = property2path(target, currentProperty);
 		}
 
 		let typeoftarget = realtypeof(target);
 
 		if(acceptableTypes.includes(typeoftarget)) {
+			let eventsPool = [], eventsTimeout = null;
+
 			let revocable = Proxy.revocable(target, {
 				get: function(target, property, receiver) {
 					//can access a function (or its synonym) if their keywords isn't used
@@ -239,30 +255,33 @@ return class Proxserve {
 				},
 			
 				set: function(target, property, value, receiver) {
-					if(objectData.get(target).status === statuses[3]) { //blocked from changing values
+					if(objectData.get(target).status === statuses[2]) { //blocked from changing values
 						console.error(`can't change value of property '${property}'. object is blocked.`);
 						return true;
 					}
 
 					let typeofvalue = realtypeof(value);
 					if(acceptableTypes.includes(typeofvalue)) {
-						value = new Proxserve(value, target, `${path}${currentProperty}`, property); //if trying to add a new value which is an object then make it a proxy
+						value = new Proxserve(value, delay, target, `${path}${currentPathProperty}`, property); //if trying to add a new value which is an object then make it a proxy
 					}
-					let oldValue = getOriginalTarget(target[property]);
+					//let oldValue = getOriginalTarget(target[property]);
+					let oldValue = target[property];
 					target[property] = value; //assign new value
 
+					//let newValue = getOriginalTarget(value); //prevents emitting proxies
 					$emit(target, property, oldValue, value);
 					return true;
 				},
 
 				deleteProperty: function(target, property) {
-					if(objectData.get(target).status === statuses[3]) { //blocked from changing values
+					if(objectData.get(target).status === statuses[2]) { //blocked from changing values
 						console.error(`can't delete property '${property}'. object is blocked.`);
 						return true;
 					}
 
 					if(property in target) {
-						let oldValue = getOriginalTarget(target[property]);
+						//let oldValue = getOriginalTarget(target[property]);
+						let oldValue = target[property];
 						Proxserve.destroy(target[property]);
 						delete target[property]; //actual delete
 
@@ -281,10 +300,17 @@ return class Proxserve {
 					'target': target,
 					'proxy': revocable.proxy,
 					'revoke': revocable.revoke,
-					'path': path,
-					'property': currentProperty,
+					'path': '',
+					'property': '',
+					'pathProperty': '',
 					'listeners': [],
-					'status': statuses[0]
+
+					'status': statuses[0],
+					'events': {
+						'delay': delay,
+						'pool': [],
+						'inProgress': false
+					}
 				};
 			}
 			else {
@@ -297,6 +323,7 @@ return class Proxserve {
 					'revoke': revocable.revoke,
 					'path': path,
 					'property': currentProperty,
+					'pathProperty': property2path(parent, currentProperty),
 					'listeners': []
 				});
 			}
@@ -310,7 +337,7 @@ return class Proxserve {
 				for(let key of keys) {
 					let typeofproperty = realtypeof(target[key]);
 					if(acceptableTypes.includes(typeofproperty)) {
-						target[key] = new Proxserve(target[key], target, `${path}${currentProperty}`, key); //recursively make child objects also proxies
+						target[key] = new Proxserve(target[key], delay, target, `${path}${currentPathProperty}`, key); //recursively make child objects also proxies
 					}
 				}
 			}
@@ -318,7 +345,7 @@ return class Proxserve {
 				for(let i = 0; i < target.length; i++) {
 					let typeofproperty = realtypeof(target[i]);
 					if(acceptableTypes.includes(typeofproperty)) {
-						target[i] = new Proxserve(target[i], target, `${path}${currentProperty}`, i); //recursively make child objects also proxies
+						target[i] = new Proxserve(target[i], delay, target, `${path}${currentPathProperty}`, i); //recursively make child objects also proxies
 					}
 				}
 			}
@@ -334,15 +361,17 @@ return class Proxserve {
 	}
 
 	/**
-	 * Recursively revoke proxies
+	 * Recursively revoke proxies, allowing them to be garbage collected.
+	 * this functions delays by delay+1000 milliseconds to let time for all events to finish
 	 * @param {*} proxy 
 	 */
 	static destroy(proxy) {
-		let data = proxyData.get(proxy);
-		let target = data.target;
-		let typeoftarget = realtypeof(target);
-		if(acceptableTypes.includes(typeoftarget)) {
-			if(typeoftarget === 'Object') {
+		let typeofproxy = realtypeof(proxy);
+		if(acceptableTypes.includes(typeofproxy)) {
+			let data = proxyData.get(proxy);
+			let target = data.target;
+
+			if(typeofproxy === 'Object') {
 				let keys = Object.keys(target);
 				for(let key of keys) {
 					let typeofproperty = realtypeof(target[key]);
@@ -351,7 +380,7 @@ return class Proxserve {
 					}
 				}
 			}
-			else if(typeoftarget === 'Array') {
+			else if(typeofproxy === 'Array') {
 				for(let i = target.length - 1; i >= 0; i--) {
 					let typeofproperty = realtypeof(target[i]);
 					if(acceptableTypes.includes(typeofproperty)) {
@@ -363,7 +392,9 @@ return class Proxserve {
 				console.warn('Not Implemented');
 			}
 
-			data.revoke();
+			setTimeout(function() {
+				data.revoke();
+			}, data.events.delay + 1000);
 		}
 	}
 }
