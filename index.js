@@ -84,17 +84,18 @@ function $on(event, listener) {
  */
 function $emit(target, path, oldValue, newValue, changeType) {
 	if(typeof changeType === 'undefined') {
-		if(oldValue === undefined && newValue !== undefined) {
-			changeType = 'create';
+		if(oldValue === newValue) {
+			return; //no new change was made
 		}
-		else if(oldValue !== undefined && newValue === undefined) {
+
+		if(newValue === undefined) {
 			changeType = 'delete';
 		}
-		else if(oldValue !== newValue) {
-			changeType = 'update';
+		else if(oldValue === undefined) {
+			changeType = 'create';
 		}
 		else {
-			throw new Error('tried to emit something impossible');
+			changeType = 'update';
 		}
 	}
 
@@ -103,8 +104,7 @@ function $emit(target, path, oldValue, newValue, changeType) {
 		'path': path,
 		'oldValue': oldValue,
 		'value': newValue,
-		'type': changeType,
-		'path': path
+		'type': changeType
 	};
 
 	for(let item of data.listeners) { //item = [event, listener]
@@ -114,7 +114,21 @@ function $emit(target, path, oldValue, newValue, changeType) {
 	}
 
 	if(data.parent !== null) { //we haven't reach root object
-		$emit(data.parent, `${data.property}.${path}`, oldValue, newValue, changeType);
+		$emit(data.parent, `${data.property}${path}`, oldValue, newValue, changeType);
+	}
+}
+
+/**
+ * Convert property name to valid path segment
+ * @param {*} obj 
+ * @param {String} property 
+ */
+function property2path(obj, property) {
+	let typeofobj = realtypeof(obj);
+	switch(typeofobj) {
+		case 'Object': return `.${property}`;
+		case 'Array': return `[${property}]`;
+		default: console.warn('Not Implemented'); return property;
 	}
 }
 
@@ -124,7 +138,7 @@ return class Proxserve {
 		if(arguments.length > 1) {
 			parent = arguments[1]; //the parent target
 			path = arguments[2]; //the path up to this target
-			currentProperty = arguments[3]; //this target property name
+			currentProperty = property2path(parent, arguments[3]);
 		}
 
 		let typeoftarget = realtypeof(target);
@@ -132,7 +146,8 @@ return class Proxserve {
 		if(acceptableTypes.includes(typeoftarget)) {
 			let revocable = Proxy.revocable(target, {
 				get: function(target, property, receiver) {
-					if(property === '$on') {
+					//can access 'on' function (or its synonym '$on') if their keywords weren't used
+					if((property === 'on' || property === '$on') && typeof target[property] === 'undefined') {
 						return $on.bind(target);
 					}
 					else {
@@ -143,12 +158,12 @@ return class Proxserve {
 				set: function(target, property, value, receiver) {
 					let typeofvalue = realtypeof(value);
 					if(acceptableTypes.includes(typeofvalue)) {
-						value = new Proxserve(value, target, `${path}.${currentProperty}`, property); //if trying to add a new value which is an object then make it a proxy
+						value = new Proxserve(value, target, `${path}${currentProperty}`, property); //if trying to add a new value which is an object then make it a proxy
 					}
 					let oldValue = getOriginalTarget(target[property]);
 					target[property] = value; //assign new value
 
-					$emit(target, property, oldValue, value);
+					$emit(target, property2path(target, property), oldValue, value);
 					return true;
 				},
 
@@ -158,7 +173,7 @@ return class Proxserve {
 						Proxserve.destroy(target[property]);
 						delete target[property]; //actual delete
 
-						$emit(target, property, oldValue, undefined, 'delete');
+						$emit(target, property2path(target, property), oldValue, undefined, 'delete');
 						return true;
 					}
 					else {
@@ -185,7 +200,7 @@ return class Proxserve {
 				for(let key of keys) {
 					let typeofproperty = realtypeof(target[key]);
 					if(acceptableTypes.includes(typeofproperty)) {
-						target[key] = new Proxserve(target[key], target, `${path}.${currentProperty}`, key); //recursively make child objects also proxies
+						target[key] = new Proxserve(target[key], target, `${path}${currentProperty}`, key); //recursively make child objects also proxies
 					}
 				}
 			}
@@ -193,11 +208,11 @@ return class Proxserve {
 				for(let i = 0; i < target.length; i++) {
 					let typeofproperty = realtypeof(target[i]);
 					if(acceptableTypes.includes(typeofproperty)) {
-						target[i] = new Proxserve(target[i], target, `${path}.${currentProperty}`, i); //recursively make child objects also proxies
+						target[i] = new Proxserve(target[i], target, `${path}${currentProperty}`, i); //recursively make child objects also proxies
 					}
 				}
 			}
-			else if(typeoftarget === 'Map') {
+			else {
 				console.warn('Not Implemented');
 			}
 
@@ -233,13 +248,12 @@ return class Proxserve {
 					}
 				}
 			}
-			else if(typeofproxy === 'Map') {
+			else {
 				console.warn('Not Implemented');
 			}
 
 			if(objectsData.has(target)) {
 				objectsData.get(target).revoke();
-				//objectsData.delete(target); //not necessary because it's a WeakMap so garbage collector will clean unused objects anyway
 			}
 		}
 	}
