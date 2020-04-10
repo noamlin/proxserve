@@ -22,8 +22,8 @@ function isNumeric(variable) {
 
 let acceptableTypes = ['Object', 'Array', 'Map']; //acceptable types to be proxied
 let acceptableEvents = ['change', 'create', 'update', 'delete'];
-let objectsData = new WeakMap();
-let proxiesData = new WeakMap();
+let objectData = new WeakMap();
+let proxyData = new WeakMap();
 
 /**
  * deep extraction of proxy's target and all sub proxies targets.
@@ -31,8 +31,8 @@ let proxiesData = new WeakMap();
  * @param {*} proxy 
  */
 function getOriginalTarget(proxy) {
-	if(proxiesData.has(proxy)) {
-		let target = proxiesData.get(proxy).target;
+	if(proxyData.has(proxy)) {
+		let target = proxyData.get(proxy).target;
 		let typeoftarget = realtypeof(target);
 
 		if(typeoftarget === 'Object') {
@@ -61,13 +61,44 @@ function getOriginalTarget(proxy) {
 }
 
 /**
+ * stop object and children from emitting change events
+ */
+function $stop() {
+	objectData.get(this).status = 'paused';
+}
+
+/**
+ * pause object and children from emitting change events.
+ * all events are accumulated and will be fired upon resume
+ */
+function $pause() {
+	objectData.get(this).status = 'paused';
+}
+
+/**
+ * block object and children from any changes.
+ * user can't set nor delete any property
+ */
+function $block() {
+	objectData.get(this).status = 'blocked';
+}
+
+/**
+ * resume emitting change events and fire all changes since last pause
+ */
+function $resume() {
+	objectData.get(this).status = 'active';
+}
+
+/**
  * add event listener on a proxy
  * @param {String} event 
  * @param {Function} listener 
+ * @param {String} [id] - identifier for removing this listener
  */
-function $on(event, listener) {
+function $on(event, listener, id) {
 	if(acceptableEvents.includes(event)) {
-		objectsData.get(this).listeners.push([event, listener]);
+		objectData.get(this).listeners.push([event, listener, id]);
 	}
 	else {
 		throw new Error(`${event} is not a valid event. valid events are ${acceptableEvents.join(',')}`);
@@ -76,13 +107,33 @@ function $on(event, listener) {
 
 /**
  * 
+ * @param {String} id - removing listener(s) from an object by an identifier
+ */
+function $removeListener(id) {
+	let listeners = objectData.get(this).listeners;
+	for(let i = listeners.length - 1; i >= 0; i--) {
+		if(listeners[i][2] === id) {
+			listeners.splice(i, 1);
+		}
+	}
+}
+
+/**
+ * removing all listeners of an object
+ */
+function $removeAllListeners() {
+	objectData.get(this).listeners = [];
+}
+
+/**
+ * 
  * @param {Object|Array} target 
- * @param {String} path 
+ * @param {String} property 
  * @param {*} oldValue 
  * @param {*} newValue 
  * @param {String} [changeType]
  */
-function $emit(target, path, oldValue, newValue, changeType) {
+function $emit(target, property, oldValue, newValue, changeType) {
 	if(typeof changeType === 'undefined') {
 		if(oldValue === newValue) {
 			return; //no new change was made
@@ -99,23 +150,25 @@ function $emit(target, path, oldValue, newValue, changeType) {
 		}
 	}
 
-	let data = objectsData.get(target);
-	let change = {
-		'path': path,
-		'oldValue': oldValue,
-		'value': newValue,
-		'type': changeType
-	};
+	let path = property2path(target, property);
+	let data = objectData.get(target);
 
-	for(let item of data.listeners) { //item = [event, listener]
-		if(item[0] === 'change' || item[0] === changeType) {
-			item[1].call(target, change);
+	do {
+		let change = {
+			'path': path,
+			'oldValue': oldValue,
+			'value': newValue,
+			'type': changeType
+		};
+	
+		for(let item of data.listeners) { //item = [event, listener]
+			if(item[0] === 'change' || item[0] === changeType) {
+				item[1].call(data.target, change);
+			}
 		}
-	}
-
-	if(data.parent !== null) { //we haven't reach root object
-		$emit(data.parent, `${data.property}${path}`, oldValue, newValue, changeType);
-	}
+	
+		path = `${data.property}${path}`; //get path ready for next iteratin
+	} while((data = Object.getPrototypeOf(data)) !== Object.prototype);
 }
 
 /**
@@ -133,7 +186,15 @@ function property2path(obj, property) {
 }
 
 return class Proxserve {
-	constructor(target) {
+	/**
+	 * construct a new proxy from a target object
+	 * @param {Object|Array} target 
+	 * @param {Boolean} [delayEmits] - delay change-event emitting for a few milliseconds, letting them pile up and then fire all at once
+	 * @param {Object|Array} arguments[1] - parent
+	 * @param {String} arguments[2] - path
+	 * @param {String} arguments[3] - current property
+	 */
+	constructor(target, delayEmits=true) {
 		let parent = null, path = '', currentProperty = '';
 		if(arguments.length > 1) {
 			parent = arguments[1]; //the parent target
@@ -150,6 +211,24 @@ return class Proxserve {
 					if((property === 'on' || property === '$on') && typeof target[property] === 'undefined') {
 						return $on.bind(target);
 					}
+					else if((property === 'removeListener' || property === '$removeListener') && typeof target[property] === 'undefined') {
+						return $removeListener.bind(target);
+					}
+					else if((property === 'removeAllListeners' || property === '$removeAllListeners') && typeof target[property] === 'undefined') {
+						return $removeAllListeners.bind(target);
+					}
+					else if((property === 'stop' || property === '$stop') && typeof target[property] === 'undefined') {
+						return $stop.bind(target);
+					}
+					else if((property === 'pause' || property === '$pause') && typeof target[property] === 'undefined') {
+						return $pause.bind(target);
+					}
+					else if((property === 'block' || property === '$block') && typeof target[property] === 'undefined') {
+						return $block.bind(target);
+					}
+					else if((property === 'resume' || property === '$resume') && typeof target[property] === 'undefined') {
+						return $resume.bind(target);
+					}
 					else {
 						return target[property];
 					}
@@ -163,7 +242,7 @@ return class Proxserve {
 					let oldValue = getOriginalTarget(target[property]);
 					target[property] = value; //assign new value
 
-					$emit(target, property2path(target, property), oldValue, value);
+					$emit(target, property, oldValue, value);
 					return true;
 				},
 
@@ -173,7 +252,7 @@ return class Proxserve {
 						Proxserve.destroy(target[property]);
 						delete target[property]; //actual delete
 
-						$emit(target, property2path(target, property), oldValue, undefined, 'delete');
+						$emit(target, property, oldValue, undefined, 'delete');
 						return true;
 					}
 					else {
@@ -182,18 +261,35 @@ return class Proxserve {
 				}
 			});
 
-			let details = {
-				'parent': parent,
-				'path': path,
-				'property': currentProperty,
-				'proxy': revocable.proxy,
-				'revoke': revocable.revoke,
-				'listeners': []
-			};
-			objectsData.set(target, details); //save important details regarding the original (raw) object
-			proxiesData.set(revocable.proxy, {
-				'target': target
-			});
+			let data;
+			if(parent === null) {
+				data = {
+					'target': target,
+					'proxy': revocable.proxy,
+					'revoke': revocable.revoke,
+					'path': path,
+					'property': currentProperty,
+					'listeners': [],
+					'status': 'active'
+				};
+			}
+			else {
+				//inherit from parent
+				data = Object.create(objectData.get(parent));
+				//overwrite properties of its own
+				Object.assign(data, {
+					'target': target,
+					'proxy': revocable.proxy,
+					'revoke': revocable.revoke,
+					'path': path,
+					'property': currentProperty,
+					'listeners': []
+				});
+			}
+
+			//save important data regarding the proxy and original (raw) object
+			objectData.set(target, data);
+			proxyData.set(revocable.proxy, data);
 
 			if(typeoftarget === 'Object') {
 				let keys = Object.keys(target);
@@ -228,10 +324,11 @@ return class Proxserve {
 	 * @param {*} proxy 
 	 */
 	static destroy(proxy) {
-		let typeofproxy = realtypeof(proxy);
-		if(acceptableTypes.includes(typeofproxy)) {
-			let target = proxiesData.get(proxy).target;
-			if(typeofproxy === 'Object') {
+		let data = proxyData.get(proxy);
+		let target = data.target;
+		let typeoftarget = realtypeof(target);
+		if(acceptableTypes.includes(typeoftarget)) {
+			if(typeoftarget === 'Object') {
 				let keys = Object.keys(target);
 				for(let key of keys) {
 					let typeofproperty = realtypeof(target[key]);
@@ -240,7 +337,7 @@ return class Proxserve {
 					}
 				}
 			}
-			else if(typeofproxy === 'Array') {
+			else if(typeoftarget === 'Array') {
 				for(let i = target.length - 1; i >= 0; i--) {
 					let typeofproperty = realtypeof(target[i]);
 					if(acceptableTypes.includes(typeofproperty)) {
@@ -252,9 +349,7 @@ return class Proxserve {
 				console.warn('Not Implemented');
 			}
 
-			if(objectsData.has(target)) {
-				objectsData.get(target).revoke();
-			}
+			data.revoke();
 		}
 	}
 }
