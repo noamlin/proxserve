@@ -22,6 +22,8 @@ function isNumeric(variable) {
 
 let acceptableTypes = ['Object', 'Array', 'Map']; //acceptable types to be proxied
 let acceptableEvents = ['change', 'create', 'update', 'delete'];
+let statuses = ['active', 'paused', 'stopped', 'blocked']; //statuses of proxies
+let reservedFunctions = {}; //functions reserved as property names
 let objectData = new WeakMap();
 let proxyData = new WeakMap();
 
@@ -63,31 +65,39 @@ function getOriginalTarget(proxy) {
 /**
  * stop object and children from emitting change events
  */
-function $stop() {
-	objectData.get(this).status = 'paused';
+reservedFunctions.stop = function() {
+	objectData.get(this).status = statuses[2];
 }
 
 /**
  * pause object and children from emitting change events.
  * all events are accumulated and will be fired upon resume
  */
-function $pause() {
-	objectData.get(this).status = 'paused';
+reservedFunctions.pause = function() {
+	objectData.get(this).status = statuses[1];
 }
 
 /**
  * block object and children from any changes.
  * user can't set nor delete any property
  */
-function $block() {
-	objectData.get(this).status = 'blocked';
+reservedFunctions.block = function() {
+	objectData.get(this).status = statuses[3];
 }
 
 /**
- * resume emitting change events and fire all changes since last pause
+ * resume default behavior of emitting change events, inherited from parent. will fire all changes since last pause
+ * @param {Boolean} [force] - force being active regardless of parent
  */
-function $resume() {
-	objectData.get(this).status = 'active';
+reservedFunctions.activate = function(force=false) {
+	let data = objectData.get(this);
+	if(force || data.property==='') { //force activation or we are on root proxy
+		data.status = statuses[0];
+	}
+	else {
+		let data = objectData.get(this);
+		delete data.status;
+	}
 }
 
 /**
@@ -96,7 +106,7 @@ function $resume() {
  * @param {Function} listener 
  * @param {String} [id] - identifier for removing this listener
  */
-function $on(event, listener, id) {
+reservedFunctions.on = function(event, listener, id) {
 	if(acceptableEvents.includes(event)) {
 		objectData.get(this).listeners.push([event, listener, id]);
 	}
@@ -109,7 +119,7 @@ function $on(event, listener, id) {
  * 
  * @param {String} id - removing listener(s) from an object by an identifier
  */
-function $removeListener(id) {
+reservedFunctions.removeListener = function(id) {
 	let listeners = objectData.get(this).listeners;
 	for(let i = listeners.length - 1; i >= 0; i--) {
 		if(listeners[i][2] === id) {
@@ -121,12 +131,24 @@ function $removeListener(id) {
 /**
  * removing all listeners of an object
  */
-function $removeAllListeners() {
+reservedFunctions.removeAllListeners = function() {
 	objectData.get(this).listeners = [];
 }
 
 /**
- * 
+ * save an array of all reserved function names
+ * and also add synonyms to these functions
+ */
+let reservedFunctionsNames = Object.keys(reservedFunctions);
+for(let i = reservedFunctionsNames.length - 1; i >= 0; i--) {
+	let name = reservedFunctionsNames[i];
+	let synonym = '$'+name;
+	reservedFunctions[synonym] = reservedFunctions[name];
+	reservedFunctionsNames.push(synonym);
+}
+
+/**
+ * emit an event upon a change to a proxy's property
  * @param {Object|Array} target 
  * @param {String} property 
  * @param {*} oldValue 
@@ -207,27 +229,9 @@ return class Proxserve {
 		if(acceptableTypes.includes(typeoftarget)) {
 			let revocable = Proxy.revocable(target, {
 				get: function(target, property, receiver) {
-					//can access 'on' function (or its synonym '$on') if their keywords weren't used
-					if((property === 'on' || property === '$on') && typeof target[property] === 'undefined') {
-						return $on.bind(target);
-					}
-					else if((property === 'removeListener' || property === '$removeListener') && typeof target[property] === 'undefined') {
-						return $removeListener.bind(target);
-					}
-					else if((property === 'removeAllListeners' || property === '$removeAllListeners') && typeof target[property] === 'undefined') {
-						return $removeAllListeners.bind(target);
-					}
-					else if((property === 'stop' || property === '$stop') && typeof target[property] === 'undefined') {
-						return $stop.bind(target);
-					}
-					else if((property === 'pause' || property === '$pause') && typeof target[property] === 'undefined') {
-						return $pause.bind(target);
-					}
-					else if((property === 'block' || property === '$block') && typeof target[property] === 'undefined') {
-						return $block.bind(target);
-					}
-					else if((property === 'resume' || property === '$resume') && typeof target[property] === 'undefined') {
-						return $resume.bind(target);
+					//can access a function (or its synonym) if their keywords isn't used
+					if(reservedFunctionsNames.includes(property) && typeof target[property] === 'undefined') {
+						return reservedFunctions[property].bind(target);
 					}
 					else {
 						return target[property];
@@ -235,6 +239,11 @@ return class Proxserve {
 				},
 			
 				set: function(target, property, value, receiver) {
+					if(objectData.get(target).status === statuses[3]) { //blocked from changing values
+						console.error(`can't change value of property '${property}'. object is blocked.`);
+						return true;
+					}
+
 					let typeofvalue = realtypeof(value);
 					if(acceptableTypes.includes(typeofvalue)) {
 						value = new Proxserve(value, target, `${path}${currentProperty}`, property); //if trying to add a new value which is an object then make it a proxy
@@ -247,6 +256,11 @@ return class Proxserve {
 				},
 
 				deleteProperty: function(target, property) {
+					if(objectData.get(target).status === statuses[3]) { //blocked from changing values
+						console.error(`can't delete property '${property}'. object is blocked.`);
+						return true;
+					}
+
 					if(property in target) {
 						let oldValue = getOriginalTarget(target[property]);
 						Proxserve.destroy(target[property]);
@@ -270,7 +284,7 @@ return class Proxserve {
 					'path': path,
 					'property': currentProperty,
 					'listeners': [],
-					'status': 'active'
+					'status': statuses[0]
 				};
 			}
 			else {
