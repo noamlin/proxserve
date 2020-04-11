@@ -10,7 +10,8 @@
 	},
 	"dependencies": {},
 	"devDependencies": {
-		"jest": "^25.1.0"
+		"jest": "^25.1.0",
+		"lodash": "^4.17.15"
 	},
 	"engines": {
 		"node": "13.3.0"

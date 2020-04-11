@@ -191,6 +191,7 @@ function $emit(target, property, oldValue, newValue, changeType, immediate=false
 					$emit(item[0], item[1], item[2], item[3], item[4], true);
 				}
 				data.events.pool = []; //empty the pool
+				data.events.inProgress = false;
 			}, data.events.delay);
 			data.events.inProgress = true;
 		}
@@ -268,6 +269,9 @@ return class Proxserve {
 					let oldValue = target[property];
 					target[property] = value; //assign new value
 
+					if(proxyData.has(oldValue)) { //a proxy has been detached from the tree
+						Proxserve.destroy(oldValue);
+					}
 					//let newValue = getOriginalTarget(value); //prevents emitting proxies
 					$emit(target, property, oldValue, value);
 					return true;
@@ -366,35 +370,37 @@ return class Proxserve {
 	 * @param {*} proxy 
 	 */
 	static destroy(proxy) {
-		let typeofproxy = realtypeof(proxy);
-		if(acceptableTypes.includes(typeofproxy)) {
-			let data = proxyData.get(proxy);
-			let target = data.target;
+		let data = proxyData.get(proxy);
+		if(data) {
+			let typeoftarget = realtypeof(data.target);
+			if(acceptableTypes.includes(typeoftarget)) {
+				let target = data.target;
 
-			if(typeofproxy === 'Object') {
-				let keys = Object.keys(target);
-				for(let key of keys) {
-					let typeofproperty = realtypeof(target[key]);
-					if(acceptableTypes.includes(typeofproperty)) {
-						Proxserve.destroy(target[key]);
+				if(typeoftarget === 'Object') {
+					let keys = Object.keys(target);
+					for(let key of keys) {
+						let typeofproperty = realtypeof(target[key]);
+						if(acceptableTypes.includes(typeofproperty)) {
+							Proxserve.destroy(target[key]);
+						}
 					}
 				}
-			}
-			else if(typeofproxy === 'Array') {
-				for(let i = target.length - 1; i >= 0; i--) {
-					let typeofproperty = realtypeof(target[i]);
-					if(acceptableTypes.includes(typeofproperty)) {
-						Proxserve.destroy(target[i]);
+				else if(typeoftarget === 'Array') {
+					for(let i = target.length - 1; i >= 0; i--) {
+						let typeofproperty = realtypeof(target[i]);
+						if(acceptableTypes.includes(typeofproperty)) {
+							Proxserve.destroy(target[i]);
+						}
 					}
 				}
-			}
-			else {
-				console.warn('Not Implemented');
-			}
+				else {
+					console.warn('Not Implemented');
+				}
 
-			setTimeout(function() {
-				data.revoke();
-			}, data.events.delay + 1000);
+				setTimeout(function() {
+					data.revoke();
+				}, data.events.delay + 1000);
+			}
 		}
 	}
 }
