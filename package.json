@@ -1,8 +1,8 @@
 {
 	"name": "proxserve",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Proxy Observe on objects and properties changes",
-	"license": "",
+	"license": "Apache 2.0",
 	"main": "index.js",
 	"scripts": {
 		"start": "node index.js",
@@ -19,12 +19,17 @@
 	"keywords": [
 		"proxy",
 		"observe",
-		"proxy observer"
+		"proxy observer",
+		"two way binding"
 	],
 	"author": "Noam Lin",
 	"contributors": [
 		"Noam Lin <noamlin@gmail.com>"
 	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/noamlin/proxserve"
+	},
 	"jest": {
 		"testEnvironment": "node"
 	}
