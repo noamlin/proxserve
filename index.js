@@ -213,7 +213,7 @@ function $emit(target, property, oldValue, newValue, changeType, immediate=false
 	
 		for(let item of data.listeners) { //item = [event, listener]
 			if(item[0] === 'change' || item[0] === changeType) {
-				item[1].call(data.target, change);
+				item[1].call(data.proxy, change);
 			}
 		}
 	
@@ -225,12 +225,17 @@ return class Proxserve {
 	/**
 	 * construct a new proxy from a target object
 	 * @param {Object|Array} target 
-	 * @param {Number} [delay] - delay change-event emitting in milliseconds, letting them pile up and then fire all at once
+	 * @param {Object} [options] 
+	 * 	@property {Number} [options.delay] - delay change-event emitting in milliseconds, letting them pile up and then fire all at once
+	 * 	@property {Boolean} [options.strict] - should destroy detached child-objects or deleted properties automatically
 	 * @param {Object|Array} arguments[2] - parent
 	 * @param {String} arguments[3] - path
 	 * @param {String} arguments[4] - current property
 	 */
-	constructor(target, delay=10) {
+	constructor(target, options={}) {
+		if(typeof options.delay === 'undefined') options.delay = 10;
+		if(typeof options.strict === 'undefined') options.strict = true;
+
 		let parent = null, path = '', currentProperty = '', currentPathProperty = '';
 		if(arguments.length > 2) {
 			parent = arguments[2]; //the parent target
@@ -242,8 +247,6 @@ return class Proxserve {
 		let typeoftarget = realtypeof(target);
 
 		if(acceptableTypes.includes(typeoftarget)) {
-			let eventsPool = [], eventsTimeout = null;
-
 			let revocable = Proxy.revocable(target, {
 				get: function(target, property, receiver) {
 					//can access a function (or its synonym) if their keywords isn't used
@@ -263,13 +266,13 @@ return class Proxserve {
 
 					let typeofvalue = realtypeof(value);
 					if(acceptableTypes.includes(typeofvalue)) {
-						value = new Proxserve(value, delay, target, `${path}${currentPathProperty}`, property); //if trying to add a new value which is an object then make it a proxy
+						value = new Proxserve(value, options, target, `${path}${currentPathProperty}`, property); //if trying to add a new value which is an object then make it a proxy
 					}
 					//let oldValue = getOriginalTarget(target[property]);
 					let oldValue = target[property];
 					target[property] = value; //assign new value
 
-					if(proxyData.has(oldValue)) { //a proxy has been detached from the tree
+					if(options.strict && proxyData.has(oldValue)) { //a proxy has been detached from the tree
 						Proxserve.destroy(oldValue);
 					}
 					//let newValue = getOriginalTarget(value); //prevents emitting proxies
@@ -286,7 +289,9 @@ return class Proxserve {
 					if(property in target) {
 						//let oldValue = getOriginalTarget(target[property]);
 						let oldValue = target[property];
-						Proxserve.destroy(target[property]);
+						if(options.strict) {
+							Proxserve.destroy(target[property]);
+						}
 						delete target[property]; //actual delete
 
 						$emit(target, property, oldValue, undefined, 'delete');
@@ -311,7 +316,7 @@ return class Proxserve {
 
 					'status': statuses[0],
 					'events': {
-						'delay': delay,
+						'delay': options.delay,
 						'pool': [],
 						'inProgress': false
 					}
@@ -341,7 +346,7 @@ return class Proxserve {
 				for(let key of keys) {
 					let typeofproperty = realtypeof(target[key]);
 					if(acceptableTypes.includes(typeofproperty)) {
-						target[key] = new Proxserve(target[key], delay, target, `${path}${currentPathProperty}`, key); //recursively make child objects also proxies
+						target[key] = new Proxserve(target[key], options, target, `${path}${currentPathProperty}`, key); //recursively make child objects also proxies
 					}
 				}
 			}
@@ -349,7 +354,7 @@ return class Proxserve {
 				for(let i = 0; i < target.length; i++) {
 					let typeofproperty = realtypeof(target[i]);
 					if(acceptableTypes.includes(typeofproperty)) {
-						target[i] = new Proxserve(target[i], delay, target, `${path}${currentPathProperty}`, i); //recursively make child objects also proxies
+						target[i] = new Proxserve(target[i], options, target, `${path}${currentPathProperty}`, i); //recursively make child objects also proxies
 					}
 				}
 			}
