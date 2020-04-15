@@ -22,44 +22,49 @@ function isNumeric(variable) {
 
 let acceptableTypes = ['Object', 'Array', 'Map']; //acceptable types to be proxied
 let acceptableEvents = ['change', 'create', 'update', 'delete'];
-let statuses = ['active', 'stopped', 'blocked']; //statuses of proxies
+let statuses = ['active', 'stopped', 'blocked', 'deleted']; //statuses of proxies
 let reservedFunctions = {}; //functions reserved as property names
 let objectData = new WeakMap();
 let proxyData = new WeakMap();
 
 /**
- * deep extraction of proxy's target and all sub proxies targets.
- * recursively get complete objects behind proxy
- * @param {*} proxy 
+ * recursively clones objects and array
+ * @param {Proxy|Object|Array} proxy 
  */
-function getOriginalTarget(proxy) {
-	if(proxyData.has(proxy)) {
-		let target = proxyData.get(proxy).target;
-		let typeoftarget = realtypeof(target);
+let simpleCloneSet = new WeakSet();
+function simpleClone(obj) {
+	let typeofobj = realtypeof(obj);
+	let cloned;
+	if(typeofobj === 'Object') {
+		simpleCloneSet.add(obj);
+		cloned = {};
+		let keys = Object.keys(obj);
+		for(let key of keys) {
+			if(simpleCloneSet.has(obj[key])) {
+				cloned[key] = obj[key];
+			}
+			else {
+				cloned[key] = simpleClone(obj[key]);
+			}
+		}
+	}
+	else if(typeofobj === 'Array') {
+		simpleCloneSet.add(obj);
+		cloned = [];
+		for(let i = 0; i < obj.length; i++) {
+			if(simpleCloneSet.has(obj[i])) {
+				cloned[i] = obj[i];
+			}
+			else {
+				cloned[i] = simpleClone(obj[i]);
+			}
+		}
+	}
+	else { //hopefully a primitive
+		cloned = obj;
+	}
 
-		if(typeoftarget === 'Object') {
-			let returnObj = {};
-			let keys = Object.keys(target);
-			for(let key of keys) {
-				returnObj[key] = getOriginalTarget(target[key]);
-			}
-			return returnObj;
-		}
-		else if(typeoftarget === 'Array') {
-			let returnArr = [];
-			for(let i = 0; i < target.length; i++) {
-				returnArr[i] = getOriginalTarget(target[i]);
-			}
-			return returnArr;
-		}
-		else if(typeoftarget === 'Map') {
-			console.warn('Not Implemented');
-			return null;
-		}
-	}
-	else {
-		return proxy; //not in proxies list so is probably a primitive
-	}
+	return cloned;
 }
 
 /**
@@ -149,76 +154,70 @@ function property2path(obj, property) {
 	switch(typeofobj) {
 		case 'Object': return `.${property}`;
 		case 'Array': return `[${property}]`;
-		default: console.warn('Not Implemented'); return property;
+		default: console.warn(`Not Implemented (type of '${typeofobj}')`); return property;
 	}
 }
 
 /**
- * emit an event upon a change to a proxy's property
- * @param {Object|Array} target 
- * @param {String} property 
+ * 
+ * @param {Object} target 
+ * @param {String} path 
  * @param {*} oldValue 
- * @param {*} newValue 
+ * @param {*} value 
  * @param {String} [changeType]
- * @param {Boolean} [immediate] - should fire event immediately
  */
-function $emit(target, property, oldValue, newValue, changeType, immediate=false) {
+function add2emitQueue(target, path, oldValue, value, changeType) {
 	if(typeof changeType === 'undefined') {
-		if(oldValue === newValue) {
-			return; //no new change was made
-		}
+		if(oldValue === value) return; //no new change was made
 
-		if(newValue === undefined) {
-			changeType = 'delete';
-		}
-		else if(oldValue === undefined) {
-			changeType = 'create';
-		}
-		else {
-			changeType = 'update';
-		}
+		if(value === undefined) changeType = 'delete';
+		else if(oldValue === undefined) changeType = 'create';
+		else changeType = 'update';
 	}
 
-	let path = property2path(target, property);
 	let data = objectData.get(target);
 	
-	if(!immediate && data.events.delay > 0) {
-		data.events.pool.push([target, property, oldValue, newValue, changeType]);
-
-		if(!data.events.inProgress) {
-			setTimeout(function() {
-				for(let item of data.events.pool) {
-					$emit(item[0], item[1], item[2], item[3], item[4], true);
-				}
-				data.events.pool = []; //empty the pool
-				data.events.inProgress = false;
-			}, data.events.delay);
-			data.events.inProgress = true;
-		}
-
-		return; //don't fire events at this point
+	if(data.status === statuses[1]) { //stopped
+		return;
 	}
 
-	do {
-		if(data.status === statuses[1]) { //stopped
-			return;
-		}
-
+	if(data.listeners.length > 0) {
 		let change = {
-			'path': path,
-			'oldValue': oldValue,
-			'value': newValue,
-			'type': changeType
+			'path': path, 'value': value, 'oldValue': oldValue, 'type': changeType
 		};
+		data.eventPool.push(change);
+
+		if(data.delay <= 0) emit(target); //emit immediately
+		else if(data.eventPool.length === 1) setTimeout(emit, data.delay, target); //initiate timeout once, when starting to accumulate events
+	}
 	
-		for(let item of data.listeners) { //item = [event, listener]
-			if(item[0] === 'change' || item[0] === changeType) {
-				item[1].call(data.proxy, change);
+	path = `${data.pathProperty}${path}`; //get path ready for next iteratin
+	data = Object.getPrototypeOf(data);
+	if(data !== Object.prototype) {
+		add2emitQueue(data.target, path, oldValue, value, changeType);
+	}
+}
+
+function emit(target) {
+	let data = objectData.get(target);
+	let onChangeListeners = [];
+
+	for(let change of data.eventPool) { //first event in first event out
+		for(let listener of data.listeners) { //listener = [event, function]
+			if(listener[0] === change.type) { //will invoke create/update/delete listeners one by one.
+				listener[1].call(data.proxy, change);
+			}
+			else if(listener[0] === acceptableEvents[0]) { //change
+				onChangeListeners.push(listener);
 			}
 		}
-	
-		path = `${data.pathProperty}${path}`; //get path ready for next iteratin
-	} while((data = Object.getPrototypeOf(data)) !== Object.prototype);
+	}
+
+	for(let listener of onChangeListeners) {
+		listener[1].call(data.proxy, data.eventPool); //on(change) always gets an array of one or more changes
+	}
+
+	data.eventPool = []; //empty the event pool
 }
 
 return class Proxserve {
@@ -228,6 +227,7 @@ return class Proxserve {
 	 * @param {Object} [options] 
 	 * 	@property {Number} [options.delay] - delay change-event emitting in milliseconds, letting them pile up and then fire all at once
 	 * 	@property {Boolean} [options.strict] - should destroy detached child-objects or deleted properties automatically
+	 * 	@property {Boolean} [options.traceReference] - events emit new/old values. true: reference to original objects, false: deep clones that are made at the change
 	 * @param {Object|Array} arguments[2] - parent
 	 * @param {String} arguments[3] - path
 	 * @param {String} arguments[4] - current property
@@ -235,6 +235,7 @@ return class Proxserve {
 	constructor(target, options={}) {
 		if(typeof options.delay === 'undefined') options.delay = 10;
 		if(typeof options.strict === 'undefined') options.strict = true;
+		if(typeof options.traceReference === 'undefined') options.traceReference = true;
 
 		let parent = null, path = '', currentProperty = '', currentPathProperty = '';
 		if(arguments.length > 2) {
@@ -259,8 +260,14 @@ return class Proxserve {
 				},
 			
 				set: function(target, property, value, receiver) {
-					if(objectData.get(target).status === statuses[2]) { //blocked from changing values
+					let data = objectData.get(target);
+					if(data.status === statuses[2]) { //blocked from changing values
 						console.error(`can't change value of property '${property}'. object is blocked.`);
+						return true;
+					}
+					else if(data.status === statuses[3]) {
+						//if proxy is deleted from tree but user keeps accessing it then it means he saved a reference and is now using it as a regular object
+						target[property] = value;
 						return true;
 					}
 
@@ -268,15 +275,21 @@ return class Proxserve {
 					if(acceptableTypes.includes(typeofvalue)) {
 						value = new Proxserve(value, options, target, `${path}${currentPathProperty}`, property); //if trying to add a new value which is an object then make it a proxy
 					}
-					//let oldValue = getOriginalTarget(target[property]);
+
 					let oldValue = target[property];
+					if(!options.traceReference) {
+						oldValue = simpleClone(target[property]); //also prevents emitting proxies
+					}
 					target[property] = value; //assign new value
 
 					if(options.strict && proxyData.has(oldValue)) { //a proxy has been detached from the tree
 						Proxserve.destroy(oldValue);
 					}
-					//let newValue = getOriginalTarget(value); //prevents emitting proxies
-					$emit(target, property, oldValue, value);
+					let newValue = value;
+					if(!options.traceReference) {
+						newValue = simpleClone(value); //also prevents emitting proxies
+					}
+					add2emitQueue(target, property2path(target, property), oldValue, newValue);
 					return true;
 				},
 
@@ -287,14 +300,21 @@ return class Proxserve {
 					}
 
 					if(property in target) {
-						//let oldValue = getOriginalTarget(target[property]);
 						let oldValue = target[property];
+						if(!options.traceReference) {
+							oldValue = simpleClone(target[property]); //also prevents emitting proxies
+						}
 						if(options.strict) {
 							Proxserve.destroy(target[property]);
 						}
+
+						if(proxyData.has(target[property])) {
+							proxyData.get(target[property]).status = statuses[3]; //deleted
+						}
+
 						delete target[property]; //actual delete
 
-						$emit(target, property, oldValue, undefined, 'delete');
+						add2emitQueue(target, property2path(target, property), oldValue, undefined, 'delete');
 						return true;
 					}
 					else {
@@ -304,38 +324,29 @@ return class Proxserve {
 			});
 
 			let data;
-			if(parent === null) {
+			if(parent === null) { //dealing with root object
 				data = {
-					'target': target,
-					'proxy': revocable.proxy,
-					'revoke': revocable.revoke,
-					'path': '',
-					'property': '',
-					'pathProperty': '',
-					'listeners': [],
-
 					'status': statuses[0],
-					'events': {
-						'delay': options.delay,
-						'pool': [],
-						'inProgress': false
-					}
+					'delay': options.delay,
+					'pathProperty': ''
 				};
 			}
 			else {
 				//inherit from parent
 				data = Object.create(objectData.get(parent));
-				//overwrite properties of its own
-				Object.assign(data, {
-					'target': target,
-					'proxy': revocable.proxy,
-					'revoke': revocable.revoke,
-					'path': path,
-					'property': currentProperty,
-					'pathProperty': property2path(parent, currentProperty),
-					'listeners': []
-				});
+				data.pathProperty = property2path(parent, currentProperty);
 			}
+			//overwrite properties of its own
+			Object.assign(data, {
+				'target': target,
+				'proxy': revocable.proxy,
+				'revoke': revocable.revoke,
+				'path': path,
+				'property': currentProperty,
+				'listeners': [],
+				'eventPool': []
+			});
+
 
 			//save important data regarding the proxy and original (raw) object
 			objectData.set(target, data);
@@ -404,7 +415,7 @@ return class Proxserve {
 
 				setTimeout(function() {
 					data.revoke();
-				}, data.events.delay + 1000);
+				}, data.delay + 1000);
 			}
 		}
 	}

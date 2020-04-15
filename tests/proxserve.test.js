@@ -121,7 +121,7 @@ test('Basic events of changes', (done) => {
 		expect(change.value).toBe(5);
 		expect(change.path).toBe('.new');
 		expect(change.type).toBe('create');
-		part2();
+		setImmediate(part2);
 	});
 	proxy.new = 5;
 
@@ -132,7 +132,7 @@ test('Basic events of changes', (done) => {
 			expect(change.value).toBe(5);
 			expect(change.path).toBe('.level1_1.arr1[0]');
 			expect(change.type).toBe('update');
-			part3();
+			setImmediate(part3);
 		});
 		proxy.level1_1.arr1[0] = 5;
 	}
@@ -144,22 +144,14 @@ test('Basic events of changes', (done) => {
 			expect(change.value).toBe(undefined);
 			expect(change.path).toBe('.level1_1.arr1');
 			expect(change.type).toBe('delete');
-			part4();
+			setImmediate(part4);
 		});
 		delete proxy.level1_1.arr1; //triggers internal destroy timeout of 1 second
 	}
 
 	function part4() {
-		let changes = [];
 		proxy.removeAllListeners();
-		proxy.on('change', function(change) {
-			changes.push(change);
-		});
-		proxy.new2 = 5;
-		proxy.new2 = 7;
-		delete proxy.new2;
-
-		setTimeout(() => {
+		proxy.on('change', function(changes) {
 			expect(changes).toEqual([{
 				oldValue: undefined, value: 5, path: '.new2', type: 'create'
 			},{
@@ -168,7 +160,10 @@ test('Basic events of changes', (done) => {
 				oldValue: 7, value: undefined, path: '.new2', type: 'delete'
 			}]);
 			done();
-		}, 20);
+		});
+		proxy.new2 = 5;
+		proxy.new2 = 7;
+		delete proxy.new2;
 	}
 });
 
@@ -179,7 +174,7 @@ test('Delay of events', (done) => {
 		changes.push(1);
 	});
 	proxy.num = 5;
-	expect(changes.length).toBe(1);
+	expect(changes.length).toBe(1); //should happen immediately. without setTimeout(0) or anything like that
 	proxy.num++;
 	expect(changes.length).toBe(2);
 
@@ -194,7 +189,7 @@ test('Delay of events', (done) => {
 	expect(changes.length).toBe(0);
 	setTimeout(() => {
 		expect(changes.length).toBe(2);
-		part2();
+		setImmediate(part2);
 	}, 20);
 
 	function part2() {
@@ -262,7 +257,54 @@ test('Destroy proxy and sub-proxies', (done) => {
 	}
 });
 
-//tested on a CPU with baseclock of 3.6 GHz
+test('Keep using proxies after deletion/detachment in non-strict instantiation', (done) => {
+	let proxy = new Proxserve(cloneDeep(testObject), {delay:-1000, strict:false});
+	let level1_1 = proxy.level1_1;
+	let arr2 = proxy.level1_2.level2_1.level3_1.arr2;
+	proxy.level1_1 = 5;
+	delete proxy.level1_2.level2_1.level3_1;
+	setTimeout(() => {
+		expect(isRevoked(level1_1)).toBe(false);
+		expect(level1_1).toEqual(testObject.level1_1);
+		expect(isRevoked(arr2)).toBe(false);
+		expect(arr2).toEqual(testObject.level1_2.level2_1.level3_1.arr2);
+		done();
+	}, 5);
+});
+
+test('Observe on referenced changes and cloned changes', (done) => {
+	let proxy = new Proxserve(cloneDeep(testObject), {traceReference: false});
+	proxy.level1_1.on('change', function(changes) {
+		expect(changes.length).toEqual(3);
+		expect(changes[0]).toEqual({ oldValue: [0,1,2], value: {a:'a'}, type: 'update', path: '.arr1' });
+		expect(changes[1]).toEqual({ oldValue: undefined, value: 'b', type: 'create', path: '.arr1.b' });
+		expect(changes[2]).toEqual({ oldValue: {a:'a', b:'b'}, value: undefined, type: 'delete', path: '.arr1' });
+		setImmediate(part2);
+	});
+	proxy.level1_1.arr1 = {a:'a'};
+	proxy.level1_1.arr1.b = 'b';
+	let tmp = proxy.level1_1.arr1;
+	delete proxy.level1_1.arr1;
+	tmp.a = tmp.b = 'cc';
+
+	function part2() {
+		proxy = new Proxserve(cloneDeep(testObject), {traceReference: true});
+		proxy.level1_1.on('change', function(changes) {
+			expect(changes.length).toEqual(3);
+			expect(changes[0]).toEqual({ oldValue: [0,1,2], value: {a:'cc', b:'cc'}, type: 'update', path: '.arr1' });
+			expect(changes[1]).toEqual({ oldValue: undefined, value: 'b', type: 'create', path: '.arr1.b' });
+			expect(changes[2]).toEqual({ oldValue: {a:'cc', b:'cc'}, value: undefined, type: 'delete', path: '.arr1' });
+			setImmediate(done);
+		});
+		proxy.level1_1.arr1 = {a:'a'};
+		proxy.level1_1.arr1.b = 'b';
+		let tmp = proxy.level1_1.arr1;
+		delete proxy.level1_1.arr1;
+		tmp.a = tmp.b = 'cc';
+	}
+});
+
+//benchmark on a CPU with baseclock of 3.6 GHz is around 0.5s
 test('Proxserve 50,000 objects in less than 1 second', () => {
 	let objectsInTest = deepCountObjects(testObject);
 	let repeatitions = Math.ceil(50000 / objectsInTest);
@@ -282,7 +324,7 @@ test('Proxserve 50,000 objects in less than 1 second', () => {
 	expect(end - start).toBeLessThan(1000);
 });
 
-//tested on a CPU with baseclock of 3.6 GHz
+//benchmark on a CPU with baseclock of 3.6 GHz is around 0.9s
 test('Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
 	let objectsInTest = deepCountObjects(testObject);
 	let repeatitions = Math.ceil(50000 / objectsInTest);
@@ -303,8 +345,8 @@ test('Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
 	}, 20);
 });
 
-test('Advanced events of changes', (done) => {
-	let proxy = new Proxserve(cloneDeep(testObject), {delay:-950});
+test('Comprehensive events of changes', (done) => {
+	let proxy = new Proxserve(cloneDeep(testObject), {traceReference: false});
 	proxy.on('create', function(change) {
 		expect(this).toBe(proxy);
 		expect(change.oldValue).toBe(undefined);
@@ -425,23 +467,38 @@ test('Advanced events of changes', (done) => {
 			expect(change.value).toBe(undefined);
 			expect(change.path).toBe('[2]');
 			expect(change.type).toBe('delete');
-			setTimeout(done, 100);
+			setImmediate(part5);
 		});
 		delete proxy.level1_2.level2_1.level3_1.arr2[2][2];
 	}
-});
 
-test('Keep using proxies after deletion/detachment in non-strict instantiation', (done) => {
-	let proxy = new Proxserve(cloneDeep(testObject), {delay:-1000, strict:false});
-	let level1_1 = proxy.level1_1;
-	let arr2 = proxy.level1_2.level2_1.level3_1.arr2;
-	proxy.level1_1 = 5;
-	delete proxy.level1_2.level2_1.level3_1;
-	setTimeout(() => {
-		expect(isRevoked(level1_1)).toBe(false);
-		expect(level1_1).toEqual(testObject.level1_1);
-		expect(isRevoked(arr2)).toBe(false);
-		expect(arr2).toEqual(testObject.level1_2.level2_1.level3_1.arr2);
-		done();
-	}, 5);
+	function part5() {
+		proxy.removeAllListeners();
+		proxy.level1_2.removeAllListeners();
+		proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
+
+		proxy.on('change', function(changes) {
+			expect(changes.length).toBe(9);
+			expect(changes[0]).toEqual({ oldValue: undefined, value: {new:'new'}, type: 'create', path: '.level1_2.level2_1.level3_1.arr2[2][2]' });
+			expect(changes[1]).toEqual({ oldValue: 'new', value: [0,1,2,3,4,5,6], type: 'update', path: '.level1_2.level2_1.level3_1.arr2[2][2].new' });
+			expect(changes[2]).toEqual({ oldValue: 0, value: undefined, type: 'delete', path: '.level1_2.level2_1.level3_1.arr2[2][2].new[0]' });
+		});
+		proxy.level1_2.on('change', function(changes) {
+			expect(changes.length).toBe(9);
+			expect(changes[0]).toEqual({ oldValue: undefined, value: {new:'new'}, type: 'create', path: '.level2_1.level3_1.arr2[2][2]' });
+			expect(changes[1]).toEqual({ oldValue: 'new', value: [0,1,2,3,4,5,6], type: 'update', path: '.level2_1.level3_1.arr2[2][2].new' });
+			expect(changes[2]).toEqual({ oldValue: 0, value: undefined, type: 'delete', path: '.level2_1.level3_1.arr2[2][2].new[0]' });
+		});
+		proxy.level1_2.level2_1.level3_1.arr2[2].on('change', function(changes) {
+			expect(changes.length).toBe(9);
+			expect(changes[0]).toEqual({ oldValue: undefined, value: {new:'new'}, type: 'create', path: '[2]' });
+			expect(changes[1]).toEqual({ oldValue: 'new', value: [0,1,2,3,4,5,6], type: 'update', path: '[2].new' });
+			expect(changes[2]).toEqual({ oldValue: 0, value: undefined, type: 'delete', path: '[2].new[0]' });
+			setTimeout(done, 1100);
+		});
+		proxy.level1_2.level2_1.level3_1.arr2[2][2] = { new: 'new' }; //should emit 1 create change
+		proxy.level1_2.level2_1.level3_1.arr2[2][2].new = [0,1,2,3,4,5,6]; //should emit 1 update change
+		delete proxy.level1_2.level2_1.level3_1.arr2[2][2].new[0]; //should emit 1 delete change
+		proxy.level1_2.level2_1.level3_1.arr2[2][2].new.splice(2, 2); //should emit 6 changes - update [2][3][4] then delete [6][5] then update length
+	}
 });
