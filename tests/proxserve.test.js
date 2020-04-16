@@ -273,7 +273,7 @@ test('Keep using proxies after deletion/detachment in non-strict instantiation',
 });
 
 test('Observe on referenced changes and cloned changes', (done) => {
-	let proxy = new Proxserve(cloneDeep(testObject), {traceReference: false});
+	let proxy = new Proxserve(cloneDeep(testObject), {emitReference: false});
 	proxy.level1_1.on('change', function(changes) {
 		expect(changes.length).toEqual(3);
 		expect(changes[0]).toEqual({ oldValue: [0,1,2], value: {a:'a'}, type: 'update', path: '.arr1' });
@@ -288,7 +288,7 @@ test('Observe on referenced changes and cloned changes', (done) => {
 	tmp.a = tmp.b = 'cc';
 
 	function part2() {
-		proxy = new Proxserve(cloneDeep(testObject), {traceReference: true});
+		proxy = new Proxserve(cloneDeep(testObject), {emitReference: true});
 		proxy.level1_1.on('change', function(changes) {
 			expect(changes.length).toEqual(3);
 			expect(changes[0]).toEqual({ oldValue: [0,1,2], value: {a:'cc', b:'cc'}, type: 'update', path: '.arr1' });
@@ -346,7 +346,7 @@ test('Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
 });
 
 test('Comprehensive events of changes', (done) => {
-	let proxy = new Proxserve(cloneDeep(testObject), {traceReference: false});
+	let proxy = new Proxserve(cloneDeep(testObject), {emitReference: false});
 	proxy.on('create', function(change) {
 		expect(this).toBe(proxy);
 		expect(change.oldValue).toBe(undefined);
@@ -501,4 +501,27 @@ test('Comprehensive events of changes', (done) => {
 		delete proxy.level1_2.level2_1.level3_1.arr2[2][2].new[0]; //should emit 1 delete change
 		proxy.level1_2.level2_1.level3_1.arr2[2][2].new.splice(2, 2); //should emit 6 changes - update [2][3][4] then delete [6][5] then update length
 	}
+});
+
+test('Split path to segments', () => {
+	let path = Proxserve.splitPath('.level2_1.level3_1');
+	expect(path).toEqual(['level2_1','level3_1']);
+
+	path = Proxserve.splitPath('[2][2].new');
+	expect(path).toEqual(['2','2','new']);
+
+	path = Proxserve.splitPath('.new[0]');
+	expect(path).toEqual(['new','0']);
+
+	path = Proxserve.splitPath('.a');
+	expect(path).toEqual(['a']);
+
+	path = Proxserve.splitPath('.level2_1.level3_1.arr2[2][2].new[0]');
+	expect(path).toEqual(['level2_1','level3_1','arr2','2','2','new','0']);
+
+	path = Proxserve.splitPath('New[0]new');
+	expect(path).toEqual(['ew','0new']);
+
+	path = Proxserve.splitPath('[1][0][new]');
+	expect(path).toEqual(['1','0','new']);
 });

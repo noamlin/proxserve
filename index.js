@@ -227,7 +227,7 @@ return class Proxserve {
 	 * @param {Object} [options] 
 	 * 	@property {Number} [options.delay] - delay change-event emitting in milliseconds, letting them pile up and then fire all at once
 	 * 	@property {Boolean} [options.strict] - should destroy detached child-objects or deleted properties automatically
-	 * 	@property {Boolean} [options.traceReference] - events emit new/old values. true: reference to original objects, false: deep clones that are made at the change
+	 * 	@property {Boolean} [options.emitReference] - events emit new/old values. true: reference to original objects, false: deep clones that are created on the spot
 	 * @param {Object|Array} arguments[2] - parent
 	 * @param {String} arguments[3] - path
 	 * @param {String} arguments[4] - current property
@@ -235,7 +235,7 @@ return class Proxserve {
 	constructor(target, options={}) {
 		if(typeof options.delay === 'undefined') options.delay = 10;
 		if(typeof options.strict === 'undefined') options.strict = true;
-		if(typeof options.traceReference === 'undefined') options.traceReference = true;
+		if(typeof options.emitReference === 'undefined') options.emitReference = true;
 
 		let parent = null, path = '', currentProperty = '', currentPathProperty = '';
 		if(arguments.length > 2) {
@@ -277,7 +277,7 @@ return class Proxserve {
 					}
 
 					let oldValue = target[property];
-					if(!options.traceReference) {
+					if(!options.emitReference) {
 						oldValue = simpleClone(target[property]); //also prevents emitting proxies
 					}
 					target[property] = value; //assign new value
@@ -286,7 +286,7 @@ return class Proxserve {
 						Proxserve.destroy(oldValue);
 					}
 					let newValue = value;
-					if(!options.traceReference) {
+					if(!options.emitReference) {
 						newValue = simpleClone(value); //also prevents emitting proxies
 					}
 					add2emitQueue(target, property2path(target, property), oldValue, newValue);
@@ -301,15 +301,16 @@ return class Proxserve {
 
 					if(property in target) {
 						let oldValue = target[property];
-						if(!options.traceReference) {
+						if(!options.emitReference) {
 							oldValue = simpleClone(target[property]); //also prevents emitting proxies
 						}
 						if(options.strict) {
 							Proxserve.destroy(target[property]);
 						}
 
-						if(proxyData.has(target[property])) {
-							proxyData.get(target[property]).status = statuses[3]; //deleted
+						let propertyData = proxyData.get(target[property]);
+						if(propertyData) {
+							propertyData.status = statuses[3]; //deleted
 						}
 
 						delete target[property]; //actual delete
@@ -418,6 +419,27 @@ return class Proxserve {
 				}, data.delay + 1000);
 			}
 		}
+	}
+
+	static splitPath(path) {
+		if(typeof path !== 'string' || path.length < 2) {
+			return [''];
+		}
+		var resultsArr = [];
+		var tmp='';
+		for(let i=1; i < path.length; i++) { //i=1 and skip over '.' or '[']
+			let char = path[i];
+			if(char === '.' || char === '[') {
+				resultsArr.push(tmp);
+				tmp = '';
+			} else if(char !== ']') {
+				tmp += char;
+			}
+		}
+		if(tmp!=='') {
+			resultsArr.push(tmp);
+		}
+		return resultsArr;
 	}
 }
 })();
