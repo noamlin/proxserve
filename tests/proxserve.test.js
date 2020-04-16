@@ -67,8 +67,10 @@ const testObject = {
 };
 
 test('Initiate a proxserve and check if original object stays intact', () => {
-	let proxy = new Proxserve(cloneDeep(testObject));
+	let origin = cloneDeep(testObject);
+	let proxy = new Proxserve(origin);
 	expect(proxy).toEqual(testObject);
+	expect(proxy.getOriginalTarget() === origin).toBe(true);
 });
 
 test('Object, child-objects and added-child-objects should convert to proxies', () => {
@@ -99,6 +101,10 @@ test('Proxies should contain built-in functions', () => {
 	expect(typeof proxy.$block).toBe('function');
 	expect(typeof proxy.activate).toBe('function');
 	expect(typeof proxy.$activate).toBe('function');
+	expect(typeof proxy.getOriginalTarget).toBe('function');
+	expect(typeof proxy.$getOriginalTarget).toBe('function');
+	expect(typeof proxy.getProxserveInstance).toBe('function');
+	expect(typeof proxy.$getProxserveInstance).toBe('function');
 
 	expect(typeof proxy.level1_1.arr1.on).toBe('function');
 	expect(typeof proxy.level1_1.arr1.$on).toBe('function');
@@ -168,7 +174,7 @@ test('Basic events of changes', (done) => {
 });
 
 test('Delay of events', (done) => {
-	let proxy = new Proxserve(cloneDeep(testObject), {delay:0});
+	let proxy = new Proxserve(cloneDeep(testObject), { delay: 0 });
 	let changes = [];
 	proxy.on('change', function(change) {
 		changes.push(1);
@@ -178,10 +184,10 @@ test('Delay of events', (done) => {
 	proxy.num++;
 	expect(changes.length).toBe(2);
 
-	proxy = new Proxserve(cloneDeep(testObject), {delay:10});
+	proxy = new Proxserve(cloneDeep(testObject), { delay: 10 });
 	changes.length = 0;
-	proxy.on('change', function(change) {
-		changes.push(1);
+	proxy.on('change', function(batchOfChanges) {
+		changes.push(...batchOfChanges);
 	});
 	proxy.num = 5;
 	expect(changes.length).toBe(0);
@@ -193,10 +199,10 @@ test('Delay of events', (done) => {
 	}, 20);
 
 	function part2() {
-		proxy = new Proxserve(cloneDeep(testObject), {delay:500});
+		proxy = new Proxserve(cloneDeep(testObject), { delay: 500 });
 		changes.length = 0;
-		proxy.on('change', function(change) {
-			changes.push(1);
+		proxy.on('change', function(batchOfChanges) {
+			changes.push(...batchOfChanges);
 		});
 		proxy.num = 5;
 		expect(changes.length).toBe(0);
@@ -239,7 +245,7 @@ test('Destroy proxy and sub-proxies', (done) => {
 	}
 
 	function part3() {
-		proxy = new Proxserve(cloneDeep(testObject), {delay:-950});
+		proxy = new Proxserve(cloneDeep(testObject), {delay:-950, strict: true});
 		let reference2level3 = proxy.level1_2.level2_1.level3_1;
 		let reference2arr2 = reference2level3.arr2;
 		proxy.level1_2 = 5;
@@ -340,6 +346,7 @@ test('Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
 	}
 	setTimeout(() => {
 		let end = Date.now();
+		proxies;
 		expect(end - start - 20).toBeLessThan(1500);
 		done();
 	}, 20);
