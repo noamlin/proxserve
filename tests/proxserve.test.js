@@ -503,7 +503,7 @@ test('Comprehensive events of changes', (done) => {
 	}
 });
 
-test('Split path to segments', () => {
+test('splitPath - split path to segments', () => {
 	let path = Proxserve.splitPath('.level2_1.level3_1');
 	expect(path).toEqual(['level2_1','level3_1']);
 
@@ -524,4 +524,43 @@ test('Split path to segments', () => {
 
 	path = Proxserve.splitPath('[1][0][new]');
 	expect(path).toEqual(['1','0','new']);
+});
+
+test('getPathTarget - get target property of object and path', (done) => {
+	let proxy = new Proxserve(cloneDeep(testObject), {delay: 0});
+	proxy.on('change', function(changes) {
+		let obj = Proxserve.getPathTarget(this, changes[0].path);
+		expect(obj).toEqual('xyz');
+	});
+	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.deeper = 'xyz';
+	proxy.removeAllListeners();
+
+	proxy.level1_2.on('change', function(changes) {
+		let obj = Proxserve.getPathTarget(this, changes[0].path);
+		expect(obj).toEqual('asdf');
+	});
+	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.another = 'asdf';
+	proxy.level1_2.removeAllListeners();
+
+	proxy.level1_2.level2_1.on('change', function(changes) {
+		let obj = Proxserve.getPathTarget(this, changes[0].path);
+		expect(obj).toEqual([0, {a: 'a'}]);
+		done();
+	});
+	proxy.level1_2.level2_1.level3_1.arr2[2][2] = [0, {a: 'a'}];
+	proxy.level1_2.level2_1.removeAllListeners();
+
+	proxy.on('change', function(changes) {
+		let obj = Proxserve.getPathTarget(this, changes[0].path);
+		expect(obj).toEqual({});
+	});
+	proxy.a = {};
+	proxy.removeAllListeners();
+
+	proxy.on('change', function(changes) {
+		let obj = Proxserve.getPathTarget(this, changes[0].path);
+		expect(obj).toEqual('a');
+	});
+	proxy.a.a = 'a';
+	proxy.removeAllListeners();
 });

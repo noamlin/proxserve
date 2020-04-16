@@ -421,6 +421,10 @@ return class Proxserve {
 		}
 	}
 
+	/**
+	 * splits a path to an array of properties
+	 * @param {String} path 
+	 */
 	static splitPath(path) {
 		if(typeof path !== 'string' || path.length < 2) {
 			return [''];
@@ -440,6 +444,23 @@ return class Proxserve {
 			resultsArr.push(tmp);
 		}
 		return resultsArr;
+	}
+
+	/**
+	 * 
+	 * @param {Proxy|Object} obj 
+	 * @param {String} path 
+	 */
+	static getPathTarget(obj, path) {
+		let segments = Proxserve.splitPath(path);
+		let i;
+		for(i = 0; i <= segments.length - 2; i++) {
+			obj = obj[segments[i]];
+			if(typeof obj === 'undefined') {
+				throw new Error('Invalid path was given');
+			}
+		}
+		return obj[segments[i]];
 	}
 }
 })();
