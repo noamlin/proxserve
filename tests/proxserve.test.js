@@ -14,6 +14,16 @@ function isRevoked(value) {
 	}
 }
 
+var consoleFuncs = { log: console.log, warn: console.warn, error: console.error };
+function silentConsole() {
+	console.log = console.warn = console.error = function() { };
+}
+function wakeConsole() {
+	console.log = consoleFuncs.log;
+	console.warn = consoleFuncs.warn;
+	console.error = consoleFuncs.error;
+}
+
 function deepCountObjects(obj) {
 	let numChildObjects = 0;
 
@@ -66,14 +76,14 @@ const testObject = {
 	}
 };
 
-test('Initiate a proxserve and check if original object stays intact', () => {
+test('1. Initiate a proxserve and check if original object stays intact', () => {
 	let origin = cloneDeep(testObject);
 	let proxy = new Proxserve(origin);
 	expect(proxy).toEqual(testObject);
 	expect(proxy.getOriginalTarget() === origin).toBe(true);
 });
 
-test('Object, child-objects and added-child-objects should convert to proxies', () => {
+test('2. Object, child-objects and added-child-objects should convert to proxies', () => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 	proxy.level1_3 = {
 		level2_2: [0,2,4,6]
@@ -86,7 +96,7 @@ test('Object, child-objects and added-child-objects should convert to proxies', 
 	expect(util.types.isProxy(proxy.level1_3.level2_2)).toBe(true);
 });
 
-test('Proxies should contain built-in functions', () => {
+test('3. Proxies should contain built-in functions', () => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 
 	expect(typeof proxy.on).toBe('function');
@@ -120,7 +130,7 @@ test('Proxies should contain built-in functions', () => {
 	expect(typeof proxy.level1_1.arr1.$activate).toBe('function');
 });
 
-test('Basic events of changes', (done) => {
+test('4. Basic events of changes', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 	proxy.on('create', function(change) {
 		expect(change.oldValue).toBe(undefined);
@@ -173,7 +183,7 @@ test('Basic events of changes', (done) => {
 	}
 });
 
-test('Delay of events', (done) => {
+test('5. Delay of events', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), { delay: 0 });
 	let changes = [];
 	proxy.on('change', function(change) {
@@ -220,7 +230,88 @@ test('Delay of events', (done) => {
 	}
 });
 
-test('Destroy proxy and sub-proxies', (done) => {
+test('6. Stop/Block/Activate proxies', () => {
+	let proxy = new Proxserve(cloneDeep(testObject), {delay:0});
+	let numberOfEmits = 0;
+	proxy.on('change', function(changes) {
+		numberOfEmits++;
+	});
+	proxy.level1_1.arr1[1] = 12;
+	expect(numberOfEmits).toBe(1);
+
+	proxy.stop();
+	proxy.level1_1.arr1[1] = 13;
+	expect(numberOfEmits).toBe(1);
+
+	proxy.activate();
+	proxy.level1_1.arr1[1] = 14;
+	expect(numberOfEmits).toBe(2);
+
+	proxy.block();
+	silentConsole();
+	proxy.level1_1.arr1[1] = 555;
+	wakeConsole();
+	expect(proxy.level1_1.arr1[1]).toBe(14);
+	expect(numberOfEmits).toBe(2);
+
+	proxy.activate();
+	proxy.level1_1.arr1[1] = 15;
+	expect(proxy.level1_1.arr1[1]).toBe(15);
+	expect(numberOfEmits).toBe(3);
+
+	numberOfEmits = 0;
+	proxy.removeAllListeners();
+	proxy.level1_2.on('change', function(changes) {
+		numberOfEmits++;
+	});
+	proxy.level1_2.level2_1.level3_1.on('change', function(changes) {
+		numberOfEmits++;
+	});
+	proxy.level1_2.level2_1.level3_1.arr2[0] = 12;
+	expect(numberOfEmits).toBe(2); //two listeners were called
+
+	//test stop
+	proxy.level1_2.level2_1.stop();
+	proxy.level1_2.level2_1.level3_1.activate();
+	proxy.level1_2.level2_1.level3_1.arr2[0] = 13;
+	expect(numberOfEmits).toBe(2); //both objects inherit the 'stopped' status
+
+	proxy.level1_2.level2_1.level3_1.activate(true);
+	proxy.level1_2.level2_1.level3_1.arr2[0] = 14;
+	expect(numberOfEmits).toBe(3); //only one object has the 'stopped' status
+
+	proxy.level1_2.level2_1.level3_1.activate(); //inherits from parent again
+	proxy.level1_2.level2_1.level3_1.arr2[0] = 13;
+	expect(numberOfEmits).toBe(3);
+
+	//test block
+	silentConsole();
+	proxy.level1_2.level2_1.block();
+	proxy.level1_2.level2_1.level3_1.activate();
+	proxy.level1_2.level2_1.level3_1.arr2[0] = 555;
+	expect(proxy.level1_2.level2_1.level3_1.arr2[0]).toBe(13); //both objects inherit the 'blocked' status
+	expect(numberOfEmits).toBe(3);
+
+	proxy.level1_2.level2_1.level3_1.activate(true);
+	proxy.level1_2.level2_1.level3_1.arr2[0] = 555;
+	expect(proxy.level1_2.level2_1.level3_1.arr2[0]).toBe(555); //only one object has the 'blocked' status
+	expect(numberOfEmits).toBe(5); //even though parent is 'blocked', the child did mutate and event was emitted to all parents
+
+	proxy.level1_2.level2_1.level3_1.activate(); //inherits from parent again
+	proxy.level1_2.level2_1.level3_1.arr2[0] = 14;
+	expect(proxy.level1_2.level2_1.level3_1.arr2[0]).toBe(555);
+	expect(numberOfEmits).toBe(5);
+
+	proxy.block();
+	proxy.level1_2.stop(); //stopped is not blocked
+	proxy.level1_2.level2_1.level3_1.activate(true);
+	proxy.level1_2.level2_1.level3_1.arr2[0] = 15;
+	expect(proxy.level1_2.level2_1.level3_1.arr2[0]).toBe(15);
+	expect(numberOfEmits).toBe(6);
+	wakeConsole();
+});
+
+test('7. Destroy proxy and sub-proxies', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay:-950}); //hack to decrease the 1000ms delay of destroy
 	Proxserve.destroy(proxy);
 	expect(isRevoked(proxy)).toBe(false); //will live for 1000 - 950 ms
@@ -263,7 +354,7 @@ test('Destroy proxy and sub-proxies', (done) => {
 	}
 });
 
-test('Keep using proxies after deletion/detachment in non-strict instantiation', (done) => {
+test('8. Keep using proxies after deletion/detachment in non-strict instantiation', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay:-1000, strict:false});
 	let level1_1 = proxy.level1_1;
 	let arr2 = proxy.level1_2.level2_1.level3_1.arr2;
@@ -278,7 +369,7 @@ test('Keep using proxies after deletion/detachment in non-strict instantiation',
 	}, 5);
 });
 
-test('Observe on referenced changes and cloned changes', (done) => {
+test('9. Observe on referenced changes and cloned changes', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {emitReference: false});
 	proxy.level1_1.on('change', function(changes) {
 		expect(changes.length).toEqual(3);
@@ -311,7 +402,7 @@ test('Observe on referenced changes and cloned changes', (done) => {
 });
 
 //benchmark on a CPU with baseclock of 3.6 GHz is around 0.5s
-test('Proxserve 50,000 objects in less than 1 second', () => {
+test('10. Proxserve 50,000 objects in less than 1 second', () => {
 	let objectsInTest = deepCountObjects(testObject);
 	let repeatitions = Math.ceil(50000 / objectsInTest);
 	let objs = [];
@@ -331,7 +422,7 @@ test('Proxserve 50,000 objects in less than 1 second', () => {
 });
 
 //benchmark on a CPU with baseclock of 3.6 GHz is around 0.9s
-test('Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
+test('11. Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
 	let objectsInTest = deepCountObjects(testObject);
 	let repeatitions = Math.ceil(50000 / objectsInTest);
 	let proxies = [];
@@ -352,7 +443,7 @@ test('Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
 	}, 20);
 });
 
-test('Comprehensive events of changes', (done) => {
+test('12. Comprehensive events of changes', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {emitReference: false});
 	proxy.on('create', function(change) {
 		expect(this).toBe(proxy);
@@ -510,7 +601,7 @@ test('Comprehensive events of changes', (done) => {
 	}
 });
 
-test('splitPath - split path to segments', () => {
+test('13. splitPath - split path to segments', () => {
 	let path = Proxserve.splitPath('.level2_1.level3_1');
 	expect(path).toEqual(['level2_1','level3_1']);
 
@@ -533,7 +624,7 @@ test('splitPath - split path to segments', () => {
 	expect(path).toEqual(['1','0','new']);
 });
 
-test('getPathTarget - get target property of object and path', (done) => {
+test('14. getPathTarget - get target property of object and path', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay: 0});
 	proxy.on('change', function(changes) {
 		let obj = Proxserve.getPathTarget(this, changes[0].path);
