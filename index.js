@@ -350,7 +350,7 @@ return class Proxserve {
 						return true;
 					}
 					else {
-						return false;
+						return true; //do nothing because there's nothing to delete
 					}
 				}
 			});
