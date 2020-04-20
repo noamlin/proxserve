@@ -462,12 +462,18 @@ return class Proxserve {
 	 * @param {String} path 
 	 */
 	static splitPath(path) {
-		if(typeof path !== 'string' || path.length < 2) {
+		if(typeof path !== 'string' || path === '') {
 			return [''];
 		}
+		
+		let i = 0;
+		if(path[0] === '.' || path[0] === '[') {
+			i = 1; //loop will skip over openning '.' or '['
+		}
+
 		var resultsArr = [];
 		var tmp='';
-		for(let i=1; i < path.length; i++) { //i=1 and skip over '.' or '[']
+		for(; i < path.length; i++) {
 			let char = path[i];
 			if(char === '.' || char === '[') {
 				resultsArr.push(tmp);

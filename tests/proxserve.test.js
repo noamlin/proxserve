@@ -603,6 +603,8 @@ test('12. Comprehensive events of changes', (done) => {
 
 test('13. splitPath - split path to segments', () => {
 	let path = Proxserve.splitPath('.level2_1.level3_1');
+	let path2 = Proxserve.splitPath('level2_1.level3_1');
+	expect(path).toEqual(path2);
 	expect(path).toEqual(['level2_1','level3_1']);
 
 	path = Proxserve.splitPath('[2][2].new');
@@ -612,13 +614,15 @@ test('13. splitPath - split path to segments', () => {
 	expect(path).toEqual(['new','0']);
 
 	path = Proxserve.splitPath('.a');
+	path2 = Proxserve.splitPath('a');
+	expect(path).toEqual(path2);
 	expect(path).toEqual(['a']);
 
 	path = Proxserve.splitPath('.level2_1.level3_1.arr2[2][2].new[0]');
 	expect(path).toEqual(['level2_1','level3_1','arr2','2','2','new','0']);
 
 	path = Proxserve.splitPath('New[0]new');
-	expect(path).toEqual(['ew','0new']);
+	expect(path).toEqual(['New','0new']);
 
 	path = Proxserve.splitPath('[1][0][new]');
 	expect(path).toEqual(['1','0','new']);
