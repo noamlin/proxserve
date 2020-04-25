@@ -219,7 +219,7 @@ function add2emitQueue(target, path, oldValue, value, changeType) {
 	}
 	
 	path = `${data.pathProperty}${path}`; //get path ready for next iteratin
-	data = Object.getPrototypeOf(data);
+	data = Object.getPrototypeOf(data); //get parent
 	if(data !== Object.prototype) {
 		add2emitQueue.call(this, data.target, path, oldValue, value, changeType);
 	}
