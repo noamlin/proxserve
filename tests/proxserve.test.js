@@ -96,7 +96,35 @@ test('2. Object, child-objects and added-child-objects should convert to proxies
 	expect(util.types.isProxy(proxy.level1_3.level2_2)).toBe(true);
 });
 
-test('3. Proxies should contain built-in functions', () => {
+test('3. defineProperty should convert string/number properties to proxy', () => {
+	let origin = cloneDeep(testObject);
+	let proxy = new Proxserve(origin);
+	let sym = Symbol.for('sym');
+
+	let desc = {
+		enumerable: false,
+		configurable: true,
+		writable: true,
+		value: { this_is: { inner: 'some value' } }
+	};
+
+	Object.defineProperty(proxy, sym, cloneDeep(desc));
+	Object.defineProperty(proxy, 'obj', cloneDeep(desc));
+
+	expect(util.types.isProxy(proxy[sym])).toBe(false);
+	expect(util.types.isProxy(proxy.obj)).toBe(false);
+
+	desc.enumerable = true;
+	Object.defineProperty(proxy, sym, cloneDeep(desc));
+	Object.defineProperty(proxy, 'obj', cloneDeep(desc));
+
+	expect(util.types.isProxy(proxy[sym])).toBe(false); //symbol isn't proxied anyway
+	expect(util.types.isProxy(proxy[sym].this_is)).toBe(false);
+	expect(util.types.isProxy(proxy.obj)).toBe(true);
+	expect(util.types.isProxy(proxy.obj.this_is)).toBe(true);
+});
+
+test('4. Proxies should contain built-in functions', () => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 
 	expect(typeof proxy.on).toBe('function');
@@ -130,7 +158,7 @@ test('3. Proxies should contain built-in functions', () => {
 	expect(typeof proxy.level1_1.arr1.$activate).toBe('function');
 });
 
-test('4. Basic events of changes', (done) => {
+test('5. Basic events of changes', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 	proxy.on('create', function(change) {
 		expect(change.oldValue).toBe(undefined);
@@ -183,7 +211,7 @@ test('4. Basic events of changes', (done) => {
 	}
 });
 
-test('5. Delay of events', (done) => {
+test('6. Delay of events', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), { delay: 0 });
 	let changes = [];
 	proxy.on('change', function(change) {
@@ -230,7 +258,7 @@ test('5. Delay of events', (done) => {
 	}
 });
 
-test('6. Stop/Block/Activate proxies', () => {
+test('7. Stop/Block/Activate proxies', () => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay:0});
 	let numberOfEmits = 0;
 	proxy.on('change', function(changes) {
@@ -311,7 +339,52 @@ test('6. Stop/Block/Activate proxies', () => {
 	wakeConsole();
 });
 
-test('7. Destroy proxy and sub-proxies', (done) => {
+test('8. get/set/delete properties after defineProperty', () => {
+	let origin = cloneDeep(testObject);
+	let proxy = new Proxserve(origin);
+	let sym = Symbol.for('sym');
+
+	let desc = {
+		enumerable: false,
+		configurable: true,
+		writable: true,
+		value: 5
+	};
+	let valueObj = { this_is: { inner: 'some value' } };
+
+	Object.defineProperty(proxy, sym, cloneDeep(desc));
+	Object.defineProperty(proxy, 'obj', cloneDeep(desc));
+	proxy[sym] = cloneDeep(valueObj); //set
+	proxy.obj = cloneDeep(valueObj); //set
+
+	expect(util.types.isProxy(proxy[sym])).toBe(false);
+	expect(util.types.isProxy(proxy[sym].this_is)).toBe(false);
+	expect(util.types.isProxy(proxy.obj)).toBe(false);
+	expect(util.types.isProxy(proxy.obj.this_is)).toBe(false);
+
+	delete proxy[sym];
+	delete proxy.obj; //deleting a non-proxy
+	expect(proxy[sym]).toBe(undefined);
+	expect(proxy.obj).toBe(undefined);
+
+	desc.enumerable = true;
+	Object.defineProperty(proxy, sym, cloneDeep(desc));
+	Object.defineProperty(proxy, 'obj', cloneDeep(desc));
+	proxy[sym] = cloneDeep(valueObj); //set
+	proxy.obj = cloneDeep(valueObj); //set
+
+	expect(util.types.isProxy(proxy[sym])).toBe(false); //symbol isn't proxied anyway
+	expect(util.types.isProxy(proxy[sym].this_is)).toBe(false);
+	expect(util.types.isProxy(proxy.obj)).toBe(true);
+	expect(util.types.isProxy(proxy.obj.this_is)).toBe(true);
+
+	delete proxy[sym];
+	delete proxy.obj; //deleting a regular proxy
+	expect(proxy[sym]).toBe(undefined);
+	expect(proxy.obj).toBe(undefined);
+});
+
+test('9. Destroy proxy and sub-proxies', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay:-950}); //hack to decrease the 1000ms delay of destroy
 	Proxserve.destroy(proxy);
 	expect(isRevoked(proxy)).toBe(false); //will live for 1000 - 950 ms
@@ -354,7 +427,7 @@ test('7. Destroy proxy and sub-proxies', (done) => {
 	}
 });
 
-test('8. Keep using proxies after deletion/detachment in non-strict instantiation', (done) => {
+test('10. Keep using proxies after deletion/detachment in non-strict instantiation', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay:-1000, strict:false});
 	let level1_1 = proxy.level1_1;
 	let arr2 = proxy.level1_2.level2_1.level3_1.arr2;
@@ -369,7 +442,7 @@ test('8. Keep using proxies after deletion/detachment in non-strict instantiatio
 	}, 5);
 });
 
-test('9. Observe on referenced changes and cloned changes', (done) => {
+test('11. Observe on referenced changes and cloned changes', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {emitReference: false});
 	proxy.level1_1.on('change', function(changes) {
 		expect(changes.length).toEqual(3);
@@ -402,7 +475,7 @@ test('9. Observe on referenced changes and cloned changes', (done) => {
 });
 
 //benchmark on a CPU with baseclock of 3.6 GHz is around 0.5s
-test('10. Proxserve 50,000 objects in less than 1 second', () => {
+test('12. Proxserve 50,000 objects in less than 1 second', () => {
 	let objectsInTest = deepCountObjects(testObject);
 	let repeatitions = Math.ceil(50000 / objectsInTest);
 	let objs = [];
@@ -422,7 +495,7 @@ test('10. Proxserve 50,000 objects in less than 1 second', () => {
 });
 
 //benchmark on a CPU with baseclock of 3.6 GHz is around 0.9s
-test('11. Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
+test('13. Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
 	let objectsInTest = deepCountObjects(testObject);
 	let repeatitions = Math.ceil(50000 / objectsInTest);
 	let proxies = [];
@@ -443,7 +516,7 @@ test('11. Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
 	}, 20);
 });
 
-test('12. Comprehensive events of changes', (done) => {
+test('14. Comprehensive events of changes', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {emitReference: false});
 	proxy.on('create', function(change) {
 		expect(this).toBe(proxy);
@@ -601,7 +674,7 @@ test('12. Comprehensive events of changes', (done) => {
 	}
 });
 
-test('13. splitPath - split path to segments', () => {
+test('15. splitPath - split path to segments', () => {
 	let path = Proxserve.splitPath('.level2_1.level3_1');
 	let path2 = Proxserve.splitPath('level2_1.level3_1');
 	expect(path).toEqual(path2);
@@ -628,7 +701,7 @@ test('13. splitPath - split path to segments', () => {
 	expect(path).toEqual(['1','0','new']);
 });
 
-test('14. getPathTarget - get target property of object and path', (done) => {
+test('16. getPathTarget - get target property of object and path', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay: 0});
 	proxy.on('change', function(changes) {
 		let obj = Proxserve.getPathTarget(this, changes[0].path);

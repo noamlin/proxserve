@@ -283,6 +283,9 @@ return class Proxserve {
 					if(reservedFunctionsNames.includes(property) && typeof target[property] === 'undefined') {
 						return reservedFunctions[property].bind(this, target);
 					}
+					else if(!target.propertyIsEnumerable(property) || typeof property === 'symbol') {
+						return target[property]; //non-enumerable or non-path'able aren't proxied
+					}
 					else {
 						let data = this.objectData.get(target[property]);
 						return (data !== undefined) ? data.proxy : target[property];
@@ -291,14 +294,31 @@ return class Proxserve {
 			
 				set: (target, property, value, receiver) => {
 					let data = this.objectData.get(target);
+
+					/**
+					 * property can be a regular object because of 3 possible reasons:
+					 * 1. proxy is deleted from tree but user keeps accessing it then it means he saved a reference
+					 * 2. it is a non-enumerable property which means it was intentionally hidden
+					 * 3. property is a symbol and symbols can't be proxied because we can't create a normal path for them
+					 * these properties are not proxied and should not emit change-event,
+					 * except for: length
+					 * TODO - make a list of all possible properties exceptions (maybe function 'name'?)
+					 */
 					if(data.status === statuses[2]) { //blocked from changing values
 						console.error(`can't change value of property '${property}'. object is blocked.`);
 						return true;
 					}
-					else if(data.status === statuses[3]) {
-						//if proxy is deleted from tree but user keeps accessing it then it means he saved a reference and is now using it as a regular object
+					else if(data.status === statuses[3] || typeof property === 'symbol') {
 						target[property] = value;
 						return true;
+					}
+					else if(property !== 'length' && !target.propertyIsEnumerable(property)) {
+						//if setting a whole new property then it is non-enumerable (yet) so a further test is needed
+						let descriptor = Object.getOwnPropertyDescriptor(target, property);
+						if(typeof descriptor === 'object' && descriptor.enumerable === false) {
+							target[property] = value;
+							return true;
+						}
 					}
 
 					let typeofvalue = realtypeof(value);
@@ -323,7 +343,31 @@ return class Proxserve {
 					return true;
 				},
 
+				defineProperty: (target, property, descriptor) => {
+					//currently handling nothing, but just excluding non-enumerable properties from being proxied.
+					//also excludes symbol properties as they can't have a path
+					Object.defineProperty(target, property, descriptor);
+					let typeofvalue = realtypeof(descriptor.value);
+
+					if(acceptableTypes.includes(typeofvalue) && descriptor.enumerable === true && typeof property !== 'symbol') {
+						this.createProxy(descriptor.value, target, `${path}${currentPathProperty}`, property); //if trying to add a new value which is an object then make it a proxy
+						let newValue = descriptor.value;
+						if(!this.emitReference) { //also prevents emitting proxies
+							newValue = simpleClone(descriptor.value);
+						}
+						add2emitQueue.call(this, target, property2path(target, property), undefined, newValue);
+					}
+
+					return true;
+				},
+
 				deleteProperty: (target, property) => {
+					if(!target.propertyIsEnumerable(property) || typeof property === 'symbol') {
+						//non-proxied properties simply get deleted and nothing more
+						delete target[property];
+						return true;
+					}
+
 					let data = this.objectData.get(target);
 					if(data.status === statuses[2]) { //blocked from changing values
 						console.error(`can't delete property '${property}'. object is blocked.`);
