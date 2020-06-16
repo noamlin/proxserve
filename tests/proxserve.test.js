@@ -739,3 +739,24 @@ test('16. getPathTarget - get target property of object and path', (done) => {
 	proxy.a.a = 'a';
 	proxy.removeAllListeners();
 });
+
+test('17. On-change listener that makes its own changes', (done) => {
+	let proxy = new Proxserve(cloneDeep(testObject));
+	proxy.level1_1.arr1.on('change', function(changes) {
+		if(changes.length === 3) {
+			let propValue = Proxserve.getPathTarget(this, changes[0].path);
+			proxy.level1_1.arr1[0] = 123; //immediate change should be insterted to next round event emiting
+			expect(changes.length).toBe(3); //shouldn't have changed yet
+			expect(changes[0].value).toBe(17);
+			expect(changes[1].value).toBe(18);
+			expect(changes[2].value).toBe(19);
+		} else {
+			expect(changes.length).toBe(1);
+			expect(changes[0].value).toBe(123);
+			done();
+		}
+	});
+	proxy.level1_1.arr1[0] = 17;
+	proxy.level1_1.arr1[1] = 18;
+	proxy.level1_1.arr1[2] = 19;
+});

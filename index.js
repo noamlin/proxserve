@@ -227,8 +227,12 @@ function add2emitQueue(target, path, oldValue, value, changeType) {
 
 function emit(target) {
 	let data = this.objectData.get(target);
+	//save a reference to the event-pool because we are about to immediately empty it, so all future changes, even those
+	//that can occur now because of the listeners, will go to a new event-pool and will be emitted next round (after delay)
+	let eventPool = data.eventPool;
+	data.eventPool = [];
 
-	for(let change of data.eventPool) { //FIFO - first event in, first event out
+	for(let change of eventPool) { //FIFO - first event in, first event out
 		for(let listener of data.listeners) { //listener = [event, function]
 			if(listener[0] === change.type) { //will invoke create/update/delete listeners one by one.
 				listener[1].call(data.proxy, change);
@@ -238,11 +242,9 @@ function emit(target) {
 
 	for(let listener of data.listeners) {
 		if(listener[0] === acceptableEvents[0]) { //change
-			listener[1].call(data.proxy, data.eventPool); //on(change) is always called with an array of one or more changes
+			listener[1].call(data.proxy, eventPool); //on(change) is always called with an array of one or more changes
 		}
 	}
-
-	data.eventPool = []; //empty the event pool
 }
 
 return class Proxserve {
@@ -299,9 +301,9 @@ return class Proxserve {
 					 * property can be a regular object because of 3 possible reasons:
 					 * 1. proxy is deleted from tree but user keeps accessing it then it means he saved a reference
 					 * 2. it is a non-enumerable property which means it was intentionally hidden
-					 * 3. property is a symbol and symbols can't be proxied because we can't create a normal path for them
-					 * these properties are not proxied and should not emit change-event,
-					 * except for: length
+					 * 3. property is a symbol and symbols can't be proxied because we can't create a normal path for them.
+					 *    these properties are not proxied and should not emit change-event.
+					 *    except for: length
 					 * TODO - make a list of all possible properties exceptions (maybe function 'name'?)
 					 */
 					if(data.status === statuses[2]) { //blocked from changing values
@@ -547,6 +549,10 @@ return class Proxserve {
 			}
 		}
 		return obj[segments[i]]; //return last property. it can be undefined
+	}
+
+	static simpleClone(obj) {
+		return simpleClone(obj);
 	}
 }
 })();
