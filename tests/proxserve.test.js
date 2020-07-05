@@ -701,51 +701,65 @@ test('15. splitPath - split path to segments', () => {
 	expect(path).toEqual(['1','0','new']);
 });
 
-test('16. getPathTarget - get target property of object and path', (done) => {
+test('16. evalPath - get target property of object and path', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay: 0});
 	proxy.on('change', function(changes) {
-		let obj = Proxserve.getPathTarget(this, changes[0].path);
-		expect(obj).toEqual('xyz');
+		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
+		expect(object === proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep).toBe(true);
+		expect(property).toEqual('deeper');
+		expect(value).toBe('xyz');
 	});
 	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.deeper = 'xyz';
 	proxy.removeAllListeners();
 
 	proxy.level1_2.on('change', function(changes) {
-		let obj = Proxserve.getPathTarget(this, changes[0].path);
-		expect(obj).toEqual('asdf');
+		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
+		expect(object === proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep).toBe(true);
+		expect(property).toEqual('another');
+		expect(value).toBe('asdf');
 	});
 	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.another = 'asdf';
 	proxy.level1_2.removeAllListeners();
 
 	proxy.level1_2.level2_1.on('change', function(changes) {
-		let obj = Proxserve.getPathTarget(this, changes[0].path);
-		expect(obj).toEqual([0, {a: 'a'}]);
-		done();
+		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
+		expect(object === proxy.level1_2.level2_1.level3_1.arr2[2]).toBe(true);
+		expect(property).toEqual('2');
+		expect(value).toEqual([0, {a: 'a'}]);
 	});
 	proxy.level1_2.level2_1.level3_1.arr2[2][2] = [0, {a: 'a'}];
 	proxy.level1_2.level2_1.removeAllListeners();
 
 	proxy.on('change', function(changes) {
-		let obj = Proxserve.getPathTarget(this, changes[0].path);
-		expect(obj).toEqual({});
+		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
+		expect(object === proxy).toBe(true);
+		expect(property).toEqual('a');
+		expect(value).toEqual({});
 	});
 	proxy.a = {};
 	proxy.removeAllListeners();
 
 	proxy.on('change', function(changes) {
-		let obj = Proxserve.getPathTarget(this, changes[0].path);
-		expect(obj).toEqual('a');
+		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
+		expect(object === proxy.a).toBe(true);
+		expect(property).toEqual('a');
+		expect(value).toEqual('a');
 	});
 	proxy.a.a = 'a';
 	proxy.removeAllListeners();
+
+	let { object, property, value } = Proxserve.evalPath(proxy, '');
+	expect(object === proxy).toBe(true);
+	expect(property).toEqual(undefined);
+	expect(value).toEqual(proxy);
+	done();
 });
 
 test('17. On-change listener that makes its own changes', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 	proxy.level1_1.arr1.on('change', function(changes) {
 		if(changes.length === 3) {
-			let propValue = Proxserve.getPathTarget(this, changes[0].path);
-			proxy.level1_1.arr1[0] = 123; //immediate change should be insterted to next round event emiting
+			proxy.level1_1.arr1[0] = 123; //immediate change should be insterted to next round event emitting
 			expect(changes.length).toBe(3); //shouldn't have changed yet
 			expect(changes[0].value).toBe(17);
 			expect(changes[1].value).toBe(18);

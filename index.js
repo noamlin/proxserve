@@ -542,11 +542,16 @@ return class Proxserve {
 	}
 
 	/**
-	 * get the target matching the path from object
-	 * @param {Proxy|Object} obj 
-	 * @param {String} path 
+	 * evaluate a long path and return the designated object and its referred property
+	 * @param {Object} obj
+	 * @param {String} path
+	 * @returns {Object} - returns {object, property, value}
 	 */
-	static getPathTarget(obj, path) {
+	static evalPath(obj, path) {
+		if(path === '') {
+			return { object: obj, property: undefined, value: obj };
+		}
+
 		let segments = Proxserve.splitPath(path);
 		let i;
 		for(i = 0; i <= segments.length - 2; i++) { //iterate until one before last property because they all must exist
@@ -555,7 +560,7 @@ return class Proxserve {
 				throw new Error('Invalid path was given');
 			}
 		}
-		return obj[segments[i]]; //return last property. it can be undefined
+		return { object: obj, property: segments[i], value: obj[ segments[i] ] };
 	}
 
 	static simpleClone(obj) {
