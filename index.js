@@ -170,6 +170,10 @@ for(let i = reservedFunctionsNames.length - 1; i >= 0; i--) {
  * @param {String} property 
  */
 function property2path(obj, property) {
+	if(typeof property === 'symbol') {
+		throw new Error(`property of type "symbol" isn't path'able`);
+	}
+
 	let typeofobj = realtypeof(obj);
 	switch(typeofobj) {
 		case 'Object': return `.${property}`;
@@ -324,7 +328,7 @@ return class Proxserve {
 					else if(property !== 'length' && !target.propertyIsEnumerable(property)) {
 						//if setting a whole new property then it is non-enumerable (yet) so a further test is needed
 						let descriptor = Object.getOwnPropertyDescriptor(target, property);
-						if(typeof descriptor === 'object' && descriptor.enumerable === false) { //propert was previously set
+						if(typeof descriptor === 'object' && descriptor.enumerable === false) { //property was previously set
 							target[property] = value;
 							return true;
 						}
@@ -343,7 +347,20 @@ return class Proxserve {
 						Proxserve.destroy(oldValue);
 					}
 					
+					let valueIsProxy = false;
+					try {
+						value.getProxserveInstance();
+						valueIsProxy = true;
+					} catch(error) {}
+
+					if(valueIsProxy) {
+						//if user tried to set a new value which is already a proxy (probably from another path) then we will handle
+						//only the original target which will trigger a whole new 'createProxy' recursion with new paths
+						value = value.getOriginalTarget();
+					}
+
 					target[property] = value; //assign new value
+
 					let typeofvalue = realtypeof(value);
 					if(acceptableTypes.includes(typeofvalue)) {
 						this.createProxy(target, path, property); //if trying to add a new value which is an object then make it a proxy
@@ -359,15 +376,22 @@ return class Proxserve {
 				},
 
 				defineProperty: (target/*same as parent scope 'target'*/, property, descriptor) => {
-					//currently handling nothing, but just excluding non-enumerable properties from being proxied.
-					//also excludes symbol properties as they can't have a path
+					let propertyPath;
+					if(typeof property !== 'symbol') {
+						propertyPath = property2path(target, property);
+
+						let oldValueWasProxy = this.path2data.has(`${path}${propertyPath}`);
+						if(this.strict && oldValueWasProxy) { //a proxy will be detached from the tree
+							Proxserve.destroy(data.proxy[property]);
+						}
+					}
+
 					Object.defineProperty(target, property, descriptor);
 					let typeofvalue = realtypeof(descriptor.value);
 
+					//excluding non-enumerable properties from being proxied and also excludes symbol properties as they can't have a path
 					if(acceptableTypes.includes(typeofvalue) && descriptor.enumerable === true && typeof property !== 'symbol') {
 						this.createProxy(target, path, property); //if trying to add a new value which is an object then make it a proxy
-						
-						let propertyPath = property2path(target, property);
 						
 						if(!this.emitReference) { //also prevents emitting proxies
 							add2emitQueue.call(this, data.proxy, propertyPath, undefined, simpleClone(descriptor.value));
@@ -493,34 +517,39 @@ return class Proxserve {
 		}
 
 		let data = self.proxy2data.get(proxy);
-		if(data) {
-			let typeofproxy = realtypeof(proxy);
-			if(acceptableTypes.includes(typeofproxy)) {
-				if(typeofproxy === 'Object') {
-					let keys = Object.keys(proxy);
-					for(let key of keys) {
-						let typeofproperty = realtypeof(proxy[key]);
-						if(acceptableTypes.includes(typeofproperty)) {
-							Proxserve.destroy(proxy[key]);
-						}
-					}
-				}
-				else if(typeofproxy === 'Array') {
-					for(let i = proxy.length - 1; i >= 0; i--) {
-						let typeofproperty = realtypeof(proxy[i]);
-						if(acceptableTypes.includes(typeofproperty)) {
-							Proxserve.destroy(proxy[i]);
-						}
-					}
-				}
-				else {
-					console.warn('Not Implemented');
-				}
 
-				setTimeout(function() {
-					data.revoke();
-				}, self.delay + 1000);
+		let typeofproxy = realtypeof(proxy);
+		if(acceptableTypes.includes(typeofproxy)) {
+			if(typeofproxy === 'Object') {
+				let keys = Object.keys(proxy);
+				for(let key of keys) {
+					let typeofproperty = realtypeof(proxy[key]);
+					if(acceptableTypes.includes(typeofproperty)) {
+						Proxserve.destroy(proxy[key]);
+					}
+				}
 			}
+			else if(typeofproxy === 'Array') {
+				for(let i = proxy.length - 1; i >= 0; i--) {
+					let typeofproperty = realtypeof(proxy[i]);
+					if(acceptableTypes.includes(typeofproperty)) {
+						Proxserve.destroy(proxy[i]);
+					}
+				}
+			}
+			else {
+				console.warn('Not Implemented');
+			}
+
+			setTimeout(function() {
+				let dataByPath = self.path2data.get(`${data.parentPath}${data.propertyPath}`);
+				//this runs async so check if meanwhile data for this path wasn't replaced with a new proxy
+				if(dataByPath.proxy === data.proxy) {
+					self.path2data.delete(`${data.parentPath}${data.propertyPath}`);
+				}
+				self.proxy2data.delete(data.proxy);
+				data.revoke();
+			}, self.delay + 1000);
 		}
 	}
 

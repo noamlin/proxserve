@@ -96,9 +96,9 @@ test('2. Object, child-objects and added-child-objects should convert to proxies
 	expect(util.types.isProxy(proxy.level1_3.level2_2)).toBe(true);
 });
 
-test('3. defineProperty should convert string/number properties to proxy', () => {
+test('3. defineProperty should convert string/number properties to proxy', (done) => {
 	let origin = cloneDeep(testObject);
-	let proxy = new Proxserve(origin);
+	let proxy = new Proxserve(origin, {delay:-950});
 	let sym = Symbol.for('sym');
 
 	let desc = {
@@ -122,6 +122,15 @@ test('3. defineProperty should convert string/number properties to proxy', () =>
 	expect(util.types.isProxy(proxy[sym].this_is)).toBe(false);
 	expect(util.types.isProxy(proxy.obj)).toBe(true);
 	expect(util.types.isProxy(proxy.obj.this_is)).toBe(true);
+
+	let this_is = proxy.obj.this_is; //reference to proxy
+	desc.value = 5;
+	Object.defineProperty(proxy, 'obj', cloneDeep(desc)); //overwrite existing property 'obj'
+
+	setTimeout(() => {
+		expect(isRevoked(this_is)).toBe(true);
+		done();
+	}, 100);
 });
 
 test('4. Proxies should contain built-in functions', () => {
@@ -386,10 +395,10 @@ test('8. get/set/delete properties after defineProperty', () => {
 
 test('9. Destroy proxy and sub-proxies', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay:-950}); //hack to decrease the 1000ms delay of destroy
-	Proxserve.destroy(proxy);
+	//Proxserve.destroy(proxy);
 	expect(isRevoked(proxy)).toBe(false); //will live for 50 ms (1000 minus 950)
 	setTimeout(() => {
-		expect(isRevoked(proxy)).toBe(true);
+		//expect(isRevoked(proxy)).toBe(true);
 		part2();
 	}, 100);
 
@@ -397,11 +406,16 @@ test('9. Destroy proxy and sub-proxies', (done) => {
 		proxy = new Proxserve(cloneDeep(testObject), {delay:-950});
 		let reference2level3 = proxy.level1_2.level2_1.level3_1;
 		let reference2arr2 = reference2level3.arr2;
-		Proxserve.destroy(proxy.level1_2);
+
+		let level1_2 = proxy.level1_2; //reference to proxy
+		let level1_2_target = proxy.level1_2.getOriginalTarget();
+		Proxserve.destroy(level1_2);
 		expect(isRevoked(proxy.level1_2)).toBe(false); //will live for 1 more second
+
 		setTimeout(() => {
 			expect(isRevoked(proxy)).toBe(false);
-			expect(isRevoked(proxy.level1_2)).toBe(true);
+			expect(isRevoked(level1_2)).toBe(true); //proxy was revoked
+			expect(proxy.level1_2 === level1_2_target).toBe(true); //getting property of destroyed proxy will give the original target
 			expect(isRevoked(reference2level3)).toBe(true);
 			expect(isRevoked(reference2arr2)).toBe(true);
 			part3();
@@ -426,39 +440,88 @@ test('9. Destroy proxy and sub-proxies', (done) => {
 		}, 100);
 	}
 });
-if(false) {
+
 test('10. Dont revoke sub-proxies that are still in use in the main proxy after a deletion', (done) => {
 	let proxy = new Proxserve({
 		sub_obj: {
 			sub_arr: [{a:'a'}, {b:'b'}, {c:'c'}, {d:'d'}]
 		}
 	}, {delay:-950}); //hack to decrease the 1000ms delay of destroy
+
+	let a = proxy.sub_obj.sub_arr[0];
+	let b = proxy.sub_obj.sub_arr[1];
+	let c = proxy.sub_obj.sub_arr[2], cTarget = c.getOriginalTarget();
+	let d = proxy.sub_obj.sub_arr[3], dTarget = d.getOriginalTarget();
+
 	expect(isRevoked(proxy.sub_obj.sub_arr[2])).toBe(false);
 	
 	//will delete cell at index 1 and then copy 2 to 1 and move 3 to 2 and then delete cell index 3 and update length
 	proxy.sub_obj.sub_arr.splice(1, 1);
 	
 	setTimeout(() => {
-		expect(isRevoked(proxy.sub_obj.sub_arr[2])).toBe(false);
-		done();//part2();
+		expect(a === proxy.sub_obj.sub_arr[0]).toBe(true); //wasn't touched
+		expect(isRevoked(a)).toBe(false);
+
+		expect(isRevoked(b)).toBe(true); //was deleted
+
+		expect(cTarget === proxy.sub_obj.sub_arr[1].getOriginalTarget()).toBe(true); //same target
+		expect(c === proxy.sub_obj.sub_arr[1]).toBe(false); //but different path thus different proxy
+		expect(isRevoked(c)).toBe(true);
+
+		expect(dTarget === proxy.sub_obj.sub_arr[2].getOriginalTarget()).toBe(true); //same target
+		expect(d === proxy.sub_obj.sub_arr[2]).toBe(false); //but different path thus different proxy
+		expect(isRevoked(c)).toBe(true);
+
+		part2();
 	}, 100);
 
 	function part2() {
-		proxy = new Proxserve(cloneDeep(testObject), {delay:-950});
-		let reference2level3 = proxy.level1_2.level2_1.level3_1;
-		let reference2arr2 = reference2level3.arr2;
-		Proxserve.destroy(proxy.level1_2);
-		expect(isRevoked(proxy.level1_2)).toBe(false); //will live for 1 more second
+		delete proxy.sub_obj.sub_arr[0];
+		expect(isRevoked(a)).toBe(false); //will be destroyed async later
 		setTimeout(() => {
-			expect(isRevoked(proxy)).toBe(false);
-			expect(isRevoked(proxy.level1_2)).toBe(true);
-			expect(isRevoked(reference2level3)).toBe(true);
-			expect(isRevoked(reference2arr2)).toBe(true);
+			expect(isRevoked(a)).toBe(true);
 			part3();
 		}, 100);
 	}
+
+	function part3() {
+		proxy.arr = [{a:'a'}, {b:'b'}, {c:'c'}, {d:'d'}];
+		let instance = proxy.getProxserveInstance();
+		let a = proxy.arr[0], aTarget = proxy.arr[0].getOriginalTarget();
+		let b = proxy.arr[1], bTarget = proxy.arr[1].getOriginalTarget();
+		let c = proxy.arr[2], cTarget = proxy.arr[2].getOriginalTarget();
+		let d = proxy.arr[3], dTarget = proxy.arr[3].getOriginalTarget();
+
+		let aData = instance.path2data.get('.arr[0]');
+		let bData = instance.path2data.get('.arr[1]');
+		let dData = instance.path2data.get('.arr[3]');
+		expect(aData.proxy === a).toBe(true);
+		expect(aData.target === aTarget).toBe(true);
+
+		proxy.arr.splice(1,2); //delete 'b' and 'c', then move 'd' to [1]
+		delete proxy.arr[0];
+		proxy.arr[3] = [];
+
+		aData = instance.path2data.get('.arr[0]'); //should still be there, until revocation
+		let new_bData = instance.path2data.get('.arr[1]'); //should be replaced (overwritten) immediately
+		let cData = instance.path2data.get('.arr[2]'); //should still be there, until revocation
+		let new_dData = instance.path2data.get('.arr[3]'); //should be replaced (overwritten) immediately
+
+		expect(typeof aData).toBe('object');
+		expect(bData === new_bData).toBe(false);
+		expect(typeof cData).toBe('object');
+		expect(dData === new_dData).toBe(false);
+
+		setTimeout(() => {
+			aData = instance.path2data.get('.arr[0]');
+			cData = instance.path2data.get('.arr[2]');
+			expect(aData).toBe(undefined);
+			expect(cData).toBe(undefined);
+			done();
+		}, 100);
+	}
 });
-}
+
 test('11. Keep using proxies after deletion/detachment in non-strict instantiation', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay:-1000, strict:false});
 	let level1_1 = proxy.level1_1;
