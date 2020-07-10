@@ -18,15 +18,6 @@ function realtypeof(variable) {
 	return rawType.substring(8, rawType.length-1);
 }
 
-/**
- * check if variable is a number or a string of a number
- * @param {*} variable 
- */
-function isNumeric(variable) {
-	if(typeof variable === 'string' && variable === '') return false;
-	else return !isNaN(variable);
-}
-
 let acceptableTypes = ['Object', 'Array', 'Map']; //acceptable types to be proxied
 let acceptableEvents = ['change', 'create', 'update', 'delete'];
 let statuses = ['active', 'stopped', 'blocked', 'deleted']; //statuses of proxies
@@ -74,47 +65,46 @@ function simpleClone(obj) {
 
 /**
  * stop object and children from emitting change events
- * @param {Object} target
+ * @param {Object} proxy
  */
-reservedFunctions.stop = function(target) {
-	this.objectData.get(target).status = statuses[1];
+reservedFunctions.stop = function(proxy) {
+	this.proxy2data.get(proxy).status = statuses[1];
 }
 
 /**
  * block object and children from any changes.
  * user can't set nor delete any property
- * @param {Object} target
+ * @param {Object} proxy
  */
-reservedFunctions.block = function(target) {
-	this.objectData.get(target).status = statuses[2];
+reservedFunctions.block = function(proxy) {
+	this.proxy2data.get(proxy).status = statuses[2];
 }
 
 /**
  * resume default behavior of emitting change events, inherited from parent
- * @param {Object} target
+ * @param {Object} proxy
  * @param {Boolean} [force] - force being active regardless of parent
  */
-reservedFunctions.activate = function(target, force=false) {
-	let data = this.objectData.get(target);
+reservedFunctions.activate = function(proxy, force=false) {
+	let data = this.proxy2data.get(proxy);
 	if(force || data.property==='') { //force activation or we are on root proxy
 		data.status = statuses[0];
 	}
 	else {
-		let data = this.objectData.get(target);
 		delete data.status;
 	}
 }
 
 /**
  * add event listener on a proxy
- * @param {Object} target
+ * @param {Object} proxy
  * @param {String} event 
  * @param {Function} listener 
  * @param {String} [id] - identifier for removing this listener
  */
-reservedFunctions.on = function(target, event, listener, id) {
+reservedFunctions.on = function(proxy, event, listener, id) {
 	if(acceptableEvents.includes(event)) {
-		this.objectData.get(target).listeners.push([event, listener, id]);
+		this.proxy2data.get(proxy).listeners.push([event, listener, id]);
 	}
 	else {
 		throw new Error(`${event} is not a valid event. valid events are ${acceptableEvents.join(',')}`);
@@ -123,11 +113,11 @@ reservedFunctions.on = function(target, event, listener, id) {
 
 /**
  * removes a listener from an object by an identifier (can have multiple listeners with the same ID)
- * @param {Object} target
+ * @param {Object} proxy
  * @param {String} id - the listener(s) identifier
  */
-reservedFunctions.removeListener = function(target, id) {
-	let listeners = this.objectData.get(target).listeners;
+reservedFunctions.removeListener = function(proxy, id) {
+	let listeners = this.proxy2data.get(proxy).listeners;
 	for(let i = listeners.length - 1; i >= 0; i--) {
 		if(listeners[i][2] === id) {
 			listeners.splice(i, 1);
@@ -137,10 +127,10 @@ reservedFunctions.removeListener = function(target, id) {
 
 /**
  * removing all listeners of an object
- * @param {Object} target
+ * @param {Object} proxy
  */
-reservedFunctions.removeAllListeners = function(target) {
-	this.objectData.get(target).listeners = [];
+reservedFunctions.removeAllListeners = function(proxy) {
+	this.proxy2data.get(proxy).listeners = [];
 }
 
 /**
@@ -149,10 +139,10 @@ reservedFunctions.removeAllListeners = function(target) {
  */
 /**
  * get original target that is behind the proxy.
- * @param {Object} target
+ * @param {Object} proxy
  */
-reservedFunctions.getOriginalTarget = function(target) {
-	return target;
+reservedFunctions.getOriginalTarget = function(proxy) {
+	return this.proxy2data.get(proxy).target;
 }
 
 /**
@@ -190,13 +180,13 @@ function property2path(obj, property) {
 
 /**
  * 
- * @param {Object} target 
- * @param {String} path 
+ * @param {Object} proxy 
+ * @param {String} path - segments from current object until desired descendant property
  * @param {*} oldValue 
  * @param {*} value 
  * @param {String} [changeType]
  */
-function add2emitQueue(target, path, oldValue, value, changeType) {
+function add2emitQueue(proxy, path, oldValue, value, changeType) {
 	if(typeof changeType === 'undefined') {
 		if(oldValue === value) return; //no new change was made
 
@@ -205,7 +195,7 @@ function add2emitQueue(target, path, oldValue, value, changeType) {
 		else changeType = 'update';
 	}
 
-	let data = this.objectData.get(target);
+	let data = this.proxy2data.get(proxy);
 	
 	if(data.status === statuses[1]) { //stopped
 		return;
@@ -218,22 +208,22 @@ function add2emitQueue(target, path, oldValue, value, changeType) {
 		data.eventPool.push(change);
 
 		if(this.delay <= 0) {
-			emit.call(this, target); //emit immediately
+			emit.call(this, proxy); //emit immediately
 		}
 		else if(data.eventPool.length === 1) {
-			setTimeout(emit.bind(this), this.delay, target); //initiate timeout once, when starting to accumulate events
+			setTimeout(emit.bind(this), this.delay, proxy); //initiate timeout once, when starting to accumulate events
 		}
 	}
 	
-	path = `${data.pathProperty}${path}`; //get path ready for next iteratin
+	path = `${data.propertyPath}${path}`; //get path ready for next iteratin
 	data = Object.getPrototypeOf(data); //get parent
 	if(data !== Object.prototype) {
-		add2emitQueue.call(this, data.target, path, oldValue, value, changeType);
+		add2emitQueue.call(this, data.proxy, path, oldValue, value, changeType);
 	}
 }
 
-function emit(target) {
-	let data = this.objectData.get(target);
+function emit(proxy) {
+	let data = this.proxy2data.get(proxy);
 	//save a reference to the event-pool because we are about to immediately empty it, so all future changes, even those
 	//that can occur now because of the listeners, will go to a new event-pool and will be emitted next round (after delay)
 	let eventPool = data.eventPool;
@@ -267,10 +257,10 @@ return class Proxserve {
 		this.delay = (options.delay !== undefined) ? options.delay : 10;
 		this.strict = (options.strict !== undefined) ? options.strict : true;
 		this.emitReference = (options.emitReference !== undefined) ? options.emitReference : true;
-		this.objectData = new WeakMap();
-		this.proxyData = new WeakMap();
+		this.path2data = new Map();
+		this.proxy2data = new WeakMap();
 
-		return this.createProxy(target, null, '', '');
+		return this.createProxy(target, '', '');
 	}
 
 	/**
@@ -280,30 +270,40 @@ return class Proxserve {
 	 * @param {String} path
 	 * @param {String} currentProperty
 	 */
-	createProxy(target, parent, path, currentProperty) {
-		let currentPathProperty = (currentProperty === '') ? '' : property2path(target, currentProperty);
+	createProxy(parent, parentPath, targetProperty) {
+		let target;
+		let path;
+		if(targetProperty !== '') {
+			target = parent[ targetProperty ];
+			path = parentPath + property2path(parent, targetProperty);
+		}
+		else {
+			target = parent; //root object
+			path = parentPath;
+		}
+
+		let data; //important. will be set after creating the proxy
 
 		let typeoftarget = realtypeof(target);
 
 		if(acceptableTypes.includes(typeoftarget)) {
 			let revocable = Proxy.revocable(target, {
-				get: (target, property, receiver) => {
+				get: (target/*same as parent scope 'target'*/, property, proxy) => {
 					//can access a function (or its synonym) if their keywords isn't used
 					if(reservedFunctionsNames.includes(property) && typeof target[property] === 'undefined') {
-						return reservedFunctions[property].bind(this, target);
+						return reservedFunctions[property].bind(this, proxy);
 					}
 					else if(!target.propertyIsEnumerable(property) || typeof property === 'symbol') {
 						return target[property]; //non-enumerable or non-path'able aren't proxied
 					}
 					else {
-						let data = this.objectData.get(target[property]);
-						return (data !== undefined) ? data.proxy : target[property];
+						let propertyPath = property2path(target, property);
+						let propertyData = this.path2data.get(`${path}${propertyPath}`);
+						return (propertyData !== undefined) ? propertyData.proxy : target[property];
 					}
 				},
 			
-				set: (target, property, value, receiver) => {
-					let data = this.objectData.get(target);
-
+				set: (target/*same as parent scope 'target'*/, property, value, proxy) => { //'receiver' is proxy
 					/**
 					 * property can be a regular object because of 3 possible reasons:
 					 * 1. proxy is deleted from tree but user keeps accessing it then it means he saved a reference
@@ -324,47 +324,56 @@ return class Proxserve {
 					else if(property !== 'length' && !target.propertyIsEnumerable(property)) {
 						//if setting a whole new property then it is non-enumerable (yet) so a further test is needed
 						let descriptor = Object.getOwnPropertyDescriptor(target, property);
-						if(typeof descriptor === 'object' && descriptor.enumerable === false) {
+						if(typeof descriptor === 'object' && descriptor.enumerable === false) { //propert was previously set
 							target[property] = value;
 							return true;
 						}
 					}
 
-					let typeofvalue = realtypeof(value);
-					if(acceptableTypes.includes(typeofvalue)) {
-						this.createProxy(value, target, `${path}${currentPathProperty}`, property); //if trying to add a new value which is an object then make it a proxy
+					let propertyPath = property2path(target, property);
+					let oldValue = proxy[property];
+					let valueClone, oldValueClone;
+					if(!this.emitReference) {
+						valueClone = simpleClone(value); //deep copy with no proxies inside
+						oldValueClone = simpleClone(oldValue); //deep copy with no proxies inside
 					}
 
-					let oldValue = data.proxy[property];
-
-					if(this.strict && this.proxyData.has(oldValue)) { //a proxy has been detached from the tree
+					let oldValueWasProxy = this.path2data.has(`${path}${propertyPath}`);
+					if(this.strict && oldValueWasProxy) { //a proxy will be detached from the tree
 						Proxserve.destroy(oldValue);
 					}
-
-					let newValue = value;
-					if(!this.emitReference) { //also prevents emitting proxies
-						newValue = simpleClone(value);
-						oldValue = simpleClone(target[property]);
+					
+					target[property] = value; //assign new value
+					let typeofvalue = realtypeof(value);
+					if(acceptableTypes.includes(typeofvalue)) {
+						this.createProxy(target, path, property); //if trying to add a new value which is an object then make it a proxy
 					}
 
-					target[property] = value; //assign new value
-					add2emitQueue.call(this, target, property2path(target, property), oldValue, newValue);
+					if(!this.emitReference) { //also prevents emitting proxies
+						add2emitQueue.call(this, proxy, propertyPath, oldValueClone, valueClone);
+					} else {
+						add2emitQueue.call(this, proxy, propertyPath, oldValue, value);
+					}
+
 					return true;
 				},
 
-				defineProperty: (target, property, descriptor) => {
+				defineProperty: (target/*same as parent scope 'target'*/, property, descriptor) => {
 					//currently handling nothing, but just excluding non-enumerable properties from being proxied.
 					//also excludes symbol properties as they can't have a path
 					Object.defineProperty(target, property, descriptor);
 					let typeofvalue = realtypeof(descriptor.value);
 
 					if(acceptableTypes.includes(typeofvalue) && descriptor.enumerable === true && typeof property !== 'symbol') {
-						this.createProxy(descriptor.value, target, `${path}${currentPathProperty}`, property); //if trying to add a new value which is an object then make it a proxy
-						let newValue = descriptor.value;
+						this.createProxy(target, path, property); //if trying to add a new value which is an object then make it a proxy
+						
+						let propertyPath = property2path(target, property);
+						
 						if(!this.emitReference) { //also prevents emitting proxies
-							newValue = simpleClone(descriptor.value);
+							add2emitQueue.call(this, data.proxy, propertyPath, undefined, simpleClone(descriptor.value));
+						} else {
+							add2emitQueue.call(this, data.proxy, propertyPath, undefined, descriptor.value);
 						}
-						add2emitQueue.call(this, target, property2path(target, property), undefined, newValue);
 					}
 
 					return true;
@@ -377,29 +386,36 @@ return class Proxserve {
 						return true;
 					}
 
-					let data = this.objectData.get(target);
 					if(data.status === statuses[2]) { //blocked from changing values
 						console.error(`can't delete property '${property}'. object is blocked.`);
 						return true;
 					}
 
+					let propertyPath = property2path(target, property);
+
 					if(property in target) {
 						let oldValue = data.proxy[property];
-						if(this.strict) {
-							Proxserve.destroy(oldValue);
-						}
-
-						let propertyData = this.objectData.get(target[property]);
-						if(propertyData) {
-							propertyData.status = statuses[3]; //deleted
-						}
-
+						let oldValueClone;
 						if(!this.emitReference) {
-							oldValue = simpleClone(target[property]); //also prevents emitting proxies
+							oldValueClone = simpleClone(oldValue); //deep copy with no proxies inside
+						}
+
+						let oldValueData = this.path2data.get(`${path}${propertyPath}`);
+						if(oldValueData) {
+							oldValueData.status = statuses[3]; //deleted
+							if(this.strict) {
+								Proxserve.destroy(oldValue); //will destroy this proxy and all sub-proxies
+							}
 						}
 
 						delete target[property]; //actual delete
-						add2emitQueue.call(this, target, property2path(target, property), oldValue, undefined, 'delete');
+
+						if(!this.emitReference) { //also prevents emitting proxies
+							add2emitQueue.call(this, data.proxy, propertyPath, oldValueClone, undefined, 'delete');
+						} else {
+							add2emitQueue.call(this, data.proxy, propertyPath, oldValue, undefined, 'delete');
+						}
+
 						return true;
 					}
 					else {
@@ -408,40 +424,39 @@ return class Proxserve {
 				}
 			});
 
-			let data;
-			if(parent === null) { //dealing with root object
+			if(parent === target) { //dealing with root object
 				data = {
 					'status': statuses[0],
-					'pathProperty': ''
+					'propertyPath': ''
 				};
 			}
 			else {
 				//inherit from parent
-				data = Object.create(this.objectData.get(parent));
-				data.pathProperty = property2path(parent, currentProperty);
+				data = Object.create(this.path2data.get(parentPath));
+				data.propertyPath = property2path(parent, targetProperty);
 			}
 			//overwrite properties of its own
 			Object.assign(data, {
 				'target': target,
 				'proxy': revocable.proxy,
 				'revoke': revocable.revoke,
-				'path': path,
-				'property': currentProperty,
+				'parentPath': parentPath,
+				'property': targetProperty,
 				'listeners': [],
 				'eventPool': []
 			});
 
 
 			//save important data regarding the proxy and original (raw) object
-			this.objectData.set(target, data);
-			this.proxyData.set(revocable.proxy, data);
+			this.path2data.set(path, data);
+			this.proxy2data.set(revocable.proxy, data);
 
 			if(typeoftarget === 'Object') {
 				let keys = Object.keys(target);
 				for(let key of keys) {
 					let typeofproperty = realtypeof(target[key]);
 					if(acceptableTypes.includes(typeofproperty)) {
-						this.createProxy(target[key], target, `${path}${currentPathProperty}`, key); //recursively make child objects also proxies
+						this.createProxy(target, path, key); //recursively make child objects also proxies
 					}
 				}
 			}
@@ -449,7 +464,7 @@ return class Proxserve {
 				for(let i = 0; i < target.length; i++) {
 					let typeofproperty = realtypeof(target[i]);
 					if(acceptableTypes.includes(typeofproperty)) {
-						this.createProxy(target[i], target, `${path}${currentPathProperty}`, i); //recursively make child objects also proxies
+						this.createProxy(target, path, i); //recursively make child objects also proxies
 					}
 				}
 			}
@@ -477,7 +492,7 @@ return class Proxserve {
 			return; //proxy variable isn't a proxy
 		}
 
-		let data = self.proxyData.get(proxy);
+		let data = self.proxy2data.get(proxy);
 		if(data) {
 			let typeofproxy = realtypeof(proxy);
 			if(acceptableTypes.includes(typeofproxy)) {
