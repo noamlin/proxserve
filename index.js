@@ -552,17 +552,25 @@ return class Proxserve {
 			if(typeofproxy === 'Object') {
 				let keys = Object.keys(proxy);
 				for(let key of keys) {
-					let typeofproperty = realtypeof(proxy[key]);
-					if(acceptableTypes.includes(typeofproperty)) {
-						Proxserve.destroy(proxy[key]);
+					try {
+						let typeofproperty = realtypeof(proxy[key]);
+						if(acceptableTypes.includes(typeofproperty)) {
+							Proxserve.destroy(proxy[key]);
+						}
+					} catch(error) {
+						console.error(error); //don't throw and kill the whole process just if this recursion fails
 					}
 				}
 			}
 			else if(typeofproxy === 'Array') {
 				for(let i = proxy.length - 1; i >= 0; i--) {
-					let typeofproperty = realtypeof(proxy[i]);
-					if(acceptableTypes.includes(typeofproperty)) {
-						Proxserve.destroy(proxy[i]);
+					try {
+						let typeofproperty = realtypeof(proxy[i]);
+						if(acceptableTypes.includes(typeofproperty)) {
+							Proxserve.destroy(proxy[i]);
+						}
+					} catch(error) {
+						console.error(error); //don't throw and kill the whole process just if this recursion fails
 					}
 				}
 			}
