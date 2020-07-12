@@ -248,6 +248,45 @@ function emit(proxy) {
 	}
 }
 
+/**
+ * recursively switch between all proxies to their original targets.
+ * note: original targets should never hold proxies under them,
+ * thus altering the object references (getting from 'value') should be ok.
+ * if the programmer decided to create a proxy and then another regular-object and adding to that different children
+ * from the proxy and then attaching the regular-object to the proxy then this outer regular-object will be altered.
+ * @param {*} value
+ */
+function unproxify(value) {
+	let typeofvalue = realtypeof(value);
+	if(acceptableTypes.includes(typeofvalue)) {
+		let target = value;
+		try {
+			target = value.getOriginalTarget();
+		} catch(error) {}
+
+		switch(typeofvalue) {
+			case 'Object':
+				let keys = Object.keys(target);
+				for(let key of keys) {
+					target[key] = unproxify(target[key]); //maybe alters target and maybe returning the exact same object
+				}
+				break;
+			case 'Array':
+				for(let i=0; i < target.length; i++) {
+					target[i] = unproxify(target[i]); //maybe alters target and maybe returning the exact same object
+				}
+				break;
+			default:
+				console.warn(`Not Implemented (type of '${typeofobj}')`);
+		}
+
+		return target;
+	}
+	else {
+		return value; //primitive
+	}
+}
+
 return class Proxserve {
 	/**
 	 * construct a new proxserve instance
@@ -347,17 +386,7 @@ return class Proxserve {
 						Proxserve.destroy(oldValue);
 					}
 					
-					let valueIsProxy = false;
-					try {
-						value.getProxserveInstance();
-						valueIsProxy = true;
-					} catch(error) {}
-
-					if(valueIsProxy) {
-						//if user tried to set a new value which is already a proxy (probably from another path) then we will handle
-						//only the original target which will trigger a whole new 'createProxy' recursion with new paths
-						value = value.getOriginalTarget();
-					}
+					value = unproxify(value);
 
 					target[property] = value; //assign new value
 
