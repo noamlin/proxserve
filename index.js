@@ -579,10 +579,11 @@ return class Proxserve {
 			}
 
 			setTimeout(function() {
-				let dataByPath = self.path2data.get(`${data.parentPath}${data.propertyPath}`);
-				//this runs async so check if meanwhile data for this path wasn't replaced with a new proxy
-				if(dataByPath.proxy === data.proxy) {
-					self.path2data.delete(`${data.parentPath}${data.propertyPath}`);
+				let path = `${data.parentPath}${data.propertyPath}`;
+				let dataByPath = self.path2data.get(path);
+				//this runs async so check if meanwhile the data for this path wasn't deleted nor replaced with a new proxy
+				if(dataByPath && dataByPath.proxy === data.proxy) {
+					self.path2data.delete(path);
 				}
 				self.proxy2data.delete(data.proxy);
 				data.revoke();

@@ -33,30 +33,6 @@ function wakeConsole() {
 	console.error = consoleFuncs.error;
 }
 
-function deepCountObjects(obj) {
-	let numChildObjects = 0;
-
-	if(Array.isArray(obj)) {
-		numChildObjects++;
-		for(let i = 0; i < obj.length; i++) {
-			if(typeof obj[i] === 'object') {
-				numChildObjects += deepCountObjects(obj[i]);
-			}
-		}
-	}
-	else if(typeof obj === 'object') {
-		numChildObjects++;
-		let keys = Object.keys(obj);
-		for(let key of keys) {
-			if(typeof obj[key] === 'object') {
-				numChildObjects += deepCountObjects(obj[key]);
-			}
-		}
-	}
-
-	return numChildObjects;
-}
-
 const testObject = {
 	level1_1: {
 		arr1: [0,1,2]

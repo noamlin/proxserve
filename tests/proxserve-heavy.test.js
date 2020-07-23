@@ -87,10 +87,10 @@ const testObject = {
 
 test('1. Destroy proxy and sub-proxies', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay:-950}); //hack to decrease the 1000ms delay of destroy
-	//Proxserve.destroy(proxy);
+	Proxserve.destroy(proxy);
 	expect(isRevoked(proxy)).toBe(false); //will live for 50 ms (1000 minus 950)
 	setTimeout(() => {
-		//expect(isRevoked(proxy)).toBe(true);
+		expect(isRevoked(proxy)).toBe(true);
 		part2();
 	}, 100);
 
@@ -128,6 +128,36 @@ test('1. Destroy proxy and sub-proxies', (done) => {
 			expect(isRevoked(reference2arr2)).toBe(true);
 			expect(typeof proxy.level1_1.arr1).toBe('undefined');
 			expect(isRevoked(reference2arr1)).toBe(true);
+			part4();
+		}, 100);
+	}
+
+	function part4() {
+		let proxy = new Proxserve({arr1: []}, {delay:-950, strict: true});
+		let o1 = proxy.arr1;
+		proxy.arr1[0] = {a:'a'};
+		let o2 = proxy.arr1[0];
+		proxy.arr1[1] = {b:'b'};
+		let o3 = proxy.arr1[1];
+		proxy.arr1 = [0, 1]; //cause a destroy of the array and its child objects
+		let o4 = proxy.arr1;
+		proxy.arr1 = [{}, {}]; //immediately cause another destroy of the new array and create child objects
+		let o5 = proxy.arr1;
+		let o6 = proxy.arr1[0];
+		let o7 = proxy.arr1[1];
+		proxy.arr1 = [null, null]; //immediately cause another destroy of the new-new array with child NULL objects
+		let o8 = proxy.arr1;
+		proxy.arr1 = 3; //immediately completely destroy the new-new-new array
+
+		setTimeout(() => {
+			expect(isRevoked(o1)).toBe(true);
+			expect(isRevoked(o2)).toBe(true);
+			expect(isRevoked(o3)).toBe(true);
+			expect(isRevoked(o4)).toBe(true);
+			expect(isRevoked(o5)).toBe(true);
+			expect(isRevoked(o6)).toBe(true);
+			expect(isRevoked(o7)).toBe(true);
+			expect(isRevoked(o8)).toBe(true);
 			done();
 		}, 100);
 	}
