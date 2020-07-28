@@ -335,7 +335,7 @@ test('7. Stop/Block/Activate proxies', () => {
 
 test('8. get/set/delete properties after defineProperty', () => {
 	let origin = cloneDeep(testObject);
-	let proxy = new Proxserve(origin);
+	let proxy = new Proxserve(origin, {delay: -950});
 	let sym = Symbol.for('sym');
 
 	let desc = {
@@ -477,4 +477,94 @@ test('11. On-change listener that makes its own changes', (done) => {
 	proxy.level1_1.arr1[0] = 17;
 	proxy.level1_1.arr1[1] = 18;
 	proxy.level1_1.arr1[2] = 19;
+});
+
+test('12. On/Remove/RemoveAll listeners', () => {
+	let proxy = new Proxserve(cloneDeep(testObject), {delay: 0});
+	let counter = 0;
+	let countFunction = function(changes) {
+		counter++;
+	};
+
+	proxy.on('change', countFunction, 123);
+	proxy.on('change', '.new', countFunction);
+	proxy.removeListener(123);
+	proxy.new = {};
+
+	expect(counter).toBe(1);
+
+	proxy.new.on('change', '.will.exist.later', countFunction);
+	proxy.new.will = { exist: { later: 0 } };
+	expect(counter).toBe(2); //only on(.new) ran
+	proxy.new.will.exist.later = 1;
+	expect(counter).toBe(4); //now both ran
+	proxy.new.removeListener(countFunction);
+	proxy.new.will.exist.later = 2;
+	expect(counter).toBe(5); //only on(.new.will.exist.later) ran
+
+	proxy.removeAllListeners('.new.will.exist.later');
+	proxy.new.will.exist.later = 3;
+	expect(counter).toBe(5);
+});
+
+test('13. Events for future sub objects and primitives not yet created', (done) => {
+	let proxy = new Proxserve({});
+	proxy.on('change', function(changes) {
+		expect(changes[0].path).toBe('.arr');
+		part2();
+	}, 123);
+	proxy.arr = [];
+
+	function part2() {
+		proxy.removeListener(123);
+		proxy.arr.on('change', function(changes) {
+			expect(changes[0].path).toBe('[2]');
+			proxy.arr.removeListener('zxc');
+		}, 'zxc');
+		proxy.arr.on('change', '[2].a.b', function(changes) {
+			expect(changes[0].path).toBe('');
+			expect(changes[0].value).toBe('c');
+			part3();
+		});
+
+		proxy.arr[2] = { a: { b: 'b' } };
+		proxy.arr[2].a.b = 'c';
+	}
+
+	function part3() {
+		proxy.removeAllListeners();
+		proxy.on('update', '.obj.1.2', function(change) {
+			expect(change.path).toBe('');
+			expect(change.oldValue).toBe(987);
+			expect(change.value).toBe(654);
+		});
+		proxy.on('update', '.obj.1', function(change) {
+			expect(change.path).toBe('.2');
+			expect(change.oldValue).toBe(987);
+			expect(change.value).toBe(654);
+			part4();
+		});
+
+		proxy.obj = { '1': { '2': 987 } };
+		proxy.obj[1][2] = 654;
+	}
+
+	function part4() {
+		proxy.removeAllListeners('.obj.1.2');
+		proxy.removeAllListeners('.obj.1');
+		proxy.on('update', '.obj.1.2', function(change) { //path-selector can be with either dots or squared parenthesis
+			expect(change.path).toBe('');
+			expect(change.oldValue).toEqual([]);
+			expect(change.value).toBe(33);
+		});
+		proxy.on('update', '.obj[1]', function(change) { //path-selector can be with either dots or squared parenthesis
+			expect(change.path).toBe('[2]'); //change path does match actual path
+			expect(change.oldValue).toEqual([]);
+			expect(change.value).toBe(33);
+			done();
+		});
+
+		proxy.obj = [0, [0,1,[]]];
+		proxy.obj[1][2] = 33;
+	}
 });

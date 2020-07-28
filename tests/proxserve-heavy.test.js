@@ -13,6 +13,9 @@ const Proxserve = require('../index.js');
 const util = require('util');
 const { cloneDeep } = require('lodash');
 
+var ND = Symbol.for('proxserve_node_data');
+var NID = Symbol.for('proxserve_node_inherited_data');
+
 //test if proxy's internal [[handler]] is revoked. according to http://www.ecma-international.org/ecma-262/6.0/#sec-proxycreate
 function isRevoked(value) {
 	try {
@@ -163,7 +166,7 @@ test('1. Destroy proxy and sub-proxies', (done) => {
 	}
 });
 
-test('2. Dont revoke sub-proxies that are still in use in the main proxy after a deletion', (done) => {
+test('2. Transfer sub-proxies between child nodes while assigning new proxies with update paths', (done) => {
 	let proxy = new Proxserve({
 		sub_obj: {
 			sub_arr: [{a:'a'}, {b:'b'}, {c:'c'}, {d:'d'}]
@@ -208,37 +211,36 @@ test('2. Dont revoke sub-proxies that are still in use in the main proxy after a
 
 	function part3() {
 		proxy.arr = [{a:'a'}, {b:'b'}, {c:'c'}, {d:'d'}];
-		let instance = proxy.getProxserveInstance();
 		let a = proxy.arr[0], aTarget = proxy.arr[0].getOriginalTarget();
 		let b = proxy.arr[1], bTarget = proxy.arr[1].getOriginalTarget();
 		let c = proxy.arr[2], cTarget = proxy.arr[2].getOriginalTarget();
 		let d = proxy.arr[3], dTarget = proxy.arr[3].getOriginalTarget();
-
-		let aData = instance.path2data.get('.arr[0]');
-		let bData = instance.path2data.get('.arr[1]');
-		let dData = instance.path2data.get('.arr[3]');
-		expect(aData.proxy === a).toBe(true);
-		expect(aData.target === aTarget).toBe(true);
+		
+		let arrNode = proxy.arr.getProxserveDataNode();
+		expect(arrNode[0][ND].proxy === a && arrNode[0][ND].target === aTarget).toBe(true);
+		expect(arrNode[1][ND].proxy === b && arrNode[1][ND].target === bTarget).toBe(true);
+		expect(arrNode[2][ND].proxy === c && arrNode[2][ND].target === cTarget).toBe(true);
+		expect(arrNode[3][ND].proxy === d && arrNode[3][ND].target === dTarget).toBe(true);
 
 		proxy.arr.splice(1,2); //delete 'b' and 'c', then move 'd' to [1]
-		delete proxy.arr[0];
-		proxy.arr[3] = [];
+		delete proxy.arr[0]; //delete 'a'
+		proxy.arr[3] = []; //make new object in the cell
 
-		aData = instance.path2data.get('.arr[0]'); //should still be there, until revocation
-		let new_bData = instance.path2data.get('.arr[1]'); //should be replaced (overwritten) immediately
-		let cData = instance.path2data.get('.arr[2]'); //should still be there, until revocation
-		let new_dData = instance.path2data.get('.arr[3]'); //should be replaced (overwritten) immediately
-
-		expect(typeof aData).toBe('object');
-		expect(bData === new_bData).toBe(false);
-		expect(typeof cData).toBe('object');
-		expect(dData === new_dData).toBe(false);
+		expect(isRevoked(a)).toBe(false);
+		expect(isRevoked(b)).toBe(false);
+		expect(isRevoked(c)).toBe(false);
+		expect(isRevoked(d)).toBe(false);
 
 		setTimeout(() => {
-			aData = instance.path2data.get('.arr[0]');
-			cData = instance.path2data.get('.arr[2]');
-			expect(aData).toBe(undefined);
-			expect(cData).toBe(undefined);
+			expect(isRevoked(a)).toBe(true);
+			expect(isRevoked(b)).toBe(true);
+			expect(isRevoked(c)).toBe(true);
+			expect(isRevoked(d)).toBe(true);
+			expect(arrNode[0][ND].proxy === undefined && arrNode[0][ND].target === undefined).toBe(true);
+			expect(arrNode[1][ND].target === dTarget).toBe(true);
+			expect(arrNode[1][ND].proxy === d).toBe(false);
+			expect(arrNode[2][ND].proxy === undefined && arrNode[2][ND].target === undefined).toBe(true);
+			expect(Array.isArray(arrNode[3][ND].proxy) && Array.isArray(arrNode[3][ND].target)).toBe(true);
 			done();
 		}, 100);
 	}
@@ -270,10 +272,8 @@ test('4. Find recursively and handle proxies inside objects inserted to main pro
 		subArr: [proxy.arr[2], [proxy.arr[3]]]
 	};
 
-	function getPath(subProxy) {
-		let instance = subProxy.getProxserveInstance();
-		let data = instance.proxy2data.get(subProxy);
-		return `${data.parentPath}${data.propertyPath}`;
+	function getPath(proxy) {
+		return proxy.getProxserveDataNode()[ND].path;
 	}
 
 	expect(util.types.isProxy(newObj)).toBe(false); //regular object (for now)
