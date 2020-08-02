@@ -85,9 +85,10 @@ reservedFunctions.block = function(dataNode) {
 /**
  * resume default behavior of emitting change events, inherited from parent
  * @param {Object} dataNode
+ * @param {Object} objects
  * @param {Boolean} [force] - force being active regardless of parent
  */
-reservedFunctions.activate = function(dataNode, force=false) {
+reservedFunctions.activate = function(dataNode, objects, force=false) {
 	if(force || dataNode === this.dataTree) { //force activation or we are on root proxy
 		dataNode[NID].status = statuses[0];
 	}
@@ -107,7 +108,7 @@ reservedFunctions.activate = function(dataNode, force=false) {
  */
 reservedFunctions.on = function(dataNode, objects, event, path, listener, id) {
 	if(acceptableEvents.includes(event)) {
-		if(arguments.length < 5 && typeof path !== 'string') { //if called without path
+		if(arguments.length < 6 && typeof path !== 'string') { //if called without path
 			id = listener;
 			listener = path;
 			path = '';
@@ -142,7 +143,7 @@ reservedFunctions.on = function(dataNode, objects, event, path, listener, id) {
  * @param {String} id - the listener(s) identifier or listener-function
  */
 reservedFunctions.removeListener = function(dataNode, objects, path, id) {
-	if(arguments.length === 2) { //if called without path
+	if(arguments.length === 3) { //if called without path
 		id = path;
 		path = '';
 	}
@@ -302,8 +303,9 @@ function add2emitQueue(delay, dataNode, path, oldValue, value, changeType) {
  * @param {String} [changeType]
  */
 function add2emitQueue_bubble(delay, dataNode, property, oldValue, value, changeType) {
-	if(oldValue === value) {
-		return; //no new change was made
+	if(oldValue === value/*no new change was made*/
+		|| dataNode[ND].objects.isDeleted/*altered a deleted or detached proxy*/) {
+		return;
 	}
 
 	if(changeType === undefined) {
@@ -585,9 +587,15 @@ return class Proxserve {
 						}
 					}
 
-					let oldValue = objects.proxy[property]; //property of the proxy, not property of the target, because it might be a sub-proxy
+					let oldValue, oldObjects;
 					let emitOldValue = target[property]; //should not be proxy
-					let shouldDestroy = this.strict && dataNode[property] && dataNode[property][ND].objects.proxy; //a proxy will be detached from the tree
+					let shouldDestroy = false;
+					if(this.strict === true && dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
+						//about to overwrite an existing property which is a proxy (about to detach a proxy)
+						shouldDestroy = true;
+						oldValue = objects.proxy[property]; //property of the proxy, not property of the target, because it might be a sub-proxy
+						oldObjects = dataNode[property][ND].objects; //'objects' of the property that is about to get overwritten
+					}
 
 					value = unproxify(value);
 					target[property] = value; //assign new value
@@ -605,12 +613,13 @@ return class Proxserve {
 						emitOldValue = simpleClone(emitOldValue);
 					}
 
-					add2emitQueue_bubble(this.delay, dataNode, property, emitOldValue, emitValue, undefined);
 					if(shouldDestroy) {
+						oldObjects.isDeleted = true;
 						setTimeout(() => {
 							Proxserve.destroy(oldValue);
 						}, this.delay + 1000); //postpone this cpu intense function for later, probably when proxserve is not is use
 					}
+					add2emitQueue_bubble(this.delay, dataNode, property, emitOldValue, emitValue, undefined);
 
 					return true;
 				},
@@ -624,11 +633,15 @@ return class Proxserve {
 						return true;
 					}
 
-					let oldValue = objects.proxy[property]; //property of the proxy, not property of the target, because it might be a sub-proxy
+					let oldValue, oldObjects;
 					let emitOldValue = target[property]; //should not be proxy
-
-					//if a proxy will be detached from the tree
-					let shouldDestroy = this.strict && dataNode[property] && dataNode[property][ND].objects.proxy;
+					let shouldDestroy = false;
+					if(this.strict === true && dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
+						//about to overwrite an existing property which is a proxy (about to detach a proxy)
+						shouldDestroy = true;
+						oldValue = objects.proxy[property]; //property of the proxy, not property of the target, because it might be a sub-proxy
+						oldObjects = dataNode[property][ND].objects; //'objects' of the property that is about to get overwritten
+					}
 
 					descriptor.value = unproxify(descriptor.value);
 					Object.defineProperty(target, property, descriptor); //defining the new value
@@ -647,13 +660,14 @@ return class Proxserve {
 							emitOldValue = simpleClone(emitOldValue); //deep copy with no proxies inside
 						}
 					}
-						
-					add2emitQueue_bubble(this.delay, dataNode, property, emitOldValue, emitValue);
+
 					if(shouldDestroy) {
+						oldObjects.isDeleted = true;
 						setTimeout(() => {
 							Proxserve.destroy(oldValue);
 						}, this.delay + 1000); //postpone this cpu intense function for later, probably when proxserve is not is use
 					}
+					add2emitQueue_bubble(this.delay, dataNode, property, emitOldValue, emitValue);
 
 					return true;
 				},
@@ -671,22 +685,29 @@ return class Proxserve {
 					}
 
 					if(property in target) {
-						let oldValue = objects.proxy[property]; //property of the proxy, not property of the target, because it might be a sub-proxy
+						let oldValue, oldObjects;
 						let emitOldValue = target[property]; //should not be proxy
 						if(!this.emitReference) {
 							emitOldValue = simpleClone(emitOldValue); //deep copy with no proxies inside
 						}
 
-						let shouldDestroy = this.strict && dataNode[property] && dataNode[property][ND].objects.proxy;
+						let shouldDestroy = false;
+						if(this.strict === true && dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
+							//about to overwrite an existing property which is a proxy (about to detach a proxy)
+							shouldDestroy = true;
+							oldValue = objects.proxy[property]; //property of the proxy, not property of the target, because it might be a sub-proxy
+							oldObjects = dataNode[property][ND].objects; //'objects' of the property that is about to get overwritten
+						}
 
 						delete target[property]; //actual delete
 
-						add2emitQueue_bubble(this.delay, dataNode, property, emitOldValue, undefined, 'delete');
 						if(shouldDestroy) {
+							oldObjects.isDeleted = true;
 							setTimeout(() => {
 								Proxserve.destroy(oldValue);
 							}, this.delay + 1000); //postpone this cpu intense function for later, probably when proxserve is not is use
 						}
+						add2emitQueue_bubble(this.delay, dataNode, property, emitOldValue, undefined, 'delete');
 
 						return true;
 					}

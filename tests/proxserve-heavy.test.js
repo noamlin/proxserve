@@ -87,7 +87,7 @@ const testObject = {
 		}
 	}
 };
-if(false) {
+
 test('1. Destroy proxy and sub-proxies', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay:-950}); //hack to decrease the 1000ms delay of destroy
 	Proxserve.destroy(proxy);
@@ -157,7 +157,7 @@ test('1. Destroy proxy and sub-proxies', (done) => {
 	}
 });
 
-test('2. Transfer sub-proxies between child nodes while assigning new proxies with update paths', (done) => {
+test('2. Transfer sub-proxies between child nodes while assigning new proxies with updated paths', (done) => {
 	let proxy = new Proxserve({
 		sub_obj: {
 			sub_arr: [{a:'a'}, {b:'b'}, {c:'c'}, {d:'d'}]
@@ -208,10 +208,10 @@ test('2. Transfer sub-proxies between child nodes while assigning new proxies wi
 		let d = proxy.arr[3], dTarget = proxy.arr[3].getOriginalTarget();
 		
 		let arrNode = proxy.arr.getProxserveDataNode();
-		expect(arrNode[0][ND].proxy === a && arrNode[0][ND].target === aTarget).toBe(true);
-		expect(arrNode[1][ND].proxy === b && arrNode[1][ND].target === bTarget).toBe(true);
-		expect(arrNode[2][ND].proxy === c && arrNode[2][ND].target === cTarget).toBe(true);
-		expect(arrNode[3][ND].proxy === d && arrNode[3][ND].target === dTarget).toBe(true);
+		expect(arrNode[0][ND].objects.proxy === a && arrNode[0][ND].objects.target === aTarget).toBe(true);
+		expect(arrNode[1][ND].objects.proxy === b && arrNode[1][ND].objects.target === bTarget).toBe(true);
+		expect(arrNode[2][ND].objects.proxy === c && arrNode[2][ND].objects.target === cTarget).toBe(true);
+		expect(arrNode[3][ND].objects.proxy === d && arrNode[3][ND].objects.target === dTarget).toBe(true);
 
 		proxy.arr.splice(1,2); //delete 'b' and 'c', then move 'd' to [1]
 		delete proxy.arr[0]; //delete 'a'
@@ -227,11 +227,11 @@ test('2. Transfer sub-proxies between child nodes while assigning new proxies wi
 			expect(isRevoked(b)).toBe(true);
 			expect(isRevoked(c)).toBe(true);
 			expect(isRevoked(d)).toBe(true);
-			expect(arrNode[0][ND].proxy === undefined && arrNode[0][ND].target === undefined).toBe(true);
-			expect(arrNode[1][ND].target === dTarget).toBe(true);
-			expect(arrNode[1][ND].proxy === d).toBe(false);
-			expect(arrNode[2][ND].proxy === undefined && arrNode[2][ND].target === undefined).toBe(true);
-			expect(Array.isArray(arrNode[3][ND].proxy) && Array.isArray(arrNode[3][ND].target)).toBe(true);
+			expect(arrNode[0][ND].objects.proxy === null && arrNode[0][ND].objects.target === aTarget).toBe(true);
+			expect(arrNode[1][ND].objects.target === dTarget).toBe(true);
+			expect(arrNode[1][ND].objects.proxy === d).toBe(false);
+			expect(arrNode[2][ND].objects.proxy === null && arrNode[2][ND].objects.target === cTarget).toBe(true);
+			expect(Array.isArray(arrNode[3][ND].objects.proxy) && Array.isArray(arrNode[3][ND].objects.target)).toBe(true);
 			done();
 		}, 100);
 	}
@@ -309,7 +309,7 @@ test('4. Find recursively and handle proxies inside objects inserted to main pro
 	expect(getPath(proxy.newObj.subArr[1][0])).toBe('.newObj.subArr[1][0]');
 	expect(proxy.newObj.subArr[1][0].getOriginalTarget() === proxy.arr[3].getOriginalTarget()).toBe(true);
 });
-}
+
 test('5. Observe on referenced changes and cloned changes', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {emitReference: false});
 	proxy.level1_1.on('change', function(changes) {
@@ -341,7 +341,7 @@ test('5. Observe on referenced changes and cloned changes', (done) => {
 		tmp.a = tmp.b = 'cc';
 	}
 });
-if(false) {
+
 //benchmark on a CPU with baseclock of 3.6 GHz is around 0.5s
 test('6. Proxserve 50,000 objects in less than 1 second', () => {
 	let objectsInTest = deepCountObjects(testObject);
@@ -543,4 +543,3 @@ test('8. Comprehensive events of changes', (done) => {
 		proxy.level1_2.level2_1.level3_1.arr2[2][2].new.splice(2, 2); //should emit 6 changes - update [2][3][4] then delete [6][5] then update length
 	}
 });
-}
