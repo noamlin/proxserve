@@ -344,10 +344,10 @@ test('5. Observe on referenced changes and cloned changes', (done) => {
 
 //benchmark on a CPU with baseclock of 3.6 GHz is around 0.5s
 test('6. Proxserve 50,000 objects in less than 1 second', () => {
-	let objectsInTest = deepCountObjects(testObject);
-	let repeatitions = Math.ceil(50000 / objectsInTest);
+	let objectsPerProxy = deepCountObjects(testObject);
+	expect(objectsPerProxy).toBeGreaterThan(6);
+	let repeatitions = Math.ceil(50000 / objectsPerProxy);
 	let objs = [];
-	let proxies = [];
 
 	for(let i=0; i < repeatitions; i++) {
 		objs.push(cloneDeep(testObject)); //cloning should not be counted against proxserve speed
@@ -355,7 +355,7 @@ test('6. Proxserve 50,000 objects in less than 1 second', () => {
 
 	let start = Date.now();
 	for(let i=0; i < repeatitions; i++) {
-		proxies.push(new Proxserve(objs[i]));
+		new Proxserve(objs[i]);
 	}
 	let end = Date.now();
 	
@@ -364,26 +364,24 @@ test('6. Proxserve 50,000 objects in less than 1 second', () => {
 });
 
 //benchmark on a CPU with baseclock of 3.6 GHz is around 0.9s
-test('7. Destroy 50,000 proxserves in less than 1.5 seconds', (done) => {
-	let objectsInTest = deepCountObjects(testObject);
-	let repeatitions = Math.ceil(50000 / objectsInTest);
+test('7. Destroy 50,000 proxserves in less than 1.5 seconds', () => {
+	let objectsPerProxy = deepCountObjects(testObject);
+	expect(objectsPerProxy).toBeGreaterThan(6);
+	let repeatitions = Math.ceil(50000 / objectsPerProxy);
 	let proxies = [];
 
 	for(let i=0; i < repeatitions; i++) {
-		proxies.push(new Proxserve(cloneDeep(testObject), {delay:-1000})); //hack to negate the 1000ms delay of destroy
+		proxies.push(new Proxserve(cloneDeep(testObject)));
 	}
 
 	let start = Date.now();
 	for(let i=0; i < repeatitions; i++) {
 		Proxserve.destroy(proxies[i]);
 	}
-	setTimeout(() => {
-		let end = Date.now();
-		proxies;
-		expect(end - start - 20).toBeLessThan(1500);
-		console.log(`Destroy 50,000 proxserves: ${end - start - 20}`);
-		done();
-	}, 20);
+	let end = Date.now();
+	proxies;
+	expect(end - start - 20).toBeLessThan(1500);
+	console.log(`Destroy 50,000 proxserves: ${end - start - 20}`);
 });
 
 test('8. Comprehensive events of changes', (done) => {
@@ -489,20 +487,22 @@ test('8. Comprehensive events of changes', (done) => {
 		let oldValue = [14, { deep: { deeper: 'abc' } }, 16];
 
 		proxy.removeAllListeners();
+		proxy.level1_2.removeAllListeners();
+		proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
+		proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.removeAllListeners();
+
 		proxy.on('delete', function(change) {
 			expect(change.oldValue).toEqual(oldValue);
 			expect(change.value).toBe(undefined);
 			expect(change.path).toBe('.level1_2.level2_1.level3_1.arr2[2][2]');
 			expect(change.type).toBe('delete');
 		});
-		proxy.level1_2.removeAllListeners();
 		proxy.level1_2.on('delete', function(change) {
 			expect(change.oldValue).toEqual(oldValue);
 			expect(change.value).toBe(undefined);
 			expect(change.path).toBe('.level2_1.level3_1.arr2[2][2]');
 			expect(change.type).toBe('delete');
 		});
-		proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
 		proxy.level1_2.level2_1.level3_1.arr2[2].on('delete', function(change) {
 			expect(change.oldValue).toEqual(oldValue);
 			expect(change.value).toBe(undefined);

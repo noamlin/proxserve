@@ -527,7 +527,7 @@ test('13. Events for future sub objects and primitives not yet created', (done) 
 			expect(changes[1].type).toBe('update');
 
 			proxy.arr.removeListener('zxc');
-			this[2].a = { b: 'ddd' }; //will trigger next event again
+			this[2].a = { b: 'ddd' }; //will trigger the next listener again
 		}, 'zxc');
 		proxy.arr.on('change', '[2].a.b', function(changes) {
 			if(changes.length === 2) {
@@ -628,4 +628,44 @@ test('13. Events for future sub objects and primitives not yet created', (done) 
 
 		proxy.obj = true;
 	}
+});
+
+test('14. Listen for delete event of sub-properties when parent is deleted', (done) => {
+	let proxy = new Proxserve({});
+	let step = 1;
+	proxy.on('change', '.obj.arr[0][0][0]', function(changes) {
+		if(step === 1) {
+			expect(changes.length).toBe(1);
+			expect(changes[0].type).toBe('create');
+			expect(changes[0].value).toBe(0);
+			proxy.obj.arr = [ ['aa','bb','cc'] ];
+			step = 2;
+		} else if(step === 3) {
+			expect(changes.length).toBe(2);
+			expect(changes[0].type).toBe('delete'); //event caused from previous cycle (4 code lines above)
+			expect(changes[0].oldValue).toBe(0);
+			expect(changes[0].value).toBe(undefined);
+			expect(changes[1].type).toBe('create'); //event caused from this cycle, but on another listener
+			expect(changes[1].oldValue).toBe(undefined);
+			expect(changes[1].value).toBe(true);
+			done();
+		}
+	});
+	proxy.on('delete', '.obj.arr[0][0][1]', function(change) {
+		expect(change.path).toBe('');
+		expect(change.oldValue).toBe(1);
+		if(step === 2) {
+			proxy.obj.arr[0][0] = [true, false];
+			step = 3;
+		} else {
+			throw new Error('this listener should have ran only once');
+		}
+	});
+	proxy.obj = {
+		arr: [
+			[
+				[0,1]
+			]
+		]
+	};
 });
