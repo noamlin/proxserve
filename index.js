@@ -105,13 +105,16 @@ reservedFunctions.activate = function(dataNode, objects, force=false) {
  * @param {String} [path] - path selector
  * @param {Function} listener 
  * @param {String} [id] - identifier for removing this listener
+ * @param {Boolean} [once] - whether this listener will run only once or always
  */
-reservedFunctions.on = function(dataNode, objects, event, path, listener, id) {
+reservedFunctions.on = function(dataNode, objects, event, path, listener, id, once=false) {
 	if(acceptableEvents.includes(event)) {
-		if(arguments.length < 6 && typeof path !== 'string') { //if called without path
+		if(typeof path === 'function') { //if called without path
 			id = listener;
 			listener = path;
 			path = '';
+		} else if(typeof listener !== 'function') {
+			throw new Error(`invalid arguments were given. listener must be a function`);
 		}
 		
 		let segments = Proxserve.splitPath(path);
@@ -127,11 +130,24 @@ reservedFunctions.on = function(dataNode, objects, event, path, listener, id) {
 			dataNode[ND].listeners = [];
 			dataNode[ND].eventPool = [];
 		}
-		dataNode[ND].listeners.push([event, listener, id]);
+		dataNode[ND].listeners.push([event, listener, id, once]);
 	}
 	else {
 		throw new Error(`${event} is not a valid event. valid events are ${acceptableEvents.join(',')}`);
 	}
+}
+
+/**
+ * add event listener on a proxy or on a descending path which will run only once
+ * @param {Object} dataNode
+ * @param {Object} objects
+ * @param {String} event 
+ * @param {String} [path] - path selector
+ * @param {Function} listener 
+ * @param {String} [id] - identifier for removing this listener
+ */
+reservedFunctions.once = function(dataNode, objects, event, path, listener, id) {
+	reservedFunctions.on.call(this, dataNode, objects, event, path, listener, id, true);
 }
 
 /**
@@ -380,16 +396,30 @@ function emit(dataNode) {
 		return;
 	}
 
-	for(let change of eventPool) { //FIFO - first event in, first event out
-		for(let listener of listeners) { //listener = [event, function, id]
-			if(listener[0] === change.type) { //will invoke create/update/delete listeners one by one.
+	//FIFO - first event in, first event out. listeners will be called by their turn according to which event fires first
+	for(let change of eventPool) {
+		for(let i = listeners.length-1; i >= 0; i--) {
+			let listener = listeners[i]; //listener = [event, function, id, once]
+
+			if(listener[0] === change.type) { //will invoke only create/update/delete listeners
+				if(listener[3] === true) { //first delete the one-time listener, so the upcoming listener's-function won't meddle with it
+					listeners.splice(i, 1);
+				}
+
 				listener[1].call(dataNode[ND].objects.proxy, change);
 			}
 		}
 	}
 
-	for(let listener of listeners) {
+	//iterate over all 'change' listeners and emit with an (ordered) array of all events
+	for(let i = listeners.length-1; i >= 0; i--) {
+		let listener = listeners[i]; //listener = [event, function, id, once]
+
 		if(listener[0] === acceptableEvents[0]) { // 'change'
+			if(listener[3] === true) { //first delete the one-time listener, so the upcoming listener's-function won't meddle with it
+				listeners.splice(i, 1);
+			}
+
 			listener[1].call(dataNode[ND].objects.proxy, eventPool); //on(change) is always called with an array of one or more changes
 		}
 	}
