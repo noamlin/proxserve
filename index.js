@@ -368,8 +368,8 @@ function add2emitQueue_bubble(delay, dataNode, property, oldValue, wasOldValuePr
 function add2emitQueue_capture(delay, dataNode, oldValue, value) {
 	let keys = Object.keys(dataNode);
 	for(let key of keys) {
-		let subValue = (typeof value === 'object') ? value[key] : undefined;
-		let subOldValue = (typeof oldValue === 'object') ? oldValue[key] : undefined;
+		let subValue = (typeof value === 'object' && value !== null) ? value[key] : undefined;
+		let subOldValue = (typeof oldValue === 'object' && oldValue !== null) ? oldValue[key] : undefined;
 		if(subValue !== subOldValue) { //if not both undefined or same primitive or the same object
 			//TODO - both will never be the same object because 'oldValue' is the target object while 'value' is the proxy,
 			//			but can a concerning scenario even happen?
