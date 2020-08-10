@@ -864,7 +864,7 @@ return class Proxserve {
 		for(i = 0; i <= segments.length - 2; i++) { //iterate until one before last property because they all must exist
 			obj = obj[segments[i]];
 			if(typeof obj === 'undefined') {
-				throw new Error('Invalid path was given');
+				throw new Error(`Invalid path was given - "${path}"`);
 			}
 		}
 		return { object: obj, property: segments[i], value: obj[ segments[i] ] };
