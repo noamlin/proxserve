@@ -545,7 +545,7 @@ test('8. Comprehensive events of changes', (done) => {
 });
 
 test('9. Events for future sub objects and primitives not yet created', (done) => {
-	let proxy = new Proxserve({});
+	let proxy = new Proxserve({}, { emitReference: true });
 	proxy.on('change', function(changes) {
 		expect(changes[0].path).toBe('.arr');
 		part2();

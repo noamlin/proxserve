@@ -15,7 +15,7 @@ var Proxserve = (function() {
  */
 function realtypeof(variable) {
 	let rawType = Object.prototype.toString.call(variable); //[object Object], [object Array], [object Number] ...
-	return rawType.substring(8, rawType.length-1);
+	return rawType.substring(8, rawType.length - 1);
 }
 
 let acceptableTypes = ['Object', 'Array', 'Map']; //acceptable types to be proxied
@@ -60,6 +60,11 @@ function simpleClone(obj) {
 	}
 	else { //hopefully a primitive
 		cloned = obj;
+
+		if(typeofobj !== 'Undefined' && typeofobj !== 'Null' && typeofobj !== 'Boolean' && typeofobj !== 'Number'
+		&& typeofobj !== 'BigInt' && typeofobj !== 'String') {
+			console.warn(`Can't clone a variable of type ${typeofobj}`);
+		}
 	}
 
 	return cloned;
@@ -514,7 +519,7 @@ return class Proxserve {
 	constructor(target, options = {}) {
 		this.delay = (options.delay !== undefined) ? options.delay : 10;
 		this.strict = (options.strict !== undefined) ? options.strict : true;
-		this.emitReference = (options.emitReference !== undefined) ? options.emitReference : true;
+		this.emitReference = (options.emitReference !== undefined) ? options.emitReference : false;
 
 		this.dataTree = createDataNode({
 			[NID]: { 'status': statuses[0] },
