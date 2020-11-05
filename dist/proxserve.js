@@ -1308,4 +1308,4 @@ var Proxserve = /*#__PURE__*/function () {
 
 module.exports = exports = Proxserve; //makes ParcelJS expose this globally (for all platforms) after bundling everything
 },{"./supporting-functions.js":"tgn0","./reserved-methods.js":"IDhP","./general-functions.js":"MDxB"}]},{},["Focm"], "Proxserve")
-//# sourceMappingURL=/proxserve.js.map
+//# sourceMappingURL=proxserve.js.map
