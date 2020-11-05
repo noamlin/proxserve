@@ -8,8 +8,8 @@
 		"start": "node index.js",
 		"test": "jest",
 		"build": "npm run build-unminified; npm run build-minified",
-		"build-unminified": "parcel build index.js --out-dir dist --out-file proxserve.js --global Proxserve --no-minify",
-		"build-minified": "parcel build index.js --out-dir dist --out-file proxserve.min.js --global Proxserve"
+		"build-unminified": "parcel build src/index.js --out-dir dist --out-file proxserve.js --global Proxserve --no-minify",
+		"build-minified": "parcel build src/index.js --out-dir dist --out-file proxserve.min.js --global Proxserve"
 	},
 	"dependencies": {},
 	"devDependencies": {
