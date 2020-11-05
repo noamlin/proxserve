@@ -9,7 +9,7 @@
  */
 "use strict"
 
-const Proxserve = require('../index.js');
+const Proxserve = require('../dist/proxserve.js');
 const util = require('util');
 const { cloneDeep } = require('lodash');
 

@@ -3,10 +3,13 @@
 	"version": "1.4.4",
 	"description": "Proxy Observe on objects and properties changes",
 	"license": "Apache 2.0",
-	"main": "index.js",
+	"main": "dist/proxserve.js",
 	"scripts": {
 		"start": "node index.js",
-		"test": "jest"
+		"test": "jest",
+		"build": "npm run build-unminified; npm run build-minified",
+		"build-unminified": "parcel build index.js --out-dir dist --out-file proxserve.js --global Proxserve --no-minify",
+		"build-minified": "parcel build index.js --out-dir dist --out-file proxserve.min.js --global Proxserve"
 	},
 	"dependencies": {},
 	"devDependencies": {

@@ -9,7 +9,7 @@
  */
 "use strict"
 
-const Proxserve = require('../index.js');
+const Proxserve = require('../dist/proxserve.js');
 const util = require('util');
 const { cloneDeep } = require('lodash');
 
@@ -360,7 +360,7 @@ test('6. Proxserve 50,000 objects in less than 1 second', () => {
 	let end = Date.now();
 	
 	expect(end - start).toBeLessThan(1000);
-	console.log(`Proxserve 50,000 objects: ${end - start}`);
+	console.log(`Proxserve 50,000 objects: ${end - start}ms`);
 });
 
 //benchmark on a CPU with baseclock of 3.6 GHz is around 0.9s
@@ -381,7 +381,7 @@ test('7. Destroy 50,000 proxserves in less than 1.5 seconds', () => {
 	let end = Date.now();
 	proxies;
 	expect(end - start - 20).toBeLessThan(1500);
-	console.log(`Destroy 50,000 proxserves: ${end - start - 20}`);
+	console.log(`Destroy 50,000 proxserves: ${end - start - 20}ms`);
 });
 
 test('8. Comprehensive events of changes', (done) => {
