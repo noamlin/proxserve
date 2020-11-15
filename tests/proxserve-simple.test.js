@@ -12,6 +12,7 @@
 const Proxserve = require('../dist/proxserve.js');
 const util = require('util');
 const { cloneDeep } = require('lodash');
+const { count } = require('console');
 
 //test if proxy's internal [[handler]] is revoked. according to http://www.ecma-international.org/ecma-262/6.0/#sec-proxycreate
 function isRevoked(value) {
@@ -123,33 +124,58 @@ test('4. Proxies should contain built-in functions', () => {
 
 	expect(typeof proxy.on).toBe('function');
 	expect(typeof proxy.$on).toBe('function');
-	expect(typeof proxy.removeListener).toBe('function');
-	expect(typeof proxy.$removeListener).toBe('function');
-	expect(typeof proxy.removeAllListeners).toBe('function');
-	expect(typeof proxy.$removeAllListeners).toBe('function');
-	expect(typeof proxy.stop).toBe('function');
-	expect(typeof proxy.$stop).toBe('function');
-	expect(typeof proxy.block).toBe('function');
-	expect(typeof proxy.$block).toBe('function');
-	expect(typeof proxy.activate).toBe('function');
-	expect(typeof proxy.$activate).toBe('function');
-	expect(typeof proxy.getOriginalTarget).toBe('function');
-	expect(typeof proxy.$getOriginalTarget).toBe('function');
-	expect(typeof proxy.getProxserveInstance).toBe('function');
-	expect(typeof proxy.$getProxserveInstance).toBe('function');
-
 	expect(typeof proxy.level1_1.arr1.on).toBe('function');
 	expect(typeof proxy.level1_1.arr1.$on).toBe('function');
+
+	expect(typeof proxy.once).toBe('function');
+	expect(typeof proxy.$once).toBe('function');
+	expect(typeof proxy.level1_1.arr1.once).toBe('function');
+	expect(typeof proxy.level1_1.arr1.$once).toBe('function');
+
+	expect(typeof proxy.removeListener).toBe('function');
+	expect(typeof proxy.$removeListener).toBe('function');
 	expect(typeof proxy.level1_1.arr1.removeListener).toBe('function');
 	expect(typeof proxy.level1_1.arr1.$removeListener).toBe('function');
+
+	expect(typeof proxy.removeAllListeners).toBe('function');
+	expect(typeof proxy.$removeAllListeners).toBe('function');
 	expect(typeof proxy.level1_1.arr1.removeAllListeners).toBe('function');
 	expect(typeof proxy.level1_1.arr1.$removeAllListeners).toBe('function');
+
+	expect(typeof proxy.stop).toBe('function');
+	expect(typeof proxy.$stop).toBe('function');
 	expect(typeof proxy.level1_1.arr1.stop).toBe('function');
 	expect(typeof proxy.level1_1.arr1.$stop).toBe('function');
+
+	expect(typeof proxy.block).toBe('function');
+	expect(typeof proxy.$block).toBe('function');
 	expect(typeof proxy.level1_1.arr1.block).toBe('function');
 	expect(typeof proxy.level1_1.arr1.$block).toBe('function');
+
+	expect(typeof proxy.activate).toBe('function');
+	expect(typeof proxy.$activate).toBe('function');
 	expect(typeof proxy.level1_1.arr1.activate).toBe('function');
 	expect(typeof proxy.level1_1.arr1.$activate).toBe('function');
+
+	expect(typeof proxy.getOriginalTarget).toBe('function');
+	expect(typeof proxy.$getOriginalTarget).toBe('function');
+	expect(typeof proxy.level1_1.arr1.getOriginalTarget).toBe('function');
+	expect(typeof proxy.level1_1.arr1.$getOriginalTarget).toBe('function');
+
+	expect(typeof proxy.getProxserveObjects).toBe('function');
+	expect(typeof proxy.$getProxserveObjects).toBe('function');
+	expect(typeof proxy.level1_1.arr1.getProxserveObjects).toBe('function');
+	expect(typeof proxy.level1_1.arr1.$getProxserveObjects).toBe('function');
+
+	expect(typeof proxy.getProxserveDataNode).toBe('function');
+	expect(typeof proxy.$getProxserveDataNode).toBe('function');
+	expect(typeof proxy.level1_1.arr1.getProxserveDataNode).toBe('function');
+	expect(typeof proxy.level1_1.arr1.$getProxserveDataNode).toBe('function');
+
+	expect(typeof proxy.getProxserveInstance).toBe('function');
+	expect(typeof proxy.$getProxserveInstance).toBe('function');
+	expect(typeof proxy.level1_1.arr1.getProxserveInstance).toBe('function');
+	expect(typeof proxy.level1_1.arr1.$getProxserveInstance).toBe('function');
 });
 
 test('5. Basic events of changes', (done) => {
@@ -197,11 +223,32 @@ test('5. Basic events of changes', (done) => {
 			},{
 				oldValue: 7, value: undefined, path: '.new2', type: 'delete'
 			}]);
-			setImmediate(done);
+			part5();
 		});
 		proxy.new2 = 5;
 		proxy.new2 = 7;
 		delete proxy.new2;
+	}
+
+	function part5() {
+		proxy.removeAllListeners();
+		let counter = 0;
+		proxy.on(['create','update'], function(change) {
+			if(change.type === 'create') {
+				expect(change).toEqual({ oldValue: undefined, value: 6, path: '.new3', type: 'create' });
+				counter++;
+			}
+			else if(change.type === 'update') {
+				expect(change).toEqual({ oldValue: 6, value: 8, path: '.new3', type: 'update' });
+				counter++;
+			}
+			
+			if(counter === 2) {
+				setImmediate(done);
+			}
+		});
+		proxy.new3 = 6;
+		proxy.new3 = 8;
 	}
 });
 

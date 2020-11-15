@@ -676,7 +676,7 @@ function activate(dataNode, objects) {
  * add event listener on a proxy or on a descending path
  * @param {Object} dataNode
  * @param {Object} objects
- * @param {String} event 
+ * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener 
  * @param {String} [id] - identifier for removing this listener
@@ -684,63 +684,89 @@ function activate(dataNode, objects) {
  */
 
 
-function on(dataNode, objects, event, path, listener, id) {
+function on(dataNode, objects, events, path, listener, id) {
   var once = arguments.length > 6 && arguments[6] !== undefined ? arguments[6] : false;
+  if (!Array.isArray(events)) events = [events];
 
-  if (_supportingFunctions.acceptableEvents.includes(event)) {
-    if (typeof path === 'function') {
-      //if called without path
-      id = listener;
-      listener = path;
-      path = '';
-    } else if (typeof listener !== 'function') {
-      throw new Error("invalid arguments were given. listener must be a function");
-    }
+  var _iterator = _createForOfIteratorHelper(events),
+      _step;
 
-    var segments = (0, _generalFunctions.splitPath)(path); //traverse down the tree. create data-nodes if needed
+  try {
+    for (_iterator.s(); !(_step = _iterator.n()).done;) {
+      var event = _step.value;
 
-    var _iterator = _createForOfIteratorHelper(segments),
-        _step;
-
-    try {
-      for (_iterator.s(); !(_step = _iterator.n()).done;) {
-        var property = _step.value;
-
-        if (!dataNode[property]) {
-          (0, _supportingFunctions.createDataNode)(dataNode, property);
-        }
-
-        dataNode = dataNode[property];
+      if (!_supportingFunctions.acceptableEvents.includes(event)) {
+        throw new Error("".concat(event, " is not a valid event. valid events are ").concat(_supportingFunctions.acceptableEvents.join(',')));
       }
-    } catch (err) {
-      _iterator.e(err);
-    } finally {
-      _iterator.f();
     }
+  } catch (err) {
+    _iterator.e(err);
+  } finally {
+    _iterator.f();
+  }
 
-    if (!dataNode[ND].listeners) {
-      dataNode[ND].listeners = [];
-      dataNode[ND].eventPool = [];
+  if (typeof path === 'function') {
+    //if called without path
+    id = listener;
+    listener = path;
+    path = '';
+  } else if (typeof listener !== 'function') {
+    throw new Error("invalid arguments were given. listener must be a function");
+  }
+
+  var segments = (0, _generalFunctions.splitPath)(path); //traverse down the tree. create data-nodes if needed
+
+  var _iterator2 = _createForOfIteratorHelper(segments),
+      _step2;
+
+  try {
+    for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+      var property = _step2.value;
+
+      if (!dataNode[property]) {
+        (0, _supportingFunctions.createDataNode)(dataNode, property);
+      }
+
+      dataNode = dataNode[property];
     }
+  } catch (err) {
+    _iterator2.e(err);
+  } finally {
+    _iterator2.f();
+  }
 
-    dataNode[ND].listeners.push([event, listener, id, once]);
-  } else {
-    throw new Error("".concat(event, " is not a valid event. valid events are ").concat(_supportingFunctions.acceptableEvents.join(',')));
+  if (!dataNode[ND].listeners) {
+    dataNode[ND].listeners = [];
+    dataNode[ND].eventPool = [];
+  }
+
+  var _iterator3 = _createForOfIteratorHelper(events),
+      _step3;
+
+  try {
+    for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
+      var _event = _step3.value;
+      dataNode[ND].listeners.push([_event, listener, id, once]);
+    }
+  } catch (err) {
+    _iterator3.e(err);
+  } finally {
+    _iterator3.f();
   }
 }
 /**
  * add event listener on a proxy or on a descending path which will run only once
  * @param {Object} dataNode
  * @param {Object} objects
- * @param {String} event 
+ * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener 
  * @param {String} [id] - identifier for removing this listener
  */
 
 
-function once(dataNode, objects, event, path, listener, id) {
-  on.call(this, dataNode, objects, event, path, listener, id, true);
+function once(dataNode, objects, events, path, listener, id) {
+  on.call(this, dataNode, objects, events, path, listener, id, true);
 }
 /**
  * removes a listener from a path by an identifier (can have multiple listeners with the same ID)
@@ -762,12 +788,12 @@ function removeListener(dataNode, objects, path, id) {
   var fullPath = "".concat(dataNode[ND].path).concat(path);
   var segments = (0, _generalFunctions.splitPath)(path); //traverse down the tree
 
-  var _iterator2 = _createForOfIteratorHelper(segments),
-      _step2;
+  var _iterator4 = _createForOfIteratorHelper(segments),
+      _step4;
 
   try {
-    for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
-      var property = _step2.value;
+    for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
+      var property = _step4.value;
 
       if (!dataNode[property]) {
         console.warn("can't remove listener from a non-existent path '".concat(fullPath, "'"));
@@ -777,9 +803,9 @@ function removeListener(dataNode, objects, path, id) {
       dataNode = dataNode[property];
     }
   } catch (err) {
-    _iterator2.e(err);
+    _iterator4.e(err);
   } finally {
-    _iterator2.f();
+    _iterator4.f();
   }
 
   if (dataNode[ND].listeners) {
@@ -810,12 +836,12 @@ function removeAllListeners(dataNode, objects) {
   var fullPath = "".concat(dataNode[ND].path).concat(path);
   var segments = (0, _generalFunctions.splitPath)(path); //traverse down the tree
 
-  var _iterator3 = _createForOfIteratorHelper(segments),
-      _step3;
+  var _iterator5 = _createForOfIteratorHelper(segments),
+      _step5;
 
   try {
-    for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
-      var property = _step3.value;
+    for (_iterator5.s(); !(_step5 = _iterator5.n()).done;) {
+      var property = _step5.value;
 
       if (!dataNode[property]) {
         console.warn("can't remove all listeners from a non-existent path '".concat(fullPath, "'"));
@@ -825,9 +851,9 @@ function removeAllListeners(dataNode, objects) {
       dataNode = dataNode[property];
     }
   } catch (err) {
-    _iterator3.e(err);
+    _iterator5.e(err);
   } finally {
-    _iterator3.f();
+    _iterator5.f();
   }
 
   if (dataNode[ND].listeners) {

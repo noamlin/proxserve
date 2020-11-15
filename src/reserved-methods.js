@@ -49,39 +49,44 @@ export function activate(dataNode, objects, force=false) {
  * add event listener on a proxy or on a descending path
  * @param {Object} dataNode
  * @param {Object} objects
- * @param {String} event 
+ * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener 
  * @param {String} [id] - identifier for removing this listener
  * @param {Boolean} [once] - whether this listener will run only once or always
  */
-export function on(dataNode, objects, event, path, listener, id, once=false) {
-	if(acceptableEvents.includes(event)) {
-		if(typeof path === 'function') { //if called without path
-			id = listener;
-			listener = path;
-			path = '';
-		} else if(typeof listener !== 'function') {
-			throw new Error(`invalid arguments were given. listener must be a function`);
-		}
-		
-		let segments = splitPath(path);
-		//traverse down the tree. create data-nodes if needed
-		for(let property of segments) {
-			if(!dataNode[property]) {
-				createDataNode(dataNode, property);
-			}
-			dataNode = dataNode[property];
-		}
+export function on(dataNode, objects, events, path, listener, id, once=false) {
+	if(!Array.isArray(events)) events = [events];
 
-		if(!dataNode[ND].listeners) {
-			dataNode[ND].listeners = [];
-			dataNode[ND].eventPool = [];
+	for(let event of events) {
+		if(!acceptableEvents.includes(event)) {
+			throw new Error(`${event} is not a valid event. valid events are ${acceptableEvents.join(',')}`);
 		}
-		dataNode[ND].listeners.push([event, listener, id, once]);
 	}
-	else {
-		throw new Error(`${event} is not a valid event. valid events are ${acceptableEvents.join(',')}`);
+	
+	if(typeof path === 'function') { //if called without path
+		id = listener;
+		listener = path;
+		path = '';
+	} else if(typeof listener !== 'function') {
+		throw new Error(`invalid arguments were given. listener must be a function`);
+	}
+	
+	let segments = splitPath(path);
+	//traverse down the tree. create data-nodes if needed
+	for(let property of segments) {
+		if(!dataNode[property]) {
+			createDataNode(dataNode, property);
+		}
+		dataNode = dataNode[property];
+	}
+
+	if(!dataNode[ND].listeners) {
+		dataNode[ND].listeners = [];
+		dataNode[ND].eventPool = [];
+	}
+	for(let event of events) {
+		dataNode[ND].listeners.push([event, listener, id, once]);
 	}
 }
 
@@ -89,13 +94,13 @@ export function on(dataNode, objects, event, path, listener, id, once=false) {
  * add event listener on a proxy or on a descending path which will run only once
  * @param {Object} dataNode
  * @param {Object} objects
- * @param {String} event 
+ * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener 
  * @param {String} [id] - identifier for removing this listener
  */
-export function once(dataNode, objects, event, path, listener, id) {
-	on.call(this, dataNode, objects, event, path, listener, id, true);
+export function once(dataNode, objects, events, path, listener, id) {
+	on.call(this, dataNode, objects, events, path, listener, id, true);
 }
 
 /**
