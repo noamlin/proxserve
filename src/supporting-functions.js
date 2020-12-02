@@ -218,6 +218,11 @@ export function unproxify(value) {
 	}
 }
 
+/**
+ * create a node in a tree that mimics the proxserve's object and holds meta-data
+ * @param {Object} parentNode 
+ * @param {String|Number} property 
+ */
 export function createDataNode(parentNode, property) {
 	let propertyPath;
 	if(parentNode[ND] && parentNode[ND].objects && parentNode[ND].objects.target) {
@@ -237,7 +242,7 @@ export function createDataNode(parentNode, property) {
 		parentNode[property] = node;
 	}
 
-	delete node[NID].status; //clear old status in case if node previously existed
+	delete node[NID].status; //clears old status in case a node previously existed
 	//updates path (for rare case where parent was array and then changed to object or vice versa)
 	//and also makes a new and clean 'objects' property
 	Object.assign(node[ND], {

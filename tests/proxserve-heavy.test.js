@@ -26,16 +26,6 @@ function isRevoked(value) {
 	}
 }
 
-var consoleFuncs = { log: console.log, warn: console.warn, error: console.error };
-function silentConsole() {
-	console.log = console.warn = console.error = function() { };
-}
-function wakeConsole() {
-	console.log = consoleFuncs.log;
-	console.warn = consoleFuncs.warn;
-	console.error = consoleFuncs.error;
-}
-
 function deepCountObjects(obj) {
 	let numChildObjects = 0;
 
@@ -535,7 +525,7 @@ test('8. Comprehensive events of changes', (done) => {
 			expect(changes[0]).toEqual({ oldValue: undefined, value: {new:'new'}, type: 'create', path: '[2]' });
 			expect(changes[1]).toEqual({ oldValue: 'new', value: [0,1,2,3,4,5,6], type: 'update', path: '[2].new' });
 			expect(changes[2]).toEqual({ oldValue: 0, value: undefined, type: 'delete', path: '[2].new[0]' });
-			setTimeout(done, 1100);
+			setTimeout(done, 100);
 		});
 		proxy.level1_2.level2_1.level3_1.arr2[2][2] = { new: 'new' }; //should emit 1 create change
 		proxy.level1_2.level2_1.level3_1.arr2[2][2].new = [0,1,2,3,4,5,6]; //should emit 1 update change

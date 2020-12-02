@@ -146,6 +146,16 @@ function realtypeof(variable) {
   return rawType.substring(8, rawType.length - 1);
 }
 /**
+ * check if variable is a number or a string of a number
+ * @param {*} variable 
+ */
+
+/*export function isNumeric(variable) {
+	if(typeof variable === 'string' && variable === '') return false;
+	else return !isNaN(variable);
+}*/
+
+/**
  * recursively clones objects and array
  * @param {Proxy|Object|Array} proxy 
  */
@@ -205,10 +215,16 @@ function splitPath(path) {
     return [];
   }
 
-  var i = 0;
+  var i = 0,
+      betweenBrackets = false,
+      onlyDigits = false; //loop will skip over openning '.' or '['
 
-  if (path[0] === '.' || path[0] === '[') {
-    i = 1; //loop will skip over openning '.' or '['
+  if (path[0] === '.') {
+    i = 1;
+  } else if (path[0] === '[') {
+    i = 1;
+    betweenBrackets = true;
+    onlyDigits = true;
   }
 
   var resultsArr = [];
@@ -217,11 +233,39 @@ function splitPath(path) {
   for (; i < path.length; i++) {
     var char = path[i];
 
-    if (char === '.' || char === '[') {
-      resultsArr.push(tmp);
-      tmp = '';
-    } else if (char !== ']') {
-      tmp += char;
+    if (betweenBrackets) {
+      if (char === ']') {
+        if (onlyDigits) resultsArr.push(parseInt(tmp, 10));else resultsArr.push(tmp);
+        betweenBrackets = false;
+        onlyDigits = false;
+        tmp = '';
+      } else {
+        if (onlyDigits) {
+          var code = char.charCodeAt(0);
+
+          if (code < 48 || code > 57) {
+            //less than '0' char or greater than '9' char
+            onlyDigits = false;
+          }
+        }
+
+        tmp += char;
+      }
+    } else {
+      if (char === '[') {
+        betweenBrackets = true;
+        onlyDigits = true;
+      } //check if starting a new property but avoid special case of [prop][prop]
+
+
+      if (char === '.' || char === '[') {
+        if (tmp !== '') {
+          resultsArr.push(tmp);
+          tmp = '';
+        }
+      } else {
+        tmp += char;
+      }
     }
   }
 
@@ -562,6 +606,12 @@ function unproxify(value) {
     return value; //primitive
   }
 }
+/**
+ * create a node in a tree that mimics the proxserve's object and holds meta-data
+ * @param {Object} parentNode 
+ * @param {String|Number} property 
+ */
+
 
 function createDataNode(parentNode, property) {
   var propertyPath;
@@ -583,7 +633,7 @@ function createDataNode(parentNode, property) {
     parentNode[property] = node;
   }
 
-  delete node[NID].status; //clear old status in case if node previously existed
+  delete node[NID].status; //clears old status in case a node previously existed
   //updates path (for rare case where parent was array and then changed to object or vice versa)
   //and also makes a new and clean 'objects' property
 

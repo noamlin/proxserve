@@ -12,7 +12,6 @@
 const Proxserve = require('../dist/proxserve.js');
 const util = require('util');
 const { cloneDeep } = require('lodash');
-const { count } = require('console');
 
 //test if proxy's internal [[handler]] is revoked. according to http://www.ecma-international.org/ecma-262/6.0/#sec-proxycreate
 function isRevoked(value) {
@@ -432,10 +431,10 @@ test('9. splitPath - split path to segments', () => {
 	expect(path).toEqual(['level2_1','level3_1']);
 
 	path = Proxserve.splitPath('[2][2].new');
-	expect(path).toEqual(['2','2','new']);
+	expect(path).toEqual([2,2,'new']);
 
 	path = Proxserve.splitPath('.new[0]');
-	expect(path).toEqual(['new','0']);
+	expect(path).toEqual(['new',0]);
 
 	path = Proxserve.splitPath('.a');
 	path2 = Proxserve.splitPath('a');
@@ -443,13 +442,16 @@ test('9. splitPath - split path to segments', () => {
 	expect(path).toEqual(['a']);
 
 	path = Proxserve.splitPath('.level2_1.level3_1.arr2[2][2].new[0]');
-	expect(path).toEqual(['level2_1','level3_1','arr2','2','2','new','0']);
+	expect(path).toEqual(['level2_1','level3_1','arr2',2,2,'new',0]);
 
 	path = Proxserve.splitPath('New[0]new');
-	expect(path).toEqual(['New','0new']);
+	expect(path).toEqual(['New',0,'new']);
 
 	path = Proxserve.splitPath('[1][0][new]');
-	expect(path).toEqual(['1','0','new']);
+	expect(path).toEqual([1,0,'new']);
+
+	path = Proxserve.splitPath('.new[0][1.0][1a][keyWith1][9876543210]');
+	expect(path).toEqual(['new',0,'1.0','1a','keyWith1',9876543210]);
 });
 
 test('10. evalPath - get target property of object and path', (done) => {
@@ -475,7 +477,7 @@ test('10. evalPath - get target property of object and path', (done) => {
 	proxy.level1_2.level2_1.on('change', function(changes) {
 		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
 		expect(object === proxy.level1_2.level2_1.level3_1.arr2[2]).toBe(true);
-		expect(property).toEqual('2');
+		expect(property).toEqual(2);
 		expect(value).toEqual([0, {a: 'a'}]);
 	});
 	proxy.level1_2.level2_1.level3_1.arr2[2][2] = [0, {a: 'a'}];

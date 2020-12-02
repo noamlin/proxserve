@@ -18,6 +18,15 @@ export function realtypeof(variable) {
 }
 
 /**
+ * check if variable is a number or a string of a number
+ * @param {*} variable 
+ */
+/*export function isNumeric(variable) {
+	if(typeof variable === 'string' && variable === '') return false;
+	else return !isNaN(variable);
+}*/
+
+/**
  * recursively clones objects and array
  * @param {Proxy|Object|Array} proxy 
  */
@@ -72,20 +81,56 @@ export function splitPath(path) {
 		return [];
 	}
 	
-	let i = 0;
-	if(path[0] === '.' || path[0] === '[') {
-		i = 1; //loop will skip over openning '.' or '['
+	let i = 0, betweenBrackets = false, onlyDigits = false;
+	//loop will skip over openning '.' or '['
+	if(path[0] === '.') {
+		i = 1;
+	} else if(path[0] === '[') {
+		i = 1;
+		betweenBrackets = true;
+		onlyDigits = true;
 	}
 
-	var resultsArr = [];
-	var tmp='';
+	let resultsArr = [];
+	let tmp='';
 	for(; i < path.length; i++) {
 		let char = path[i];
-		if(char === '.' || char === '[') {
-			resultsArr.push(tmp);
-			tmp = '';
-		} else if(char !== ']') {
-			tmp += char;
+
+		if(betweenBrackets) {
+			if(char === ']') {
+				if(onlyDigits) resultsArr.push(parseInt(tmp, 10));
+				else resultsArr.push(tmp);
+
+				betweenBrackets = false;
+				onlyDigits = false;
+				tmp = '';
+			}
+			else {
+				if(onlyDigits) {
+					let code = char.charCodeAt(0);
+					if(code < 48 || code > 57) { //less than '0' char or greater than '9' char
+						onlyDigits = false;
+					}
+				}
+				tmp += char;
+			}
+		}
+		else {
+			if(char === '[') {
+				betweenBrackets = true;
+				onlyDigits = true;
+			}
+			
+			//check if starting a new property but avoid special case of [prop][prop]
+			if(char === '.' || char === '[') {
+				if(tmp !== '') {
+					resultsArr.push(tmp);
+					tmp = '';
+				}
+			}
+			else {
+				tmp += char;
+			}
 		}
 	}
 	if(tmp!=='') {
