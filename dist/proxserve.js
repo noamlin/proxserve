@@ -928,7 +928,7 @@ function getOriginalTarget(dataNode, objects) {
   return objects.target;
 }
 /**
- * get 'objects' (which hold all related objects) of a proxy
+ * get 'objects' (which holds all related objects) of a proxy
  * @param {Object} dataNode
  * @param {Object} objects
  */
@@ -1014,13 +1014,19 @@ var Proxserve = /*#__PURE__*/function () {
   function Proxserve(target) {
     var _createDataNode;
 
-    var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    var _ref = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+        _ref$delay = _ref.delay,
+        delay = _ref$delay === void 0 ? 10 : _ref$delay,
+        _ref$strict = _ref.strict,
+        strict = _ref$strict === void 0 ? true : _ref$strict,
+        _ref$emitReference = _ref.emitReference,
+        emitReference = _ref$emitReference === void 0 ? false : _ref$emitReference;
 
     _classCallCheck(this, Proxserve);
 
-    this.delay = options.delay !== undefined ? options.delay : 10;
-    this.strict = options.strict !== undefined ? options.strict : true;
-    this.emitReference = options.emitReference !== undefined ? options.emitReference : false;
+    this.delay = delay;
+    this.strict = strict;
+    this.emitReference = emitReference;
     this.dataTree = (0, _supportingFunctions.createDataNode)((_createDataNode = {}, _defineProperty(_createDataNode, NID, {
       'status': _supportingFunctions.statuses[0]
     }), _defineProperty(_createDataNode, ND, {

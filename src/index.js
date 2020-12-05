@@ -35,10 +35,10 @@ class Proxserve {
 	 * 	@property {Boolean} [options.strict] - should destroy detached child-objects or deleted properties automatically
 	 * 	@property {Boolean} [options.emitReference] - events emit new/old values. true: reference to original objects, false: deep clones that are created on the spot
 	 */
-	constructor(target, options = {}) {
-		this.delay = (options.delay !== undefined) ? options.delay : 10;
-		this.strict = (options.strict !== undefined) ? options.strict : true;
-		this.emitReference = (options.emitReference !== undefined) ? options.emitReference : false;
+	constructor(target, { delay=10, strict=true, emitReference=false } = {}) {
+		this.delay = delay;
+		this.strict = strict;
+		this.emitReference = emitReference;
 
 		this.dataTree = createDataNode({
 			[NID]: { 'status': statuses[0] },

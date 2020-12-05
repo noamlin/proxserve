@@ -184,7 +184,7 @@ export function getOriginalTarget(dataNode, objects) {
 }
 
 /**
- * get 'objects' (which hold all related objects) of a proxy
+ * get 'objects' (which holds all related objects) of a proxy
  * @param {Object} dataNode
  * @param {Object} objects
  */
