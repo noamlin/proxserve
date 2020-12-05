@@ -1,13 +1,13 @@
 
+
 <!doctype html>
 <html lang="en-US">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-	<title>Noam Lin - Proxserve - About</title>
+	<title>Noam Lin - Proxserve - About & Getting Started</title>
 
 	<link rel="stylesheet" href="https://www.noaml.in/public/styles.css">
-	<script src="https://kit.fontawesome.com/9c604325d3.js" crossorigin="anonymous"></script>
 </head>
 <body>
 	<header>
@@ -24,9 +24,7 @@
 			</div>
 			<div class="items">
 			
-				<a class="classic" href="/">About</a>
-			
-				<a class="classic" href="/getting-started">Getting Started</a>
+				<a class="classic" href="/">Getting Started</a>
 			
 				<a class="classic" href="/api">API</a>
 			
@@ -43,16 +41,257 @@
 
 	<main>
 		
-<h1 style="text-align: center;">UNDER CONSTRUCTION</h1>
+<div class="blocks-row">
+	<div class="block">
+		<h1>Proxy Observe</h1>
+		<p>Proxserve is a lightweight and very fast javascript library for observing any changes made to an object.<br>
+		It was initially created for the <a href="https://oh.noaml.in">OH!</a> library but has grown so much that it is now a full-blown library by itself.<br>
+		With Proxserve you are using plain old javascript objects with the addition of event listeners directly on properties, thus monitoring
+		any changes made to these properties and sub-objects.</p>
+	</div>
+</div>
+<div class="blocks-row blocks-2 docs-n-menu">
+	<nav class="side-menu">
+		<ul>
+			<li><a href="#installation">Installation</a>
+			<li class="sub"><a href="#server-side">Server Side</a>
+			<li class="sub"><a href="#client-side">Client Side</a>
+
+			<li><a href="#main-concepts">Main Concepts</a>
+			<li class="sub"><a href="#events">Events</a>
+			<li class="sub"><a href="#event-cycle">Event Cycle</a>
+			<li class="sub"><a href="#garbage-collection">Garbage Collection</a>
+
+			<li><a href="#basic-usage">Basic Usage</a>
+			<li class="sub"><a href="#initialization">Initialization</a>
+			<li class="sub"><a href="#basic-event-listeners">Basic Event Listeners</a>
+
+			<li><a href="#advanced-usage">Advanced Usage</a>
+			<li class="sub"><a href="#advanced-event-listeners">Adv. Event Listeners</a>
+		</ul>
+	</nav>
+	<div class="block">
+		<h2 id="installation">Installation<a class="anchor" href="#installation"></a></h2>
+		<p>Proxserve runs on both client side and server side (<a href="https://nodejs.org" target="_blank">Node.js</a>)</p>
+		
+		<h4 id="server-side">Server side<a class="anchor" href="#server-side"></a></h4>
+		<p>Run the following command in the terminal</p>
+		<code-block data-language="bash">
+npm install proxserve --save
+		</code-block>
+		<p>Then require it:</p>
+		<code-block data-language="javascript">
+const Proxserve = require('proxserve');
+		</code-block>
+		
+		<h4 id="client-side">Client side<a class="anchor" href="#client-side"></a></h4>
+		<p>Simplest way is to use a CDN<br>
+		<span class="note">Don't forget to replace "1.x.x" with the desired version
+		(recent version is <span id="proxserve-recent-version">1.x.x</span>)</span></p>
+		<script>
+fetch('https://api.github.com/repos/noamlin/proxserve/tags',
+{
+	method: 'GET',
+	mode: 'cors',
+	headers: {
+		'Content-Type': 'application/json'
+	}
+})
+.then(response => response.json())
+.then(data => {
+	let latest = data[0].name;
+	if(latest[0].toLowerCase() === 'v') {
+		latest = latest.slice(1);
+	}
+	document.querySelector('#proxserve-recent-version').textContent = latest;
+})
+.catch(error => {
+	console.error(error);
+});
+		</script>
+		<code-block data-language="html">
+&lt;script src="https://cdn.jsdelivr.net/npm/proxserve@1.x.x/dist/proxserve.min.js"&gt;&lt;/script&gt;
+or
+&lt;script src="https://cdn.jsdelivr.net/npm/proxserve/dist/proxserve.min.js"&gt;&lt;/script&gt;
+		</code-block>
+		<p>If installed on your server, you may serve Proxserve on your own.<br>
+		The files for distribution are located at "node_modules/proxserve/dist/".<br>
+		<span class="note">You may choose between an unminified (proxserve.js) and minified (proxserve.min.js) versions</span></p>
+		<code-block data-language="html">
+&lt;script src="http://your-domain.com/path-to/proxserve/dist/proxserve.min.js"&gt;&lt;/script&gt;
+		</code-block>
+		
+		<h2 id="main-concepts">Main Concepts<a class="anchor" href="#main-concepts"></a></h2>
+
+		<h4 id="events">Events<a class="anchor" href="#events"></a></h4>
+		<p>The heart of Proxserve is emitting events for every change made. Proxserve treats the object as a tree and emits the event up the tree.
+		Each event is an object emitted to whoever listens to it, holding a property of a respective path.<br>
+		Let's say you have an object like this:</p>
+		<code-block data-language="javascript">
+const main = new Proxserve({ subObj: { arr: [0, 1, 2] } });
+		</code-block>
+		<p>Altering any of the three cells of the array will emit an "update" event to "arr", to "subObj" and to "main".<br>
+		Now let's say you have attached a listener to all objects and then changed the value of "main.subObj.arr[1]" to 99.<br>
+		"arr" listener will be called with a "change object" that looks like this:</p>
+		<code-block data-language="javascript">
+{
+	path: '[1]',
+	value: 99,
+	oldValue: 1,
+	type: 'update'
+}
+		</code-block>
+		<p>"subObj" listener will be called with a similar change-object but with a path like this: ".arr[1]"<br>
+		and "main" listener will be called with a change-object with a path like this: ".subObj.arr[1]"</p>
+
+		<h4 id="event-cycle">Event Cycle<a class="anchor" href="#event-cycle"></a></h4>
+		<p>Proxserve by default has its own "event loop".<br>
+		It waits and accumulates changes before it fires the events in order to let you decide what data change do you want to handle and what not.
+		This makes both, Proxserve and your own code, very efficient and fast.<br>
+		The time of a cycle is controlled via the "<a href="https://proxserve.noaml.in/api#options">delay</a>" option. This cycle can be disabled.<br>
+		An example for a case like this is Array.splice(). This method causes javascript to generate many many changes
+		(javascript moves cells in the array one by one).
+		Instead of having your listener invoked many times, it will be invoked once with an array of all changes.
+		You will probably want to ignore all of the changes and refer just to the current and final state of the array.</p>
+		
+		<h4 id="garbage-collection">Garbage Collection<a class="anchor" href="#garbage-collection"></a></h4>
+		<p>Proxserve handles memory very efficiently but also very aggressively.<br>
+		By default any sub-object that has been detached from its parent object
+		(by delete/splice of it or its parents) will enter the "destroy" cycle.<br>
+		This cycle runs once every "delay + 1000" milliseconds. This lets all scripts who might still point to the object finish their business.<br>
+		At the end of the cycle's time all internal references of the sub-object are deleted and then the sub-object
+		(which is a proxy-object) gets revoked - javascript deletes the reference of the proxy-object to the original target object,
+		allowing the garbage collector to collect it.<br>
+		<i class="fas fa-exclamation danger round"></i> <span class="danger">Caveat:</span> handling objects outside of the proxerve object
+		might lead to pointing to revoked proxies (destroyed objects).
+		This can throw unexpected errors. Consider this example:</p>
+		<code-block data-language="javascript">
+const users = new Proxserve([
+	{ name: 'Will Smith', age: 52 },
+	{ name: 'Brad Pitt', age: 56 }
+]);
+let willSmith = users[0];
+users.splice(0, 1);
+console.log(willSmith); //works because the proxy wasn't destroyed yet
+setTimeout(() => {
+	console.log(willSmith); //throws an error. "willSmith" is now a revoked proxy
+}, 1500);
+		</code-block>
+		<p><span class="note">Solutions for this situation are at the <a href="https://proxserve.noaml.in/api">API</a> page</span></p>
+		
+		<h2 id="basic-usage">Basic usage<a class="anchor" href="#basic-usage"></a></h2>
+		<p>Note: for those who haven't worked with proxy objects before - Proxserve object actually masks a target object.
+		Altering the proxy object allows it to trap your handlers (set, get, etc.) and do custom operations on the target object that is behind it</p>
+		
+		<h4 id="initialization">Initialization<a class="anchor" href="#initialization"></a></h4>
+		<code-block data-language="javascript">
+//verbose way
+const originalObj = { ... };
+const smartObj = new Proxserve(originalObj);
+
+//short way
+const smartObj = new Proxserve({ ... });
+		</code-block>
+		<p><i class="fas fa-exclamation danger round"></i> <span class="danger">Caution:</span> after initiating
+		a Proxserve do not refer to the original object. This will bypass Proxserve and will not emit events</p>
+		<code-block data-language="javascript">
+const Proxserve = require('proxserve');
+const userData = {
+	name: 'John',
+	last_name: 'Doe',
+	age: 30
+};
+const user = new Proxserve(userData);
+
+userData.age = 40; //bad practice
+user.age = 40; //good practice
+		</code-block>
+		
+		<h4 id="basic-event-listeners">Basic Event Listeners<a class="anchor" href="#basic-event-listeners"></a></h4>
+		<p>There are 3 events - "create", "update" & "delete". You may listen to one of them or to all of them with the special "change" event.<br>
+		<span class="note">Whenever you instantiate a proxserve it has "hidden" methods attached to the object and sub-objects.
+		one of them is "on()" or the alias "$on()"</span></p>
+		<code-block data-language="javascript">
+const pObj = new Proxserve({ subObj: [] });
+pObj.on('change', function(changesArray) {
+	console.log(changesArray);
+});
+pObj.subObj.on('create', function(change) {
+	console.log(change);
+});
+pObj.subObj.push(123, 345); //will trigger subObj's listener twice
+
+pObj.on('delete', function(change) {
+	console.log(change);
+});
+delete pObj.subObj; //will trigger pObj's "delete" listener once
+//And now pObj's "change" listener will trigger once, with an array of 3 changes
+		</code-block>
+		
+		<h2 id="advanced-usage">Advanced usage<a class="anchor" href="#advanced-usage"></a></h2>
+
+		<h4 id="advanced-event-listeners">Advanced Event Listeners<a class="anchor" href="#advanced-event-listeners"></a></h4>
+		<p>Adding event listeners to properties not yet created, Listeners adding more listeners and more.<br>
+		<span class="note">Watch out for race conditions</span></p>
+		<code-block data-language="javascript">
+const Proxserve = require('./dist/proxserve.js');
+const game = new Proxserve({ total: 0 });
+
+function updateTotalScore(change) {
+	let oldValue = !change.oldValue ? 0 : change.oldValue;
+	game.total += change.value - oldValue;
+}
+
+game.once('create', '.players', function(change) { //adding a listener to a path not yet existing
+	print_ui_for_players(change);
+	
+	for(let player of game.players) player.on(['create','update'], '.score', updateTotalScore);
+
+	game.players.on('change', (changes) => { //adding another listener in the middle of the event emitting
+		for(let change of changes) {
+			let pathArr = Proxserve.splitPath(change.path);
+			if(Number.isInteger(pathArr[0])) {
+				if(pathArr[0] >= 4) { //don't listen to any more changes after player number 4
+					game.players.removeListener('playersListenerID');
+					return;
+				}
+
+				//attach a listener to the currently created player
+				this[ pathArr[0] ].on(['create','update'], '.score', updateTotalScore);
+				update_ui_for_players(change);
+			}
+		}
+	}, 'playersListenerID');
+});
+
+game.players = [
+	{ name: 'John', age: 30 }
+];
+setTimeout(() => {
+	game.players.push({ name: 'Jane', age: 20 }, { name: 'Tim', age: 25 }, { name: 'Tanya', age: 35 });
+	game.players.push({ name: 'Samuel', age: 40 }, { name: 'Samantha', age: 45 }); //5th & 6th players won't be handled
+}, 100); //simulate some CPU time
+setTimeout(() => {
+	game.players[0].score = 5;
+	game.players[1].score = 1;
+	game.players[2].score = 4;
+	game.players[3].score = 3;
+	game.players[0].score = 1;
+}, 200); //simulate some CPU time
+
+game.on('change', '.total', function(changes) {
+	console.log(game.total); //will output 9
+});
+		</code-block>
+	</div>
+</div>
 
 	</main>
 
 	<footer>
 		<div class="menu">
 		
-			<a class="classic" href="/">About</a>
-		
-			<a class="classic" href="/getting-started">Getting Started</a>
+			<a class="classic" href="/">Getting Started</a>
 		
 			<a class="classic" href="/api">API</a>
 		
@@ -69,5 +308,8 @@
 	</footer>
 
 	<script src="https://www.noaml.in/public/scripts.js"></script>
+	<script src="https://kit.fontawesome.com/9c604325d3.js" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/prismjs@1.21.0/prism.min.js" data-manual></script>
+<script src="../public/code-block.js"></script>
 </body>
 </html>

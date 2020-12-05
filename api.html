@@ -1,4 +1,5 @@
 
+
 <!doctype html>
 <html lang="en-US">
 <head>
@@ -7,7 +8,6 @@
 	<title>Noam Lin - Proxserve - API</title>
 
 	<link rel="stylesheet" href="https://www.noaml.in/public/styles.css">
-	<script src="https://kit.fontawesome.com/9c604325d3.js" crossorigin="anonymous"></script>
 </head>
 <body>
 	<header>
@@ -24,9 +24,7 @@
 			</div>
 			<div class="items">
 			
-				<a class="classic" href="/">About</a>
-			
-				<a class="classic" href="/getting-started">Getting Started</a>
+				<a class="classic" href="/">Getting Started</a>
 			
 				<a class="classic" href="/api">API</a>
 			
@@ -43,16 +41,601 @@
 
 	<main>
 		
-<h1 style="text-align: center;">UNDER CONSTRUCTION</h1>
+<div class="blocks-row blocks-2 docs-n-menu">
+	<nav class="side-menu">
+		<ul>
+			<li><a href="#proxserve-class">Class</a>
+			<li class="sub"><a href="#constructor">Constructor</a>
+			<li class="sub"><a href="#options">Options</a>
+			<li class="sub"><a href="#destroy">Destroy</a>
+			<li class="sub"><a href="#split-path">splitPath</a>
+			<li class="sub"><a href="#eval-path">evalPath</a>
+
+			<li><a href="#object-methods">Object Methods</a>
+			<li class="sub"><a href="#on">on</a>
+			<li class="sub"><a href="#once">once</a>
+			<li class="sub"><a href="#remove-listener">removeListener</a>
+			<li class="sub"><a href="#remove-all-listeners">removeAllListeners</a>
+			<li class="sub"><a href="#stop">stop</a>
+			<li class="sub"><a href="#block">block</a>
+			<li class="sub"><a href="#activate">activate</a>
+			<li class="sub"><a href="#get-original-target">getOriginalTarget</a>
+		</ul>
+	</nav>
+	<div class="block">
+		<h2 id="proxserve-class">Proxserve Class<a class="anchor" href="#proxserve-class"></a></h2>
+
+		<h4 id="constructor">Constructor<a class="anchor" href="#constructor"></a></h4>
+		<p>Construct a new proxserve instance.<br>
+		Parameters:</p>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Default value</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>target</td>
+					<td>Object|Array</td>
+					<td></td>
+					<td>The target for proxserve to observe</td>
+				</tr>
+				<tr>
+					<td>options</td>
+					<td>Object</td>
+					<td>{...}</td>
+					<td>See the constructor's <a href="#options">options section</a></td>
+				</tr>
+				<tr>
+					<td class="indent">options.delay</td>
+					<td>Number</td>
+					<td>10</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td class="indent">options.strict</td>
+					<td>Boolean</td>
+					<td>true</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td class="indent">options.emitReference</td>
+					<td>Boolean</td>
+					<td>false</td>
+					<td></td>
+				</tr>
+			</tbody>
+		</table>
+		<p>Returns: <code-block class="inline" data-language="javascript" one-liner="true">Object</code-block><br>
+		Example:</p>
+		<code-block data-language="javascript">
+const myTarget = { some: 'property' };
+const options = {
+	delay: 10,
+	strict: true,
+	emitReference: false
+};
+const pObj = new Proxserve(myTarget, options);
+		</code-block>
+		
+		<h4 id="options">Constructor's Options<a class="anchor" href="#options"></a></h4>
+		<p>Proxserve has 3 options. Each is very important and affects the core of the library.</p>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Default value</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>delay</td>
+					<td>Number</td>
+					<td>10</td>
+				</tr>
+			</tbody>
+		</table>
+		<p>The delay option controls the delay of the event cycles. Whenever a change is made to the object it triggers a cycle that accumulates
+		all changes for several milliseconds and then fires them all together. This behavior has several benefits which you can read about at
+		the <a href="https://proxserve.noaml.in#event-cycle">concepts section</a>. The delay makes listening and responding to changes asynchronous<br>
+		This event cycle can be disabled and turned synchronous by setting the delay to 0 (or lower, which will affect the
+		automatic destroy for <a href="https://proxserve.noaml.in#garbage-collection">garbage collection</a>) if you need to respond to changes
+		immediately (at the same event loop cycle if speaking in Nodejs terms).<br>
+		Example:</p>
+		<code-block data-language="javascript">
+const objOne = new Proxserve({ score: 0 }, { delay: 25 });
+objOne.on('update', function(change) {
+	let oldValue = change.oldValue, wasChangedTo = change.value, currentValue = this.score;
+	console.log(oldValue, wasChangedTo, currentValue);
+});
+objOne.score++; //triggers the change-event loop cycle
+objOne.score++; //adds an event
+objOne.score++; //adds another event
+//after 25ms the events are fired and now the console will log "0 1 3", "1 2 3", "2 3 3"
+
+const objTwo = new Proxserve({ score: 0 }, { delay: 0 });
+objTwo.on('update', function(change) {
+	let oldValue = change.oldValue, wasChangedTo = change.value, currentValue = this.score;
+	console.log(oldValue, wasChangedTo, currentValue);
+});
+objTwo.score++; //immediately logs "0 1 1"
+objTwo.score++; //immediately logs "1 2 2"
+objTwo.score++; //immediately logs "2 3 3"
+		</code-block>
+		<br>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Default value</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>strict</td>
+					<td>Boolean</td>
+					<td>true</td>
+				</tr>
+			</tbody>
+		</table>
+		<p>The strict option determines whether Proxserve will destroy deleted/detached sub-objects automatically.
+		Whenever a property gets deleted, Proxserve will revoke the proxy-object of this property and will
+		destroy all internal metadata used by the library. This ensures the garbage collector will collect the
+		object (assuming there are no other references to this object). Objects will keep on living for
+		<code-block class="inline" data-language="javascript" one-liner="true">delay + 1000ms</code-block> before destroyed
+		in order to let all other code that might still use it finish without errors. Another benefit of the delay is that this cpu
+		intensive operation will run at another time, making the overall performance feel smoother.<br>
+		Disabling the strict mode will not revoke the deleted proxy-objects and will not delete its metadata.
+		Deleting can still lead to zero references to the object and thus still being garbage collected but because of circular references
+		in the metadata there are chances of objects and child objects not being garbage collected and leading to unexpected behaviour
+		like memory overflow. In cases like this you can <a href="#destroy">destroy</a> objects manually.<br>
+		Example:</p>
+		<code-block data-language="javascript">
+const target = { sample: [1,2] };
+const obj = new Proxserve(target, { strict: true }); //'obj.sample' is a proxy-object for 'target.sample'
+const someRef = obj.sample; //'someRef' is a reference to the same proxy-object as 'obj.sample'
+obj.sampleTwo = obj.sample; //'obj.sampleTwo' is a new (different) proxy-object for 'target.sample'
+delete obj.sample; //the property is deleted and the proxy-object it used to refer to will be destroyed
+setTimeout(() => {
+	console.log(obj.sampleTwo); //logs 'a'
+	console.log(obj.sample); //logs 'undefined'
+	try { console.log(someRef); } //throws an error because it can't access a revoked proxy!
+	catch(err) { console.log(err); }
+}, 1500); //waiting for the destroy cycle
+		</code-block>
+		<br>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Default value</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>emitReference</td>
+					<td>Boolean</td>
+					<td>false</td>
+				</tr>
+			</tbody>
+		</table>
+		<p>This option is a tricky one. The emitReference option controls whether a reference is emitted along with the change-event object.
+		Emitting a reference is much faster (because it doesn't require a deep copy) but will lead to very confusing
+		results. For example the
+		<code-block class="inline" data-language="javascript" one-liner="true">change.value</code-block> may reference to an object that
+		was changed several times by the time your listener is invoked, meaning you'll receive a different
+		<code-block class="inline" data-language="javascript" one-liner="true">change.value</code-block> than you expected.
+		Although by default this option is off, it is recommended to turn it on in cases where you
+		don't care about <code-block class="inline" data-language="javascript" one-liner="true">change.oldValue, change.value</code-block>
+		or in cases you simply monitor primitives only.<br>
+		Example:</p>
+		<code-block data-language="javascript">
+const objOne = new Proxserve({ users: [] }, { emitReference: true });
+objOne.users.on('create', function(change) {
+	console.log(change.value); //logs "{ name: 'Sam' }" even though on creation it was 'John'
+});
+objOne.users.push({name: 'John'}); //prepares an event with a reference to the new user
+objOne.users[0].name = 'Sam'; //updates the new user
+//...fires all events
+
+const objTwo = new Proxserve({ users: [] }, { emitReference: false });
+objTwo.users.on('create', function(change) {
+	console.log(change.value); //logs "{ name: 'John' }"
+});
+objTwo.users.push({name: 'John'}); //prepares an event with a copy of the new user
+objTwo.users[0].name = 'Sam'; //updates the new user
+//...fires all events
+		</code-block>
+		<p><i class="fas fa-exclamation danger round"></i> <span class="danger">Caution:</span> when emittin a reference, the
+		<code-block class="inline" data-language="javascript" one-liner="true">change.value</code-block> will refer to the proxy-object
+		but the <code-block class="inline" data-language="javascript" one-liner="true">change.oldValue</code-block> will refer to the
+		original target object (the one behind the proxy) because by the time the listener is called, the older proxy-object might have been
+		destroyed (revoked) and refering to it will throw an error.</p>
+
+		<h4 id="destroy">Destroy<a class="anchor" href="#destroy"></a></h4>
+		<p>Destroys (revokes) a proxserve object or sub-object along with all of its children and internal references.<br>
+		It does not delete the property off the parent object for you. If you will not delete a destroyed property it will refer to the original
+		target object.<br>
+		Parameters:</p>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>proxy</td>
+					<td>Proxy-Object</td>
+					<td>The proxserve's main object or sub-object</td>
+				</tr>
+			</tbody>
+		</table>
+		<p>Example:</p>
+		<code-block data-language="javascript">
+const target = {
+	lists: {
+		fruits: ['apple', 'cherry'],
+		vegetables: ['cucumber', 'carrot']
+	}
+};
+const pObj = new Proxserve(target, { strict: false });
+const fruits = pObj.lists.fruits; //reference to the 'fruits' proxy-object
+Proxserve.destroy(pObj.lists.fruits); //revokes proxy and children
+console.log(pObj.lists.fruits); //logs the original target object (target.lists.fruits)
+try { console.log(fruits); } //throws an error! 'fruits' proxy-object was revoked
+catch(err) { console.error(err); }
+delete pObj.lists.fruits; //property is deleted and now the process is complete
+		</code-block>
+
+		<h4 id="split-path">splitPath<a class="anchor" href="#split-path"></a></h4>
+		<p>Key component of the whole events system is the path of each change. In order to analyze this string you will want to break it to
+		an array of object keys and array indexes. The splitPath method does that very efficiently.<br>
+		Parameters:</p>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>path</td>
+					<td>String</td>
+					<td>The path of the emitted change-event</td>
+				</tr>
+			</tbody>
+		</table>
+		<p>Returns: <code-block class="inline" data-language="javascript" one-liner="true">Array</code-block><br>
+		Example:</p>
+		<code-block data-language="javascript">
+const pObj = new Proxserve({ users: { admins: ['John', 'Sean'] } });
+pObj.on('update', function(change) {
+	console.log(change.path); //function calls will log ".users.admins[0]" and then ".users.admins[1]"
+	let splitted = Proxserve.splitPath(change.path);
+	console.log(splitted); //function calls will log [ 'users', 'admins', 0 ] and then [ 'users', 'admins', 1 ]
+});
+pObj.users.on('change', function(changes) {
+	for(let change of changes) {
+		console.log(change.path); //iterations will log ".admins[0]" and then ".admins[1]"
+		let splitted = Proxserve.splitPath(change.path);
+		console.log(splitted); //iterations will log [ 'admins', 0 ] and then [ 'admins', 1 ]
+	}
+});
+pObj.users.admins[0] = 'Jenny';
+pObj.users.admins[1] = 'Sam';
+		</code-block>
+
+		<h4 id="eval-path">evalPath<a class="anchor" href="#eval-path"></a></h4>
+		<p>Evaluates a path according to an object. Returns the evaluated sub-object, property and the actual value.<br>
+		Parameters:</p>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>obj</td>
+					<td>Object</td>
+					<td>The object to evaluate the path for</td>
+				</tr>
+				<tr>
+					<td>path</td>
+					<td>String</td>
+					<td>A path of an emitted change-event</td>
+				</tr>
+			</tbody>
+		</table>
+		<p>Returns: <code-block class="inline" data-language="javascript" one-liner="true">Object - {object, property, value}</code-block><br>
+		Example:</p>
+		<code-block data-language="javascript">
+const school = new Proxserve({
+	name: 'Philly High',
+	classes: [
+		{
+			teacher: 'John',
+			students: ['Mary', 'Jane']
+		},
+		{
+			teacher: 'Bob',
+			students: ['David', 'Lisa']
+		}
+	]
+}, { delay: 0 });
+school.once('update', function(change) {
+	//"this" = "school"
+	//"change.path" = ".classes[1].teacher"
+	let ev = Proxserve.evalPath(this, change.path);
+	//evaluated to: { object: "school.classes[1]", property: "teacher", value: "Betty" }
+	console.log(ev.object[ ev.property ] === ev.value);
+});
+school.classes[1].teacher = 'Betty';
+
+school.classes.once('update', function(change) {
+	//"this" = "school.classes"
+	//"change.path" = "[0].students[1]"
+	let ev = Proxserve.evalPath(this, change.path);
+	//evaluated to: { object: "school.classes[0].students", property: "1", value: "Tom" }
+	console.log(ev.object[ ev.property ] === ev.value);
+});
+school.classes[0].students[1] = 'Tom';
+		</code-block>
+
+
+		<h2 id="object-methods">Object Methods<a class="anchor" href="#object-methods"></a></h2>
+		<p>Every proxserve object and sub-objects have special methods attached to them. You may overwrite the methods property names if
+		needed and use the alias instead.</p>
+
+		<h4 id="on">on <span class="thin">(alias:</span> $on<span class="thin">)</span><a class="anchor" href="#on"></a></h4>
+		<p>Attach an event listener to the object, listening to any changes made to it or to its sub-objects.<br>
+		Accepted values: "create", "update", "delete" and special value "change".<br>
+		Parameters:</p>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Optional</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>events</td>
+					<td>String|Array</td>
+					<td></td>
+					<td>The event or events to listen for</td>
+				</tr>
+				<tr>
+					<td>path</td>
+					<td>String</td>
+					<td>Yes</td>
+					<td>Path selector. Useful for objects not yet created</td>
+				</tr>
+				<tr>
+					<td>listener</td>
+					<td>Function</td>
+					<td></td>
+					<td>The listener function to invoke</td>
+				</tr>
+				<tr>
+					<td>id</td>
+					<td>Number|String</td>
+					<td>Yes</td>
+					<td>An identifier for removeListener</td>
+				</tr>
+			</tbody>
+		</table>
+		<p><i class="fas fa-exclamation good round"></i> <span class="good">Hint:</span> use the "path" parameter in order to attach listeners
+		to primitives or to objects not yet created.<br>
+		Examples:</p>
+		<code-block data-language="javascript">
+const pObj = new Proxserve({ person: 'Paul' });
+pObj.on('delete', function(change) { ... }); //listen to one event type
+pObj.on(['create','update'], function(change) { ... }); //listen to several event types
+pObj.on('create', '.arr[0]', function(change) { ... }); //listen on a property not yet created
+pObj.arr = ['Ronald'];
+pObj.arr.on('change', function(changes) { //listen to all events as an ordered array
+	for(let change of changes) { ... }
+});
+pObj.arr.push('Emily','Frank','Anna');
+		</code-block>
+
+		<h4 id="once">once <span class="thin">(alias:</span> $once<span class="thin">)</span><a class="anchor" href="#once"></a></h4>
+		<p>Attach an event listener that runs only once.<br>
+		Parameters: same as <a class="anchor" href="#on">on</a><br></p>
+		Example:</p>
+		<code-block data-language="javascript">
+const pObj = new Proxserve({ person: 'Amanda' });
+pObj.once('update', function(change) {
+	console.log(change);
+});
+pObj.person = 'Gary'; //logs Gary's change
+pObj.person = 'Eric'; //does nothing
+		</code-block>
+
+		<h4 id="remove-listener">removeListener <span class="thin">(alias:</span> $removeListener<span class="thin">)</span><a class="anchor" href="#remove-listener"></a></h4>
+		<p>removes a listener from a path by an identifier or by the listener's function.<br>
+		Parameters:</p>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Optional</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>path</td>
+					<td>String</td>
+					<td>yes</td>
+					<td>Path to a sub-property</td>
+				</tr>
+				<tr>
+					<td>id</td>
+					<td>Number|String|Function</td>
+					<td></td>
+					<td>The identifier or function of the listener</td>
+				</tr>
+			</tbody>
+		</table>
+		<p>Example:</p>
+		<code-block data-language="javascript">
+const pObj = new Proxserve({ person: { name: 'Brandon' } }, { delay: 0 });
+
+function myListener(change) { console.log(change.value); }
+
+pObj.on('update', myListener);
+pObj.person.name = 'Emma'; //logs "Emma"
+pObj.removeListener(myListener);
+pObj.person.name = 'Jack'; //nothing happens
+
+pObj.person.on('update', myListener, 'id123');
+pObj.person.name = 'Rachel'; //logs "Rachel"
+pObj.removeListener('.person', 'id123');
+pObj.person.name = 'Dennis'; //nothing happens
+		</code-block>
+
+		<h4 id="remove-all-listeners">removeAllListeners <span class="thin">(alias:</span> $removeAllListeners<span class="thin">)</span><a class="anchor" href="#remove-all-listeners"></a></h4>
+		<p>removes all listener from a path.<br>
+		Parameters:</p>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Optional</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>path</td>
+					<td>String</td>
+					<td>yes</td>
+					<td>Path to a sub-property</td>
+				</tr>
+			</tbody>
+		</table>
+		<p>Example:</p>
+		<code-block data-language="javascript">
+const pObj = new Proxserve({ arr: [], num: 2 }, { delay: 0 });
+pObj.arr.on('create', function(change) { ... });
+pObj.on('create', '.arr', function(change) { ... });
+pObj.arr.removeAllListeners();
+
+pObj.on('update', '.num', function(change) { ... });
+pObj.on('change', '.num', function(changes) { ... });
+pObj.removeAllListeners('.num');
+		</code-block>
+
+		<h4 id="stop">stop<a class="anchor" href="#stop"></a></h4>
+		<p>Stops the object and children from emitting change events.<br>
+		<span class="note">Note: calling "stop" overrides "block" status</span><br>
+		Example:</p>
+		<code-block data-language="javascript">
+const pObj = new Proxserve({ sub: { sub2: 'abc' } }, { delay: 10 });
+pObj.on('change', function(changes) {
+	console.log(changes);
+});
+pObj.sub.sub2 = 'def'; //will get in queue and log the change in 10ms
+pObj.sub.stop();
+pObj.sub.sub2 = 'ghi'; //will not emit any event
+		</code-block>
+
+		<h4 id="block">block<a class="anchor" href="#block"></a></h4>
+		<p>Blocks the object and children from changes. You can't alter or delete any property.<br>
+		<span class="note">Note: calling "block" overrides "stop" status</span><br>
+		Example:</p>
+		<code-block data-language="javascript">
+const pObj = new Proxserve({ sub: { sub2: 123 } });
+pObj.sub.sub2 = 456; //"sub2" is now 456
+pObj.sub.block();
+pObj.sub.sub2 = 789; //"sub2" is still 456 and an error is logged to the console
+		</code-block>
+
+		<h4 id="activate">activate<a class="anchor" href="#activate"></a></h4>
+		<p>Resume default behavior of mutability and emitting change events, Meaning the state is inherited from parent
+		(unless "force" parameter is used).<br>
+		Parameters:</p>
+		<table class="params">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Type</th>
+					<th>Default value</th>
+					<th>Description</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>force</td>
+					<td>Boolean</td>
+					<td>false</td>
+					<td>Force being active regardless of parent's state</td>
+				</tr>
+			</tbody>
+		</table>
+		<p>Example:</p>
+		<code-block data-language="javascript">
+const granddad = new Proxserve({
+	dad: {
+		child: {
+			grandson: 'Henry',
+			granddaughter: 'Julie'
+		}
+	}
+});
+granddad.block();
+granddad.dad.child.grandson = 'Adam'; //fail
+granddad.activate();
+granddad.dad.child.grandson = 'Douglas'; //success
+
+granddad.stop();
+granddad.on('change', function(changes) { console.log('root object is listening'); });
+granddad.dad.child.on('change', function(changes) { console.log('child object is listening'); });
+granddad.dad.child.activate(true);
+granddad.dad.child.granddaughter = 'Victoria'; //root object won't log but child object will
+		</code-block>
+
+		<h4 id="get-original-target">getOriginalTarget<a class="anchor" href="#get-original-target"></a></h4>
+		<p>Special built-in method to get the target object behind the proxserve object.<br>
+		<span class="note">Hint: also useful for checking if an object is a proxserve object</span><br>
+		Example:</p>
+		<code-block data-language="javascript">
+const target = { players: [{ name: 'Peter', score: 50 }] };
+const game = new Proxserve(target);
+console.log(game.players[0] === target.players[0]); //false
+console.log(game.players[0].getOriginalTarget() === target.players[0]); //true
+		</code-block>
+		<p><i class="fas fa-exclamation danger round"></i> <span class="danger">Caution:</span> altering the target object behind the
+		proxserve will not emit events</p>
+	</div>
+</div>
 
 	</main>
 
 	<footer>
 		<div class="menu">
 		
-			<a class="classic" href="/">About</a>
-		
-			<a class="classic" href="/getting-started">Getting Started</a>
+			<a class="classic" href="/">Getting Started</a>
 		
 			<a class="classic" href="/api">API</a>
 		
@@ -69,5 +652,8 @@
 	</footer>
 
 	<script src="https://www.noaml.in/public/scripts.js"></script>
+	<script src="https://kit.fontawesome.com/9c604325d3.js" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/prismjs@1.21.0/prism.min.js" data-manual></script>
+<script src="../public/code-block.js"></script>
 </body>
 </html>
