@@ -7,18 +7,16 @@
  */
 "use strict"
 
-import { acceptableEvents, statuses, createDataNode } from './supporting-functions.js';
+import { eventNames, proxyStatuses, ND, NID } from './global-vars.js';
+import { createDataNode } from './supporting-functions.js';
 import { splitPath } from './general-functions.js';
-
-let ND = Symbol.for('proxserve_node_data'); //key for the data of a node
-let NID = Symbol.for('proxserve_node_inherited_data'); //key for the inherited data of a node
 
 /**
  * stop object and children from emitting change events
  * @param {Object} dataNode
  */
 export function stop(dataNode) {
-	dataNode[NID].status = statuses[1];
+	dataNode[NID].status = proxyStatuses.STOPPED;
 }
 
 /**
@@ -27,7 +25,7 @@ export function stop(dataNode) {
  * @param {Object} dataNode
  */
 export function block(dataNode) {
-	dataNode[NID].status = statuses[2];
+	dataNode[NID].status = proxyStatuses.BLOCKED;
 }
 
 /**
@@ -38,7 +36,7 @@ export function block(dataNode) {
  */
 export function activate(dataNode, objects, force=false) {
 	if(force || dataNode === this.dataTree) { //force activation or we are on root proxy
-		dataNode[NID].status = statuses[0];
+		dataNode[NID].status = proxyStatuses.ACTIVE;
 	}
 	else {
 		delete dataNode[NID].status;
@@ -51,21 +49,28 @@ export function activate(dataNode, objects, force=false) {
  * @param {Object} objects
  * @param {String|Array.String} events
  * @param {String} [path] - path selector
- * @param {Function} listener 
- * @param {String} [id] - identifier for removing this listener
- * @param {Boolean} [once] - whether this listener will run only once or always
+ * @param {Function} listener
+ * @param {Object} [options]
+ * 	@property {Boolean} [options.deep] - should listen for event emitted by sub-objects or not
+ * 	@property {Boolean} [options.id] - identifier for removing this listener later
+ * 	@property {Boolean} [options.once] - whether this listener will run only once or always
  */
-export function on(dataNode, objects, events, path, listener, id, once=false) {
-	if(!Array.isArray(events)) events = [events];
+export function on(dataNode, objects, events, path, listener, {deep=false, id=undefined, once=false} = {}) {
+	if(events === 'change') events = eventNames.slice(0); //will listen to all events
+	else if(!Array.isArray(events)) events = [events];
 
 	for(let event of events) {
-		if(!acceptableEvents.includes(event)) {
-			throw new Error(`${event} is not a valid event. valid events are ${acceptableEvents.join(',')}`);
+		if(!eventNames.includes(event)) {
+			throw new Error(`${event} is not a valid event. valid events are ${eventNames.join(',')}`);
 		}
 	}
 	
 	if(typeof path === 'function') { //if called without path
-		id = listener;
+		if(typeof listener === 'object') {
+			if(typeof listener.deep === 'boolean') deep = listener.deep;
+			if(listener.id !== undefined) id = listener.id;
+			if(typeof listener.once === 'boolean') once = listener.once;
+		}
 		listener = path;
 		path = '';
 	} else if(typeof listener !== 'function') {
@@ -81,13 +86,18 @@ export function on(dataNode, objects, events, path, listener, id, once=false) {
 		dataNode = dataNode[property];
 	}
 
-	if(!dataNode[ND].listeners) {
-		dataNode[ND].listeners = [];
-		dataNode[ND].eventPool = [];
+	let listenersPool = dataNode[ND].listeners.shallow;
+	if(deep) listenersPool = dataNode[ND].listeners.deep;
+
+	let listenerObj = {
+		type: events,
+		once: once,
+		func: listener
+	};
+	if(id !== undefined) {
+		listenerObj.id = id;
 	}
-	for(let event of events) {
-		dataNode[ND].listeners.push([event, listener, id, once]);
-	}
+	listenersPool.push(listenerObj);
 }
 
 /**
@@ -97,10 +107,12 @@ export function on(dataNode, objects, events, path, listener, id, once=false) {
  * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener 
- * @param {String} [id] - identifier for removing this listener
+ * @param {String} [options]
  */
-export function once(dataNode, objects, events, path, listener, id) {
-	on.call(this, dataNode, objects, events, path, listener, id, true);
+export function once(dataNode, objects, events, path, listener, options) {
+	if(typeof options !== 'object') options = {};
+	options.once = true;
+	on.call(this, dataNode, objects, events, path, listener, options);
 }
 
 /**
@@ -109,7 +121,7 @@ export function once(dataNode, objects, events, path, listener, id) {
  * @param {Object} dataNode
  * @param {Object} objects
  * @param {String} [path] - path selector
- * @param {String} id - the listener(s) identifier or listener-function
+ * @param {String|Function} id - the listener(s) identifier or listener-function
  */
 export function removeListener(dataNode, objects, path, id) {
 	if(arguments.length === 3) { //if called without path
@@ -128,21 +140,17 @@ export function removeListener(dataNode, objects, path, id) {
 		dataNode = dataNode[property];
 	}
 
-	if(dataNode[ND].listeners) {
-		let listeners = dataNode[ND].listeners;
-	
-		for(let i = listeners.length - 1; i >= 0; i--) {
-			if((typeof id !== 'function' && listeners[i][2] === id)
-			|| (typeof id === 'function' && listeners[i][1] === id)) {
-				listeners.splice(i, 1);
+	function removeById(listenersArr, id) {
+		for(let i = listenersArr.length - 1; i >= 0; i--) {
+			let listenerObj = listenersArr[i];
+			if((id !== undefined && listenerObj.id === id) || listenerObj.func === id) {
+				listenersArr.splice(i, 1);
 			}
 		}
-
-		if(listeners.length === 0) {
-			delete dataNode[ND].listeners;
-			delete dataNode[ND].eventPool;
-		}
 	}
+
+	removeById(dataNode[ND].listeners.shallow, id);
+	removeById(dataNode[ND].listeners.deep, id);
 }
 
 /**
@@ -163,10 +171,8 @@ export function removeAllListeners(dataNode, objects, path='') {
 		dataNode = dataNode[property];
 	}
 
-	if(dataNode[ND].listeners) {
-		delete dataNode[ND].listeners;
-		delete dataNode[ND].eventPool;
-	}
+	dataNode[ND].listeners.shallow = [];
+	dataNode[ND].listeners.deep = [];
 }
 
 /**
@@ -205,4 +211,25 @@ export function getProxserveDataNode(dataNode) {
  */
 export function getProxserveInstance() {
 	return this;
+}
+
+/**
+ * a wrapper function for the 'splice' method
+ * @param {Array} target - the target array behind the proxy
+ * @param {Object} dataNode 
+ * @param {Number} start 
+ * @param {Number} deleteCount 
+ * @param  {...any} items 
+ */
+export function splice(dataNode, objects, start, deleteCount, ...items) {
+	if(dataNode[NID].status !== proxyStatuses.ACTIVE) {
+		return Array.prototype.splice.call(objects.proxy, start, deleteCount, ...items);
+	}
+
+	dataNode[NID].status = proxyStatuses.SPLICING;
+	let oldValue = objects.target.slice(0);
+	let deleted = Array.prototype.splice.call(objects.proxy, start, deleteCount, ...items);
+	dataNode[NID].status = proxyStatuses.ACTIVE;
+
+	return deleted;
 }

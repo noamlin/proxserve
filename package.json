@@ -8,8 +8,9 @@
 		"start": "node index.js",
 		"test": "jest",
 		"build": "npm run build-unminified; npm run build-minified",
-		"build-unminified": "parcel build ./src/index.js --public-url . --out-dir ./dist --out-file proxserve.js --global Proxserve --no-minify",
-		"build-minified": "parcel build ./src/index.js --public-url . --out-dir ./dist --out-file proxserve.min.js --global Proxserve"
+		"build-unminified": "parcel build ./src/index.js --out-dir ./dist --out-file proxserve.js --global Proxserve --no-minify",
+		"build-minified": "parcel build ./src/index.js --out-dir ./dist --out-file proxserve.min.js --global Proxserve",
+		"watch": "parcel watch ./src/index.js --out-dir ./dist --out-file proxserve.js --global Proxserve --no-source-maps"
 	},
 	"dependencies": {},
 	"devDependencies": {
@@ -17,7 +18,7 @@
 		"lodash": "^4.17.19"
 	},
 	"engines": {
-		"node": "13.3.0"
+		"node": ">=13.0.0"
 	},
 	"keywords": [
 		"proxy",
@@ -35,5 +36,7 @@
 	},
 	"jest": {
 		"testEnvironment": "node"
-	}
+	},
+	"babel": {},
+	"browserslist": ["last 1 Chrome version"]
 }
