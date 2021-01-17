@@ -77,7 +77,7 @@ const testObject = {
 		}
 	}
 };
-if(false) {
+
 test('1. Initiate a proxserve and check if original object stays intact', () => {
 	let origin = cloneDeep(testObject);
 	let proxy = new Proxserve(origin);
@@ -482,7 +482,7 @@ test('9. evalPath - get target property of object and path', (done) => {
 	expect(value).toEqual(proxy);
 	setImmediate(done);
 });
-}
+
 test('10. On-change listener that makes its own changes', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 	let counter = 0;

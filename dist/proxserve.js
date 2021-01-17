@@ -855,9 +855,13 @@ function bubbleEmit(dataNode, change) {
 
   if (!dataNode[_globalVars.ND].parentNode.isTreePrototype) {
     //we are not on root node yet
-    change.path = dataNode[_globalVars.ND].propertyPath + change.path;
+    //create a shallow copy of 'change' and update its path
+    //(we don't want to alter the 'change' object just emitted to the listener)
+    let nextChange = { ...change,
+      path: dataNode[_globalVars.ND].propertyPath + change.path
+    };
     dataNode = dataNode[_globalVars.ND].parentNode;
-    bubbleEmit(dataNode, change);
+    bubbleEmit(dataNode, nextChange);
   }
 }
 /**
@@ -1309,7 +1313,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "43149" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "43131" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

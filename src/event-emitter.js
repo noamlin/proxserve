@@ -70,9 +70,14 @@ function bubbleEmit(dataNode, change) {
 	iterateAndEmit(dataNode[ND].listeners.deep, dataNode[ND].objects.proxy, change);
 
 	if(!dataNode[ND].parentNode.isTreePrototype) { //we are not on root node yet
-		change.path = dataNode[ND].propertyPath + change.path;
+		//create a shallow copy of 'change' and update its path
+		//(we don't want to alter the 'change' object just emitted to the listener)
+		let nextChange = {
+			...change,
+			path: dataNode[ND].propertyPath + change.path
+		};
 		dataNode = dataNode[ND].parentNode;
-		bubbleEmit(dataNode, change);
+		bubbleEmit(dataNode, nextChange);
 	}
 }
 
