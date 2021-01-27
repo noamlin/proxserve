@@ -17,11 +17,13 @@ proxyStatuses.STOPPED = proxyStatuses[1];
 proxyStatuses.BLOCKED = proxyStatuses[2];
 proxyStatuses.SPLICING = proxyStatuses[3];
 
-let eventNames = ['create', 'update', 'delete', 'splice'];
+let eventNames = ['create', 'update', 'delete', 'splice', 'shift', 'unshift'];
 eventNames.CREATE = eventNames[0];
 eventNames.UPDATE = eventNames[1];
 eventNames.DELETE = eventNames[2];
 eventNames.SPLICE = eventNames[3];
+eventNames.SHIFT = eventNames[4];
+eventNames.UNSHIFT = eventNames[5];
 
 let ND = Symbol.for('proxserve_node_data'); //key for the data of a node
 let NID = Symbol.for('proxserve_node_inherited_data'); //key for the inherited data of a node

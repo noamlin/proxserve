@@ -1,10 +1,14 @@
 /**
- * Copyright 2020 Noam Lin <noamlin@gmail.com>
+ * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */
+// Pseudo methods are methods that aren't really on the object - not as a property nor via its prototype
+// thus they will not be retrieved via "for..in" and etcetera. Their property name is actually undefined, but
+// calling it will return the method via the JS proxy's "get" handler.
+// (i.e. someProxserve.pseudoFunction will return the pseudoFunction)
 "use strict"
 
 import { eventNames, proxyStatuses, ND, NID } from './global-vars.js';
@@ -13,7 +17,7 @@ import { splitPath } from './general-functions.js';
 
 /**
  * stop object and children from emitting change events
- * @param {Object} dataNode
+ * automatically filled param {Object} dataNode
  */
 export function stop(dataNode) {
 	dataNode[NID].status = proxyStatuses.STOPPED;
@@ -22,7 +26,7 @@ export function stop(dataNode) {
 /**
  * block object and children from any changes.
  * user can't set nor delete any property
- * @param {Object} dataNode
+ * automatically filled param {Object} dataNode
  */
 export function block(dataNode) {
 	dataNode[NID].status = proxyStatuses.BLOCKED;
@@ -30,8 +34,8 @@ export function block(dataNode) {
 
 /**
  * resume default behavior of emitting change events, inherited from parent
- * @param {Object} dataNode
- * @param {Object} objects
+ * automatically filled param {Object} dataNode
+ * automatically filled param {Object} objects
  * @param {Boolean} [force] - force being active regardless of parent
  */
 export function activate(dataNode, objects, force=false) {
@@ -45,8 +49,8 @@ export function activate(dataNode, objects, force=false) {
 
 /**
  * add event listener on a proxy or on a descending path
- * @param {Object} dataNode
- * @param {Object} objects
+ * automatically filled param {Object} dataNode
+ * automatically filled param {Object} objects
  * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener
@@ -102,8 +106,8 @@ export function on(dataNode, objects, events, path, listener, {deep=false, id=un
 
 /**
  * add event listener on a proxy or on a descending path which will run only once
- * @param {Object} dataNode
- * @param {Object} objects
+ * automatically filled param {Object} dataNode
+ * automatically filled param {Object} objects
  * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener 
@@ -118,8 +122,8 @@ export function once(dataNode, objects, events, path, listener, options) {
 /**
  * removes a listener from a path by an identifier (can have multiple listeners with the same ID)
  * or by the listener function itself
- * @param {Object} dataNode
- * @param {Object} objects
+ * automatically filled param {Object} dataNode
+ * automatically filled param {Object} objects
  * @param {String} [path] - path selector
  * @param {String|Function} id - the listener(s) identifier or listener-function
  */
@@ -155,8 +159,8 @@ export function removeListener(dataNode, objects, path, id) {
 
 /**
  * removing all listeners of a path
- * @param {Object} dataNode
- * @param {Object} objects
+ * automatically filled param {Object} dataNode
+ * automatically filled param {Object} objects
  * @param {String} [path] - path selector
  */
 export function removeAllListeners(dataNode, objects, path='') {
@@ -182,8 +186,8 @@ export function removeAllListeners(dataNode, objects, path='') {
  */
 /**
  * get original target that is behind the proxy
- * @param {Object} dataNode
- * @param {Object} objects
+ * automatically filled param {Object} dataNode
+ * automatically filled param {Object} objects
  */
 export function getOriginalTarget(dataNode, objects) {
 	return objects.target;
@@ -191,8 +195,8 @@ export function getOriginalTarget(dataNode, objects) {
 
 /**
  * get 'objects' (which holds all related objects) of a proxy
- * @param {Object} dataNode
- * @param {Object} objects
+ * automatically filled param {Object} dataNode
+ * automatically filled param {Object} objects
  */
 export function getProxserveObjects(dataNode, objects) {
 	return objects;
@@ -200,7 +204,7 @@ export function getProxserveObjects(dataNode, objects) {
 
 /**
  * get the data-node of the proxy or sub-proxy
- * @param {Object} dataNode
+ * automatically filled param {Object} dataNode
  */
 export function getProxserveDataNode(dataNode) {
 	return dataNode;
@@ -211,25 +215,4 @@ export function getProxserveDataNode(dataNode) {
  */
 export function getProxserveInstance() {
 	return this;
-}
-
-/**
- * a wrapper function for the 'splice' method
- * @param {Array} target - the target array behind the proxy
- * @param {Object} dataNode 
- * @param {Number} start 
- * @param {Number} deleteCount 
- * @param  {...any} items 
- */
-export function splice(dataNode, objects, start, deleteCount, ...items) {
-	if(dataNode[NID].status !== proxyStatuses.ACTIVE) {
-		return Array.prototype.splice.call(objects.proxy, start, deleteCount, ...items);
-	}
-
-	dataNode[NID].status = proxyStatuses.SPLICING;
-	let oldValue = objects.target.slice(0);
-	let deleted = Array.prototype.splice.call(objects.proxy, start, deleteCount, ...items);
-	dataNode[NID].status = proxyStatuses.ACTIVE;
-
-	return deleted;
 }

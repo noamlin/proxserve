@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Noam Lin <noamlin@gmail.com>
+ * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ const testObject = {
 		}
 	}
 };
-
+if(false) {
 test('1. Destroy proxy and sub-proxies', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), { debug: { destroyDelay: 10 } }); //hack to decrease the 1000ms delay of destroy
 	let proxy_objects = proxy.getProxserveObjects();
@@ -713,17 +713,144 @@ test('9. Events for future sub objects and primitives not yet created', (done) =
 });
 
 test('10. Splice an array', () => {
-	console.log('TEST IS MISSING');
-	return;
-	let origin = cloneDeep(testObject);
-	let proxy = new Proxserve(origin);
-	let arr = proxy.level1_2.level2_1.level3_1.arr2;
-
-	arr.on('change', function(changes) {
-		console.log(changes);
-		expect(arr[0]).toEqual('some');
-		done();
+	let proxy = new Proxserve({
+		arr: [{a:'a'}, {b:'b'}, {c:'c'}]
 	});
 
-	arr.splice(0, 1, 'some', 'items');
+	let step = 0;
+
+	proxy.arr.on('change', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'splice',
+			args: { start:1, deleteCount: 1, items: [{y:'y'}, {z:'z'}] },
+			oldValue: [{a:'a'}, {b:'b'}, {c:'c'}],
+			value: [{a:'a'}, {y:'y'}, {z:'z'}, {c:'c'}]
+		});
+		expect(step).toBe(0); //most important. bubble up should run before capture down
+		step++;
+	});
+	proxy.arr.on('change', '[1]', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'update',
+			oldValue: {b:'b'},
+			value: {y:'y'}
+		});
+		expect(step).toBe(2);
+		step++;
+	});
+	proxy.arr.on('change', '[2]', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'update',
+			oldValue: {c:'c'},
+			value: {z:'z'}
+		});
+		expect(step).toBe(3);
+		step++;
+	});
+	proxy.arr.on('change', '[3]', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'create',
+			value: {c:'c'}
+		});
+		expect(step).toBe(1);
+		step++;
+	});
+
+	proxy.arr.splice(1, 1, {y:'y'}, {z:'z'}); //will move [2] to [3] and then overwrite [1] and then [2]
+});
+
+test('11. Shift from an array', () => {
+	let proxy = new Proxserve({
+		arr: [{a:'a'}, {b:'b'}, {c:'c'}]
+	});
+
+	let step = 0;
+
+	proxy.arr.on('change', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'shift',
+			args: {},
+			oldValue: [{a:'a'}, {b:'b'}, {c:'c'}],
+			value: [{b:'b'}, {c:'c'}]
+		});
+		expect(step).toBe(0); //most important. bubble up should run before capture down
+		step++;
+	});
+	proxy.arr.on('change', '[3]', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'delete',
+			oldValue: {c:'c'}
+		});
+		expect(step).toBe(1);
+		step++;
+	});
+
+	proxy.arr.shift(); //will move [2] to [3] and then overwrite [1] and then [2]
+});
+}
+test('12. Unshift to an array', () => {
+	let proxy = new Proxserve({
+		arr: [{a:'a'}]
+	});
+
+	let step = 0;
+
+	proxy.arr.on('change', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'unshift',
+			args: { items: [{y:'y'}, {z:'z'}] },
+			oldValue: [{a:'a'}],
+			value: [{y:'y'}, {z:'z'}, {a:'a'}]
+		});
+		expect(step).toBe(0); //most important. bubble up should run before capture down
+		step++;
+	});
+	proxy.on('change', function(change) {
+		expect(change).toEqual({
+			path: '.arr',
+			type: 'unshift',
+			args: { items: [{y:'y'}, {z:'z'}] },
+			oldValue: [{a:'a'}],
+			value: [{y:'y'}, {z:'z'}, {a:'a'}]
+		});
+		expect(step).toBe(1); //most important. bubble up should run before capture down
+		step++;
+	}, {deep:true});
+	proxy.arr.on('change', '[0]', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'update',
+			oldValue: {a:'a'},
+			value: {y:'y'}
+		});
+		expect(step).toBe(3);
+		step++;
+	});
+	proxy.arr.on('change', '[1]', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'create',
+			value: {z:'z'}
+		});
+		expect(step).toBe(4);
+		step++;
+	});
+	proxy.arr.on('change', '[2]', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'create',
+			value: {a:'a'}
+		});
+		expect(step).toBe(2);
+		step++;
+	});
+
+	proxy.arr.unshift({y:'y'}, {z:'z'}); //will move [0] to [2] and then overwrite [0] and create [1]
 });

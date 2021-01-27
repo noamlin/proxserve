@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Noam Lin <noamlin@gmail.com>
+ * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,9 +8,10 @@
 "use strict"
 
 import { proxyTypes, proxyStatuses } from './global-vars.js';
-import { add2emitQueue_bubble, unproxify, createDataNode } from './supporting-functions.js';
-import * as reservedMethods from './reserved-methods.js';
-import { realtypeof, simpleClone, splitPath, evalPath } from './general-functions.js';
+import { unproxify, createDataNode } from './supporting-functions.js';
+import * as pseudoMethods from './pseudo-methods.js';
+import * as proxyMethods from './proxy-methods.js';
+import { realtypeof, splitPath, evalPath } from './general-functions.js';
 import { initEmitEvent } from './event-emitter.js';
 
 let ND = Symbol.for('proxserve_node_data'); //key for the data of a node
@@ -20,12 +21,12 @@ let NID = Symbol.for('proxserve_node_inherited_data'); //key for the inherited d
  * save an array of all reserved function names
  * and also add synonyms to these functions
  */
-let reservedMethodsNames = Object.keys(reservedMethods);
-for(let i = reservedMethodsNames.length - 1; i >= 0; i--) {
-	let name = reservedMethodsNames[i];
+let pseudoMethodsNames = Object.keys(pseudoMethods);
+for(let i = pseudoMethodsNames.length - 1; i >= 0; i--) {
+	let name = pseudoMethodsNames[i];
 	let synonym = '$'+name;
-	reservedMethods[synonym] = reservedMethods[name];
-	reservedMethodsNames.push(synonym);
+	pseudoMethods[synonym] = pseudoMethods[name];
+	pseudoMethodsNames.push(synonym);
 }
 
 class Proxserve {
@@ -79,10 +80,13 @@ class Proxserve {
 		if(proxyTypes.includes(typeoftarget)) {
 			let revocable = Proxy.revocable(target, {
 				get: (target/*same as parent scope 'target'*/, property, proxy) => {
-					//can access a function (or its synonym) if their keywords isn't used
-					if(reservedMethodsNames.includes(property)
-					&& (typeof target[property] === 'undefined' || (property === 'splice' && Array.isArray(target)))) {
-						return reservedMethods[property].bind(this, dataNode, objects);
+					if(proxyMethods.hasOwnProperty(property) && property in Object.getPrototypeOf(target)) {
+						//use a proxy method instead of the built-in method that is on the prototype chain
+						return proxyMethods[property].bind(this, dataNode, objects);
+					}
+					else if(pseudoMethodsNames.includes(property) && typeof target[property] === 'undefined') {
+						//can access a pseudo function (or its synonym) if their keywords isn't used
+						return pseudoMethods[property].bind(this, dataNode, objects);
 					}
 					else if(!target.propertyIsEnumerable(property) || typeof property === 'symbol') {
 						return target[property]; //non-enumerable or non-path'able aren't proxied

@@ -1,5 +1,5 @@
 /**
- * Copyright 2020 Noam Lin <noamlin@gmail.com>
+ * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -196,84 +196,146 @@ test('4. Proxies should contain built-in functions', () => {
 	expect(typeof proxy.level1_1.arr1.$getProxserveInstance).toBe('function');
 });
 
-test('5. Basic events of changes', (done) => {
+test('5. Basic events of changes', () => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 	proxy.on('create', '.new', function(change) {
 		expect(change.oldValue).toBe(undefined);
 		expect(change.value).toBe(5);
 		expect(change.path).toBe('');
 		expect(change.type).toBe('create');
-		part2();
 	});
 	proxy.new = 5;
 
-	function part2() {
-		proxy.removeAllListeners();
-		proxy.on('update', function(change) {
-			expect(change.oldValue).toBe(0);
-			expect(change.value).toBe(5);
-			expect(change.path).toBe('.level1_1.arr1[0]');
-			expect(change.type).toBe('update');
-			part3();
-		}, {deep:true});
-		proxy.level1_1.arr1[0] = 5;
-	}
+	proxy.removeAllListeners();
+	proxy.on('update', function(change) {
+		expect(change.oldValue).toBe(0);
+		expect(change.value).toBe(5);
+		expect(change.path).toBe('.level1_1.arr1[0]');
+		expect(change.type).toBe('update');
+	}, {deep:true});
+	proxy.level1_1.arr1[0] = 5;
 
-	function part3() {
-		proxy.removeAllListeners();
-		proxy.on('delete', function(change) {
-			expect(change.oldValue).toEqual([5,1,2]);
-			expect(change.value).toBe(undefined);
-			expect(change.path).toBe('.level1_1.arr1');
-			expect(change.type).toBe('delete');
-			part4();
-		}, {deep:true});
-		delete proxy.level1_1.arr1; //triggers internal destroy timeout of 1 second
-	}
+	proxy.removeAllListeners();
+	proxy.on('delete', function(change) {
+		expect(change.oldValue).toEqual([5,1,2]);
+		expect(change.value).toBe(undefined);
+		expect(change.path).toBe('.level1_1.arr1');
+		expect(change.type).toBe('delete');
+	}, {deep:true});
+	delete proxy.level1_1.arr1; //triggers internal destroy timeout of 1 second
 
-	function part4() {
-		let counter = 0;
-		proxy.removeAllListeners();
-		proxy.on('change', function(change) {
-			counter++;
-			if(counter === 1) {
-				expect(change).toEqual({
-					oldValue: undefined, value: 5, path: '.new2', type: 'create'
-				});
-			} else if(counter === 2) {
-				expect(change).toEqual({
-					oldValue: 5, value: 7, path: '.new2', type: 'update'
-				});
-			} else if(counter === 3) {
-				expect(change).toEqual({
-					oldValue: 7, value: undefined, path: '.new2', type: 'delete'
-				});
-				part5();
-			}
-		}, {deep:true});
-		proxy.new2 = 5;
-		proxy.new2 = 7;
-		delete proxy.new2;
-	}
+	let counter = 0;
+	proxy.removeAllListeners();
+	proxy.on('change', function(change) {
+		counter++;
+		if(counter === 1) {
+			expect(change).toEqual({
+				oldValue: undefined, value: 5, path: '.new2', type: 'create'
+			});
+		} else if(counter === 2) {
+			expect(change).toEqual({
+				oldValue: 5, value: 7, path: '.new2', type: 'update'
+			});
+		} else if(counter === 3) {
+			expect(change).toEqual({
+				oldValue: 7, value: undefined, path: '.new2', type: 'delete'
+			});
+		}
+	}, {deep:true});
+	proxy.new2 = 5;
+	proxy.new2 = 7;
+	delete proxy.new2;
 
-	function part5() {
-		proxy.removeAllListeners();
-		let counter = 0;
-		proxy.on(['create','update'], function(change) {
-			counter++;
-			if(counter === 1) {
-				expect(change).toEqual({ oldValue: undefined, value: 6, path: '.new3', type: 'create' });
-			} else if(counter === 2) {
-				expect(change).toEqual({ oldValue: 6, value: 8, path: '.new3', type: 'update' });
-				setImmediate(done);
-			}
-		}, {deep:true});
-		proxy.new3 = 6;
-		proxy.new3 = 8;
-	}
+	proxy.removeAllListeners();
+	counter = 0;
+	proxy.on(['create','update'], function(change) {
+		counter++;
+		if(counter === 1) {
+			expect(change).toEqual({ oldValue: undefined, value: 6, path: '.new3', type: 'create' });
+		} else if(counter === 2) {
+			expect(change).toEqual({ oldValue: 6, value: 8, path: '.new3', type: 'update' });
+		}
+	}, {deep:true});
+	proxy.new3 = 6;
+	proxy.new3 = 8;
 });
 
-test('6. Stop/Block/Activate proxies', () => {
+test('6. Basic events of methods', () => {
+	let proxy = new Proxserve(cloneDeep(testObject));
+	//splice
+	proxy.on('splice', function(change) {
+		expect(change).toEqual({
+			path: '.level1_1.arr1',
+			type: 'splice',
+			args: { start:1, deleteCount: 1, items: [99] },
+			oldValue: [0,1,2],
+			value: [0,99,2]
+		});
+	}, {deep:true});
+	proxy.level1_1.arr1.on('splice', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'splice',
+			args: { start:1, deleteCount: 1, items: [99] },
+			oldValue: [0,1,2],
+			value: [0,99,2]
+		});
+	});
+	let deleted = proxy.level1_1.arr1.splice(1, 1, 99);
+	expect(deleted).toEqual([1]);
+
+	proxy.removeAllListeners();
+	proxy.removeAllListeners('.level1_1.arr1');
+
+	//shift
+	proxy.on('shift', function(change) {
+		expect(change).toEqual({
+			path: '.level1_1.arr1',
+			type: 'shift',
+			args: {},
+			oldValue: [0,99,2],
+			value: [99,2]
+		});
+	}, {deep:true});
+	proxy.level1_1.arr1.on('shift', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'shift',
+			args: {},
+			oldValue: [0,99,2],
+			value: [99,2]
+		});
+	});
+	deleted = proxy.level1_1.arr1.shift();
+	expect(deleted).toBe(0);
+
+	proxy.removeAllListeners();
+	proxy.removeAllListeners('.level1_1.arr1');
+
+	//unshift
+	proxy.on('unshift', function(change) {
+		expect(change).toEqual({
+			path: '.level1_1.arr1',
+			type: 'unshift',
+			args: { items: [0,1] },
+			oldValue: [99,2],
+			value: [0,1,99,2]
+		});
+	}, {deep:true});
+	proxy.level1_1.arr1.on('unshift', function(change) {
+		expect(change).toEqual({
+			path: '',
+			type: 'unshift',
+			args: { items: [0,1] },
+			oldValue: [99,2],
+			value: [0,1,99,2]
+		});
+	});
+	let newLength = proxy.level1_1.arr1.unshift(0, 1);
+	expect(newLength).toBe(4);
+});
+
+test('7. Stop/Block/Activate proxies', () => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay:0});
 	let numberOfEmits = 0;
 	proxy.on('change', function(change) {
@@ -354,7 +416,7 @@ test('6. Stop/Block/Activate proxies', () => {
 	wakeConsole();
 });
 
-test('7. get/set/delete properties after defineProperty', () => {
+test('8. get/set/delete properties after defineProperty', () => {
 	let origin = cloneDeep(testObject);
 	let proxy = new Proxserve(origin, {delay: -950});
 	let sym = Symbol.for('sym');
@@ -399,7 +461,7 @@ test('7. get/set/delete properties after defineProperty', () => {
 	expect(proxy.obj).toBe(undefined);
 });
 
-test('8. splitPath - split path to segments', () => {
+test('9. splitPath - split path to segments', () => {
 	let path = Proxserve.splitPath('.level2_1.level3_1');
 	let path2 = Proxserve.splitPath('level2_1.level3_1');
 	expect(path).toEqual(path2);
@@ -429,7 +491,7 @@ test('8. splitPath - split path to segments', () => {
 	expect(path).toEqual(['new',0,'1.0','1a','keyWith1',9876543210]);
 });
 
-test('9. evalPath - get target property of object and path', (done) => {
+test('10. evalPath - get target property of object and path', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay: 0});
 	proxy.on('change', function(changes) {
 		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
@@ -483,7 +545,7 @@ test('9. evalPath - get target property of object and path', (done) => {
 	setImmediate(done);
 });
 
-test('10. On-change listener that makes its own changes', (done) => {
+test('11. On-change listener that makes its own changes', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 	let counter = 0;
 	proxy.level1_1.arr1.on('change', function(change) {
@@ -505,7 +567,7 @@ test('10. On-change listener that makes its own changes', (done) => {
 	proxy.level1_1.arr1[2] = 19;
 });
 
-test('11. on/once/removeListener/removeAllListeners', () => {
+test('12. on/once/removeListener/removeAllListeners', () => {
 	let proxy = new Proxserve(cloneDeep(testObject), {delay: 0});
 	let counter = 0;
 	let countFunction = function(changes) {
@@ -552,7 +614,7 @@ test('11. on/once/removeListener/removeAllListeners', () => {
 	expect(counter).toBe(9);
 });
 
-test('12. Listen for delete event of sub-properties when parent is deleted', (done) => {
+test('13. Listen for delete event of sub-properties when parent is deleted', (done) => {
 	let proxy = new Proxserve({});
 	let counter = 0;
 	proxy.on('change', '.obj.arr[0][0][0]', function(change) {

@@ -29,6 +29,15 @@ export function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, va
 	if(value === undefined) changeType = eventNames.DELETE;
 	else if(oldValue === undefined) changeType = eventNames.CREATE;
 
+	let deferredEvents;
+	//altering properties of an array that's in the middle of a splicing phase
+	if(dataNode[NID].status === proxyStatuses.SPLICING) {
+		//initiate (if needed) an object to hold side effect events
+		if(!dataNode[ND].deferredEvents) dataNode[ND].deferredEvents = [];
+		//save a reference to the deferredEvents
+		deferredEvents = dataNode[ND].deferredEvents;
+	}
+
 	let path;
 	if(dataNode[property]) { //changed a property which has its own data node on the tree
 		dataNode = dataNode[property];
@@ -41,10 +50,51 @@ export function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, va
 		'path': path, 'value': value, 'oldValue': oldValue, 'type': changeType
 	};
 
+	if(!deferredEvents) {
+		bubbleEmit(dataNode, change);
+	
+		if(wasOldValueProxy || isValueProxy) { //old value or new value are proxy meaning they are objects with children
+			captureEmit(dataNode, change);
+		}
+	}
+	else {
+		deferredEvents.push({dataNode, change, shouldCapture: wasOldValueProxy || isValueProxy});
+	}
+}
+
+/**
+ * process special event for a built-in method and then bubble up the data tree
+ * @param {Object} dataNode
+ * @param {String} funcName - the method's name
+ * @param {Object} funcArgs - the method's arguments
+ * @param {*} oldValue
+ * @param {*} value
+ */
+export function initFunctionEmitEvent(dataNode, funcName, funcArgs, oldValue, value) {
+	let change = {
+		'path': '', 'value': value, 'oldValue': oldValue, 'type': funcName, 'args': funcArgs
+	};
+
 	bubbleEmit(dataNode, change);
 
-	if(wasOldValueProxy || isValueProxy) { //old value or new value are proxy meaning they are objects with children
-		captureEmit(dataNode, change);
+	if(dataNode[ND].deferredEvents) {
+		for(let event of dataNode[ND].deferredEvents) {
+			if(event.change.path === '') {
+				//no path means its an event directly on the property, not on the parent.
+				//i.e: not an event on "arr" with path "0", but on "arr[0]" with no path.
+				//function event on "arr" already ran, but now a regular event on "arr[0]" is due
+				iterateAndEmit(event.dataNode[ND].listeners.shallow, event.dataNode[ND].objects.proxy, event.change);
+				iterateAndEmit(event.dataNode[ND].listeners.deep, event.dataNode[ND].objects.proxy, event.change);
+			}
+
+			if(event.shouldCapture) {
+				captureEmit(event.dataNode, event.change);
+			}
+		}
+		delete dataNode[ND].deferredEvents;
+	}
+	else {
+		console.warn(`no side effect events for ${funcName} were made`);
 	}
 }
 
@@ -58,7 +108,7 @@ export function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, va
  * 	@property {String} change.type
  */
 function bubbleEmit(dataNode, change) {
-	if(dataNode[NID].status === proxyStatuses.STOPPED || dataNode[NID].status === proxyStatuses.SPLICING) {
+	if(dataNode[NID].status === proxyStatuses.STOPPED) {
 		return; //not allowed to emit
 	}
 
