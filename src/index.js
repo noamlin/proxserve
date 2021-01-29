@@ -35,11 +35,11 @@ class Proxserve {
 	 * @param {Object|Array} target 
 	 * @param {Object} [options]
 	 * 	@property {Boolean} [options.strict] - should destroy detached child-objects or deleted properties automatically
-	 * 	@property {Boolean} [options.emitSplice] - should splice emit one 'splice' event or all CRUD events
+	 * 	@property {Boolean} [options.emitMethods] - should splice/shift/unshift emit one event or all CRUD events
 	 */
-	constructor(target, { strict=true, emitSplice=true, debug={} } = {}) {
+	constructor(target, { strict=true, emitMethods=true, debug={} } = {}) {
 		this.strict = strict;
-		this.emitSplice = emitSplice;
+		this.emitMethods = emitMethods;
 		this.destroyDelay = 1000;
 
 		if(debug && debug.destroyDelay) this.destroyDelay = debug.destroyDelay;
@@ -80,7 +80,7 @@ class Proxserve {
 		if(proxyTypes.includes(typeoftarget)) {
 			let revocable = Proxy.revocable(target, {
 				get: (target/*same as parent scope 'target'*/, property, proxy) => {
-					if(proxyMethods.hasOwnProperty(property) && property in Object.getPrototypeOf(target)) {
+					if(this.emitMethods && proxyMethods.hasOwnProperty(property) && property in Object.getPrototypeOf(target)) {
 						//use a proxy method instead of the built-in method that is on the prototype chain
 						return proxyMethods[property].bind(this, dataNode, objects);
 					}

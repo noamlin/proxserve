@@ -12,6 +12,7 @@
 const Proxserve = require('../dist/proxserve.js');
 const util = require('util');
 const { cloneDeep } = require('lodash');
+const { error } = require('console');
 
 var ND = Symbol.for('proxserve_node_data');
 var NID = Symbol.for('proxserve_node_inherited_data');
@@ -84,7 +85,7 @@ const testObject = {
 		}
 	}
 };
-if(false) {
+
 test('1. Destroy proxy and sub-proxies', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), { debug: { destroyDelay: 10 } }); //hack to decrease the 1000ms delay of destroy
 	let proxy_objects = proxy.getProxserveObjects();
@@ -137,7 +138,7 @@ test('1. Destroy proxy and sub-proxies', (done) => {
 		expect(typeof proxy.level1_1.arr1).toBe('undefined');
 		expect(isRevoked(arr1_objects, arr1_proxy)).toBe(true);
 		part2();
-	}, 100);
+	}, 30);
 
 	function part2() {
 		let proxy = new Proxserve({arr1: []}, { debug: { destroyDelay: 10 } });
@@ -223,7 +224,7 @@ test('2. Transfer sub-proxies between child nodes while assigning new proxies wi
 		expect(isRevoked(arr3_objects, arr3_proxy)).toBe(true);
 
 		part2();
-	}, 100);
+	}, 30);
 
 	function part2() {
 		delete proxy.sub_obj.sub_arr[0];
@@ -231,7 +232,7 @@ test('2. Transfer sub-proxies between child nodes while assigning new proxies wi
 		setTimeout(() => {
 			expect(isRevoked(arr0_objects, arr0_proxy)).toBe(true);
 			part3();
-		}, 100);
+		}, 30);
 	}
 
 	function part3() {
@@ -267,12 +268,12 @@ test('2. Transfer sub-proxies between child nodes while assigning new proxies wi
 			expect(arrNode[2][ND].objects.proxy === undefined && arrNode[2][ND].objects.target === arr2_t).toBe(true);
 			expect(Array.isArray(arrNode[3][ND].objects.proxy) && Array.isArray(arrNode[3][ND].objects.target)).toBe(true);
 			done();
-		}, 100);
+		}, 30);
 	}
 });
 
 test('3. Keep using proxies after deletion/detachment in non-strict instantiation', (done) => {
-	let proxy = new Proxserve(cloneDeep(testObject), { strict: false, debug: { destroyDelay: 0 } });
+	let proxy = new Proxserve(cloneDeep(testObject), { strict: false, debug: { destroyDelay: 10 } });
 	let level1_1_o = proxy.level1_1.getProxserveObjects(), level1_1_p = level1_1_o.proxy;
 	let arr2_o = proxy.level1_2.level2_1.level3_1.arr2.getProxserveObjects(), arr2_p = arr2_o.proxy;
 	proxy.level1_1 = 5;
@@ -283,7 +284,7 @@ test('3. Keep using proxies after deletion/detachment in non-strict instantiatio
 		expect(isRevoked(arr2_o, arr2_p)).toBe(false);
 		expect(arr2_p).toEqual(testObject.level1_2.level2_1.level3_1.arr2);
 		done();
-	}, 5);
+	}, 30);
 });
 
 test('4. Find recursively and handle proxies inside objects inserted to main proxy', () => {
@@ -344,49 +345,46 @@ test('4. Find recursively and handle proxies inside objects inserted to main pro
 	expect(proxy.newObj.subArr[1][0].getOriginalTarget() === proxy.arr[3].getOriginalTarget()).toBe(true);
 });
 
-test('5. Observe on referenced changes and cloned changes', (done) => {
+test('5. Observe on referenced changes and cloned changes', () => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 	let counter = 0;
 	proxy.level1_1.on('change', '.arr1', function(change) {
 		counter++;
 		if(counter === 1) expect(change).toEqual({ oldValue: [0,1,2], value: {a:'a'}, type: 'update', path: '' });
 		else if(counter === 2) expect(change).toEqual({ oldValue: {a:'a', b:'b'}, value: undefined, type: 'delete', path: '' });
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
 	});
 	let counter2 = 0;
 	proxy.level1_1.on('change', '.arr1.b', function(change) {
 		counter2++;
 		if(counter2 === 1) expect(change).toEqual({ oldValue: undefined, value: 'b', type: 'create', path: '' });
 		else if(counter2 === 2) expect(change).toEqual({ oldValue: 'b', value: undefined, type: 'delete', path: '' });
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
 	});
 	proxy.level1_1.arr1 = {a:'a'}; //emits to 'arr1' shallow listener
 	proxy.level1_1.arr1.b = 'b'; //emits to 'arr1.b' shallow listener
 	let tmp = proxy.level1_1.arr1;
 	delete proxy.level1_1.arr1; //emits to both 'arr1' and 'arr1.b' listeners
 	tmp.a = tmp.b = 'cc'; //should not emit any more
-	setImmediate(part2);
 
-	function part2() {
-		proxy = new Proxserve(cloneDeep(testObject));
-		let changes = [];
-		proxy.level1_1.on('change', function(change) {
-			changes.push(change);
-			if(changes.length === 1) expect(change.value).toEqual({a:'a'});
-			if(changes.length === 2) expect(change.value).toEqual('b');
-			if(changes.length === 3) expect(change.oldValue).toBe(changes[0].value); //same reference
-		}, {deep:true});
+	proxy = new Proxserve(cloneDeep(testObject));
+	let changes = [];
+	proxy.level1_1.on('change', function(change) {
+		changes.push(change);
+		if(changes.length === 1) expect(change.value).toEqual({a:'a'});
+		if(changes.length === 2) expect(change.value).toEqual('b');
+		if(changes.length === 3) expect(change.oldValue).toBe(changes[0].value); //same reference
+	}, {deep:true});
 
-		setTimeout(() => {
-			expect(changes[0]).toEqual({ oldValue: [0,1,2], value: {a:'cc', b:'cc'}, type: 'update', path: '.arr1' });
-			expect(changes[1]).toEqual({ oldValue: undefined, value: 'b', type: 'create', path: '.arr1.b' });
-			expect(changes[2]).toEqual({ oldValue: {a:'cc', b:'cc'}, value: undefined, type: 'delete', path: '.arr1' });
-			setImmediate(done);
-		}, 1);
-		proxy.level1_1.arr1 = {a:'a'};
-		proxy.level1_1.arr1.b = 'b';
-		let tmp = proxy.level1_1.arr1;
-		delete proxy.level1_1.arr1;
-		tmp.a = tmp.b = 'cc';
-	}
+	proxy.level1_1.arr1 = {a:'a'};
+	proxy.level1_1.arr1.b = 'b';
+	tmp = proxy.level1_1.arr1;
+	delete proxy.level1_1.arr1;
+	tmp.a = tmp.b = 'cc';
+
+	expect(changes[0]).toEqual({ oldValue: [0,1,2], value: {a:'cc', b:'cc'}, type: 'update', path: '.arr1' });
+	expect(changes[1]).toEqual({ oldValue: undefined, value: 'b', type: 'create', path: '.arr1.b' });
+	expect(changes[2]).toEqual({ oldValue: {a:'cc', b:'cc'}, value: undefined, type: 'delete', path: '.arr1' });
 });
 
 //benchmark on a CPU with baseclock of 3.6 GHz is around 0.58s
@@ -431,8 +429,8 @@ test('7. Destroy 50,000 proxserves in less than 1.5 seconds', () => {
 	console.log(`Destroy 50,000 proxserves: ${end - start}ms`);
 });
 
-test('8. Comprehensive events of changes', (done) => {
-	let proxy = new Proxserve(cloneDeep(testObject));
+test('8. Comprehensive events of changes', () => {
+	let proxy = new Proxserve(cloneDeep(testObject), { emitMethods: false, debug: { destroyDelay: 10 } });
 	proxy.on('create', function(change) {
 		expect(this).toBe(proxy);
 		expect(change.oldValue).toBe(undefined);
@@ -460,262 +458,258 @@ test('8. Comprehensive events of changes', (done) => {
 		expect(change.value).toBe(17);
 		expect(change.path).toBe('.new');
 		expect(change.type).toBe('create');
-		setImmediate(part2);
 	}, {deep:true});
 	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.new = 17;
 	
-	function part2() {
-		proxy.removeAllListeners();
-		proxy.on('update', function(change) {
-			expect(change.oldValue).toBe(17);
-			expect(change.value).toBe(21);
-			expect(change.path).toBe('.level1_2.level2_1.level3_1.arr2[2][2][1].deep.new');
-			expect(change.type).toBe('update');
-		}, {deep:true});
-		proxy.level1_2.removeAllListeners();
-		proxy.level1_2.on('update', function(change) {
-			expect(change.oldValue).toBe(17);
-			expect(change.value).toBe(21);
-			expect(change.path).toBe('.level2_1.level3_1.arr2[2][2][1].deep.new');
-			expect(change.type).toBe('update');
-		}, {deep:true});
-		proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
-		proxy.level1_2.level2_1.level3_1.arr2[2].on('update', function(change) {
-			expect(change.oldValue).toBe(17);
-			expect(change.value).toBe(21);
-			expect(change.path).toBe('[2][1].deep.new');
-			expect(change.type).toBe('update');
-		}, {deep:true});
-		proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.removeAllListeners();
-		proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.on('update', function(change) {
-			expect(change.oldValue).toBe(17);
-			expect(change.value).toBe(21);
-			expect(change.path).toBe('.new');
-			expect(change.type).toBe('update');
-			setImmediate(part3);
-		}, {deep:true});
-		proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.new = 21;
-	}
+	//part 2
+	proxy.removeAllListeners();
+	proxy.on('update', function(change) {
+		expect(change.oldValue).toBe(17);
+		expect(change.value).toBe(21);
+		expect(change.path).toBe('.level1_2.level2_1.level3_1.arr2[2][2][1].deep.new');
+		expect(change.type).toBe('update');
+	}, {deep:true});
+	proxy.level1_2.removeAllListeners();
+	proxy.level1_2.on('update', function(change) {
+		expect(change.oldValue).toBe(17);
+		expect(change.value).toBe(21);
+		expect(change.path).toBe('.level2_1.level3_1.arr2[2][2][1].deep.new');
+		expect(change.type).toBe('update');
+	}, {deep:true});
+	proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
+	proxy.level1_2.level2_1.level3_1.arr2[2].on('update', function(change) {
+		expect(change.oldValue).toBe(17);
+		expect(change.value).toBe(21);
+		expect(change.path).toBe('[2][1].deep.new');
+		expect(change.type).toBe('update');
+	}, {deep:true});
+	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.removeAllListeners();
+	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.on('update', function(change) {
+		expect(change.oldValue).toBe(17);
+		expect(change.value).toBe(21);
+		expect(change.path).toBe('.new');
+		expect(change.type).toBe('update');
+	}, {deep:true});
+	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.new = 21;
 
-	function part3() {
-		proxy.removeAllListeners();
-		proxy.on('delete', function(change) {
-			expect(change.oldValue).toBe(21);
-			expect(change.value).toBe(undefined);
-			expect(change.path).toBe('.level1_2.level2_1.level3_1.arr2[2][2][1].deep.new');
-			expect(change.type).toBe('delete');
-		}, {deep:true});
-		proxy.level1_2.removeAllListeners();
-		proxy.level1_2.on('delete', function(change) {
-			expect(change.oldValue).toBe(21);
-			expect(change.value).toBe(undefined);
-			expect(change.path).toBe('.level2_1.level3_1.arr2[2][2][1].deep.new');
-			expect(change.type).toBe('delete');
-		}, {deep:true});
-		proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
-		proxy.level1_2.level2_1.level3_1.arr2[2].on('delete', function(change) {
-			expect(change.oldValue).toBe(21);
-			expect(change.value).toBe(undefined);
-			expect(change.path).toBe('[2][1].deep.new');
-			expect(change.type).toBe('delete');
-		}, {deep:true});
-		proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.removeAllListeners();
-		proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.on('delete', function(change) {
-			expect(change.oldValue).toBe(21);
-			expect(change.value).toBe(undefined);
-			expect(change.path).toBe('.new');
-			expect(change.type).toBe('delete');
-			setImmediate(part4);
-		}, {deep:true});
-		delete proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.new;
-	}
+	//part 3
+	proxy.removeAllListeners();
+	proxy.on('delete', function(change) {
+		expect(change.oldValue).toBe(21);
+		expect(change.value).toBe(undefined);
+		expect(change.path).toBe('.level1_2.level2_1.level3_1.arr2[2][2][1].deep.new');
+		expect(change.type).toBe('delete');
+	}, {deep:true});
+	proxy.level1_2.removeAllListeners();
+	proxy.level1_2.on('delete', function(change) {
+		expect(change.oldValue).toBe(21);
+		expect(change.value).toBe(undefined);
+		expect(change.path).toBe('.level2_1.level3_1.arr2[2][2][1].deep.new');
+		expect(change.type).toBe('delete');
+	}, {deep:true});
+	proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
+	proxy.level1_2.level2_1.level3_1.arr2[2].on('delete', function(change) {
+		expect(change.oldValue).toBe(21);
+		expect(change.value).toBe(undefined);
+		expect(change.path).toBe('[2][1].deep.new');
+		expect(change.type).toBe('delete');
+	}, {deep:true});
+	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.removeAllListeners();
+	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.on('delete', function(change) {
+		expect(change.oldValue).toBe(21);
+		expect(change.value).toBe(undefined);
+		expect(change.path).toBe('.new');
+		expect(change.type).toBe('delete');
+	}, {deep:true});
+	delete proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.new;
 
-	function part4() {
-		let oldValue = proxy.level1_2.level2_1.level3_1.arr2[2][2].getOriginalTarget();//[14, { deep: { deeper: 'abc' } }, 16];
+	//part 4
+	let oldValue = proxy.level1_2.level2_1.level3_1.arr2[2][2].getOriginalTarget();//[14, { deep: { deeper: 'abc' } }, 16];
 
-		proxy.removeAllListeners();
-		proxy.level1_2.removeAllListeners();
-		proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
-		proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.removeAllListeners();
+	proxy.removeAllListeners();
+	proxy.level1_2.removeAllListeners();
+	proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
+	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.removeAllListeners();
 
-		proxy.on('delete', function(change) {
-			expect(change.oldValue).toBe(oldValue);
-			expect(change.value).toBe(undefined);
-			expect(change.path).toBe('.level1_2.level2_1.level3_1.arr2[2][2]');
-			expect(change.type).toBe('delete');
-		}, {deep:true});
-		proxy.level1_2.on('delete', function(change) {
-			expect(change.oldValue).toBe(oldValue);
-			expect(change.value).toBe(undefined);
-			expect(change.path).toBe('.level2_1.level3_1.arr2[2][2]');
-			expect(change.type).toBe('delete');
-		}, {deep:true});
-		proxy.level1_2.level2_1.level3_1.arr2[2].on('delete', function(change) {
-			expect(change.oldValue).toBe(oldValue);
-			expect(change.value).toBe(undefined);
-			expect(change.path).toBe('[2]');
-			expect(change.type).toBe('delete');
-			setImmediate(part5);
-		}, {deep:true});
-		delete proxy.level1_2.level2_1.level3_1.arr2[2][2];
-	}
+	proxy.on('delete', function(change) {
+		expect(change.oldValue).toBe(oldValue);
+		expect(change.value).toBe(undefined);
+		expect(change.path).toBe('.level1_2.level2_1.level3_1.arr2[2][2]');
+		expect(change.type).toBe('delete');
+	}, {deep:true});
+	proxy.level1_2.on('delete', function(change) {
+		expect(change.oldValue).toBe(oldValue);
+		expect(change.value).toBe(undefined);
+		expect(change.path).toBe('.level2_1.level3_1.arr2[2][2]');
+		expect(change.type).toBe('delete');
+	}, {deep:true});
+	proxy.level1_2.level2_1.level3_1.arr2[2].on('delete', function(change) {
+		expect(change.oldValue).toBe(oldValue);
+		expect(change.value).toBe(undefined);
+		expect(change.path).toBe('[2]');
+		expect(change.type).toBe('delete');
+	}, {deep:true});
+	delete proxy.level1_2.level2_1.level3_1.arr2[2][2];
 
-	function part5() {
-		proxy.removeAllListeners();
-		proxy.level1_2.removeAllListeners();
-		proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
+	//part 5
+	proxy.removeAllListeners();
+	proxy.level1_2.removeAllListeners();
+	proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
 
-		let c1 = 0;
-		proxy.on('change', function(change) {
-			c1++;
-			if(c1 === 1) expect(change).toEqual({ oldValue: undefined, value: {new:'new'}, type: 'create', path: '.level1_2.level2_1.level3_1.arr2[2][2]' });
-			else if(c1 === 2) expect(change).toEqual({ oldValue: 'new', value: [0,1,2,3,4,5,6], type: 'update', path: '.level1_2.level2_1.level3_1.arr2[2][2].new' });
-			else if(c1 === 3) expect(change).toEqual({ oldValue: 0, value: undefined, type: 'delete', path: '.level1_2.level2_1.level3_1.arr2[2][2].new[0]' });
-		}, {deep:true});
-		
-		let c2 = 0;
-		proxy.level1_2.on('change', function(change) {
-			c2++;
-			if(c2 === 1) expect(change).toEqual({ oldValue: undefined, value: {new:'new'}, type: 'create', path: '.level2_1.level3_1.arr2[2][2]' });
-			else if(c2 === 2) expect(change).toEqual({ oldValue: 'new', value: [0,1,2,3,4,5,6], type: 'update', path: '.level2_1.level3_1.arr2[2][2].new' });
-			else if(c2 === 3) expect(change).toEqual({ oldValue: 0, value: undefined, type: 'delete', path: '.level2_1.level3_1.arr2[2][2].new[0]' });
-		}, {deep:true});
+	let counter = 0;
+	proxy.on('change', function(change) {
+		counter++;
+		if(counter === 3) expect(change).toEqual({ oldValue: undefined, value: {new:'new'}, type: 'create', path: '.level1_2.level2_1.level3_1.arr2[2][2]' });
+		else if(counter === 6) expect(change).toEqual({ oldValue: 'new', value: [0,1,2,3,4,5,6], type: 'update', path: '.level1_2.level2_1.level3_1.arr2[2][2].new' });
+		else if(counter === 9) expect(change).toEqual({ oldValue: 0, value: undefined, type: 'delete', path: '.level1_2.level2_1.level3_1.arr2[2][2].new[0]' });
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
+	}, {deep:true});
+	
+	proxy.level1_2.on('change', function(change) {
+		counter++;
+		if(counter === 2) expect(change).toEqual({ oldValue: undefined, value: {new:'new'}, type: 'create', path: '.level2_1.level3_1.arr2[2][2]' });
+		else if(counter === 5) expect(change).toEqual({ oldValue: 'new', value: [0,1,2,3,4,5,6], type: 'update', path: '.level2_1.level3_1.arr2[2][2].new' });
+		else if(counter === 8) expect(change).toEqual({ oldValue: 0, value: undefined, type: 'delete', path: '.level2_1.level3_1.arr2[2][2].new[0]' });
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
+	}, {deep:true});
 
-		let c3 = 0;
-		proxy.level1_2.level2_1.level3_1.arr2[2].on('change', function(change) {
-			c3++;
-			if(c3 === 1) expect(change).toEqual({ oldValue: undefined, value: {new:'new'}, type: 'create', path: '[2]' });
-			else if(c3 === 2) expect(change).toEqual({ oldValue: 'new', value: [0,1,2,3,4,5,6], type: 'update', path: '[2].new' });
-			else if(c3 === 3) {
-				expect(change).toEqual({ oldValue: 0, value: undefined, type: 'delete', path: '[2].new[0]' });
-				setTimeout(done, 1);
-			}
-		}, {deep:true});
-		proxy.level1_2.level2_1.level3_1.arr2[2][2] = { new: 'new' }; //should emit 1 create change
-		proxy.level1_2.level2_1.level3_1.arr2[2][2].new = [0,1,2,3,4,5,6]; //should emit 1 update change
-		delete proxy.level1_2.level2_1.level3_1.arr2[2][2].new[0]; //should emit 1 delete change
+	proxy.level1_2.level2_1.level3_1.arr2[2].on('change', function(change) {
+		counter++;
+		if(counter === 1) expect(change).toEqual({ oldValue: undefined, value: {new:'new'}, type: 'create', path: '[2]' });
+		else if(counter === 4) expect(change).toEqual({ oldValue: 'new', value: [0,1,2,3,4,5,6], type: 'update', path: '[2].new' });
+		else if(counter === 7) expect(change).toEqual({ oldValue: 0, value: undefined, type: 'delete', path: '[2].new[0]' });
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
+	}, {deep:true});
 
-		//TODO - handle splice
-		proxy.level1_2.level2_1.level3_1.arr2[2][2].new.splice(2, 2); //should emit 6 changes - update [2][3][4] then delete [6][5] then update length
-	}
+	proxy.level1_2.level2_1.level3_1.arr2[2][2] = { new: 'new' }; //should emit 1 create change
+	proxy.level1_2.level2_1.level3_1.arr2[2][2].new = [0,1,2,3,4,5,6]; //should emit 1 update change
+	delete proxy.level1_2.level2_1.level3_1.arr2[2][2].new[0]; //should emit 1 delete change
+
+	proxy.removeAllListeners();
+	proxy.level1_2.removeAllListeners();
+	proxy.level1_2.level2_1.level3_1.arr2[2].removeAllListeners();
+
+	counter = 0;
+	proxy.level1_2.level2_1.level3_1.arr2[2][2].new.on('change', function(change) {
+		counter++;
+		if(counter === 1) expect(change).toEqual({ oldValue: 2, value: 4, type: 'update', path: '[2]' });
+		else if(counter === 2) expect(change).toEqual({ oldValue: 3, value: 5, type: 'update', path: '[3]' });
+		else if(counter === 3) expect(change).toEqual({ oldValue: 4, value: 6, type: 'update', path: '[4]' });
+		else if(counter === 4) expect(change).toEqual({ oldValue: 6, type: 'delete', path: '[6]' });
+		else if(counter === 5) expect(change).toEqual({ oldValue: 5, type: 'delete', path: '[5]' });
+		else if(counter === 6) expect(change).toEqual({ oldValue: 7, value: 5, type: 'update', path: '[length]' });
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
+	}, {deep:true});
+
+	proxy.level1_2.level2_1.level3_1.arr2[2][2].new.splice(2, 2); //should emit 6 changes - update [2][3][4] then delete [6][5] then update length
 });
 
-test('9. Events for future sub objects and primitives not yet created', (done) => {
-	let proxy = new Proxserve({});
+test('9. Events for future sub objects and primitives not yet created', () => {
+	let proxy = new Proxserve({}, { debug: { destroyDelay: 10 } });
 	proxy.on('change', function(change) {
 		expect(change.path).toBe('.arr');
 	}, {deep:true, id:123});
+	
 	proxy.arr = [];
-
 	proxy.removeListener(123);
-	let c1 = 0;
+
+	let counter = 0;
 	let valueRef;
 	proxy.arr.on('change', function(change) {
-		c1++;
-		if(c1 === 1) {
+		counter++;
+		if(counter === 1) {
 			expect(change).toEqual({ type:'create', path:'[2]', oldValue:undefined, value:{ a: { b: 'b' } } });
 			valueRef = change.value;
 		}
-		else if(c1 === 2) {
+		else if(counter === 4) {
 			expect(change).toEqual({ type:'update', path:'[2].a.b', oldValue:'b', value:'cc' });
 			expect(this[2].getOriginalTarget()).toBe(valueRef);
 			expect(this[2]).toEqual({ a: { b: 'cc' } });
 			proxy.arr.removeListener('zxc');
-			setTimeout(() => {
-				this[2].a = { b: 'ddd' }; //will trigger the next listener again
-			}, 1);
 		}
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
 	}, {deep:true, id:'zxc'});
 
-	let c2 = 0;
 	proxy.arr.on('change', '[2].a.b', function(change) {
-		c2++;
-		if(c2 === 1) expect(change).toEqual({ type:'create', path:'', oldValue:undefined, value:'b' });
-		else if(c2 === 2) expect(change).toEqual({ type:'update', path:'', oldValue:'b', value:'cc' });
-		else if(c2 === 3) {
-			expect(change).toEqual({ type:'update', path:'', oldValue:'cc', value:'ddd' });
-			part3();
-		}
+		counter++;
+		if(counter === 2) expect(change).toEqual({ type:'create', path:'', oldValue:undefined, value:'b' }); //capture phase
+		else if(counter === 3) expect(change).toEqual({ type:'update', path:'', oldValue:'b', value:'cc' }); //bubble phase
+		else if(counter === 5) expect(change).toEqual({ type:'update', path:'', oldValue:'cc', value:'ddd' });
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
 	});
 
 	proxy.arr[2] = { a: { b: 'b' } };
 	proxy.arr[2].a.b = 'cc';
+	proxy.arr[2].a = { b: 'ddd' };
 
-	function part3() {
-		let c1 = 0;
-		proxy.on('change', '.obj.1.2.3', function(change) { //on(change)
-			c1++;
-			//'update' comes before the 'create'
-			if(c1 === 1) expect(change).toEqual({ type:'update', path:'', oldValue:987, value:654 });
-			//only now the 'create' is invoked, but with an altered value object
-			else if(c1 === 2) expect(change).toEqual({ type:'create', path:'', oldValue:undefined, value:654 });
-		});
-		proxy.on('create', '.obj.1', function(change) { //on(create)
-			expect(change.path).toBe('');
-			expect(change.value).toEqual({ '2': { '3': 987 } });
-			expect(change.type).toBe('create');
-			//make an 'update' event in the middle of the 'create' event that initiated 20 lines below!
-			//also alters the object of 'proxy.obj.1.2'. this will affect the ongoing event emitting
-			this['2'] = { '3': 654 };
-		});
+	counter = 0;
 
-		proxy.on('update', '.obj.1.2', function(change) { //on(update)
-			expect(change).toEqual({ type:'update', path:'', oldValue:{ '3': 987 }, value:{ '3': 654 } });
-		}, {deep:true});
-		proxy.on('update', '.obj.1', function(change) { //on(update)
-			expect(change).toEqual({ type:'update', path:'.2', oldValue:{ '3': 987 }, value:{ '3': 654 } });
-			setImmediate(part4);
-		}, {deep:true});
+	proxy.on('change', '.obj.1.2.3', function(change) { //on(change)
+		counter++;
+		//'update' comes before the 'create'
+		if(counter === 1) expect(change).toEqual({ type:'update', path:'', oldValue:987, value:654 });
+		//only now the 'create' is invoked, but with an altered value object
+		else if(counter === 2) expect(change).toEqual({ type:'create', path:'', oldValue:undefined, value:654 });
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
+	});
+	proxy.on('create', '.obj.1', function(change) { //on(create)
+		expect(change.path).toBe('');
+		expect(change.value).toEqual({ '2': { '3': 987 } });
+		expect(change.type).toBe('create');
+		//make an 'update' event in the middle of the 'create' event that initiated 20 lines below!
+		//also alters the object of 'proxy.obj.1.2'. this will affect the ongoing event emitting
+		this['2'] = { '3': 654 };
+	});
 
-		proxy.obj = { '1': { '2': { '3': 987 } } }; //makes a 'create' event
-	}
+	proxy.on('update', '.obj.1.2', function(change) { //on(update)
+		expect(change).toEqual({ type:'update', path:'', oldValue:{ '3': 987 }, value:{ '3': 654 } });
+	}, {deep:true});
+	proxy.on('update', '.obj.1', function(change) { //on(update)
+		expect(change).toEqual({ type:'update', path:'.2', oldValue:{ '3': 987 }, value:{ '3': 654 } });
+	}, {deep:true});
 
-	function part4() {
-		proxy.removeAllListeners('.obj.1.2.3');
-		proxy.removeAllListeners('.obj.1.2');
-		proxy.removeAllListeners('.obj.1');
+	proxy.obj = { '1': { '2': { '3': 987 } } }; //makes a 'create' event
 
-		proxy.obj.on('update', function(change) {
-			expect(change).toEqual({ type:'update', path:'', oldValue:{1:{2:{3:654}}}, value:[0, [0, 1, [0, 1, 2, []] ] ] });
-		});
-		proxy.on('update', '.obj.1', function(change) { //path-selector can be with either dots or squared parenthesis
-			expect(change).toEqual({ type:'update', path:'', oldValue:{2:{3:654}}, value:[0, 1, [0, 1, 2, []] ] });
-		});
-		proxy.obj.on('update', '.1[2]', function(change) { //path-selector can be with either dots or squared parenthesis
-			expect(change).toEqual({ type:'update', path:'', oldValue:{3:654}, value:[0, 1, 2, []] });
-			part5();
-		});
+	proxy.removeAllListeners('.obj.1.2.3');
+	proxy.removeAllListeners('.obj.1.2');
+	proxy.removeAllListeners('.obj.1');
 
-		proxy.obj = [0, [0, 1, [0, 1, 2, []] ] ];
-	}
+	proxy.obj.on('update', function(change) {
+		expect(change).toEqual({ type:'update', path:'', oldValue:{1:{2:{3:654}}}, value:[0, [0, 1, [0, 1, 2, []] ] ] });
+	});
+	proxy.on('update', '.obj.1', function(change) { //path-selector can be with either dots or squared parenthesis
+		expect(change).toEqual({ type:'update', path:'', oldValue:{2:{3:654}}, value:[0, 1, [0, 1, 2, []] ] });
+	});
+	proxy.obj.on('update', '.1[2]', function(change) { //path-selector can be with either dots or squared parenthesis
+		expect(change).toEqual({ type:'update', path:'', oldValue:{3:654}, value:[0, 1, 2, []] });
+	});
 
-	function part5() {
-		proxy.removeAllListeners('.obj.1.2'); //should still work
-		proxy.removeAllListeners('.obj.1');
-		proxy.removeAllListeners('.obj');
+	proxy.obj = [0, [0, 1, [0, 1, 2, []] ] ];
 
-		proxy.obj.on('update', function(change) {
-			expect(change).toEqual({ type:'update', path:'', oldValue:[0, [0, 1, [0, 1, 2, []] ] ], value:true });
+	proxy.removeAllListeners('.obj.1.2'); //should still work
+	proxy.removeAllListeners('.obj.1');
+	proxy.removeAllListeners('.obj');
 
-			this.removeListener(-20);
-			proxy.obj = { '1': [0, 1, ['a']] };
-		}, {id:-20});
-		proxy.on('create', '.obj[1]', function(change) { //path-selector can be with either dots or squared parenthesis
-			expect(change).toEqual({ type:'create', path:'', oldValue:undefined, value:[0, 1, ['a']] });
-		});
-		proxy.obj.on('create', '[1].2', function(change) { //path-selector can be with either dots or squared parenthesis
-			expect(change).toEqual({ type:'create', path:'', oldValue:undefined, value:['a'] });
-			setImmediate(done);
-		});
+	proxy.obj.on('update', function(change) {
+		expect(change).toEqual({ type:'update', path:'', oldValue:[0, [0, 1, [0, 1, 2, []] ] ], value:true });
 
-		proxy.obj = true;
-	}
+		this.removeListener(-20);
+		proxy.obj = { '1': [0, 1, ['a']] };
+	}, {id:-20});
+	proxy.on('create', '.obj[1]', function(change) { //path-selector can be with either dots or squared parenthesis
+		expect(change).toEqual({ type:'create', path:'', oldValue:undefined, value:[0, 1, ['a']] });
+	});
+	proxy.obj.on('create', '[1].2', function(change) { //path-selector can be with either dots or squared parenthesis
+		expect(change).toEqual({ type:'create', path:'', oldValue:undefined, value:['a'] });
+	});
+
+	proxy.obj = true;
 });
 
 test('10. Splice an array', () => {
 	let proxy = new Proxserve({
 		arr: [{a:'a'}, {b:'b'}, {c:'c'}]
-	});
+	}, { debug: { destroyDelay: 10 } });
 
 	let step = 0;
 
@@ -766,7 +760,7 @@ test('10. Splice an array', () => {
 test('11. Shift from an array', () => {
 	let proxy = new Proxserve({
 		arr: [{a:'a'}, {b:'b'}, {c:'c'}]
-	});
+	}, { debug: { destroyDelay: 10 } });
 
 	let step = 0;
 
@@ -793,11 +787,11 @@ test('11. Shift from an array', () => {
 
 	proxy.arr.shift(); //will move [2] to [3] and then overwrite [1] and then [2]
 });
-}
+
 test('12. Unshift to an array', () => {
 	let proxy = new Proxserve({
 		arr: [{a:'a'}]
-	});
+	}, { debug: { destroyDelay: 10 } });
 
 	let step = 0;
 

@@ -241,6 +241,7 @@ test('5. Basic events of changes', () => {
 				oldValue: 7, value: undefined, path: '.new2', type: 'delete'
 			});
 		}
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
 	}, {deep:true});
 	proxy.new2 = 5;
 	proxy.new2 = 7;
@@ -255,6 +256,7 @@ test('5. Basic events of changes', () => {
 		} else if(counter === 2) {
 			expect(change).toEqual({ oldValue: 6, value: 8, path: '.new3', type: 'update' });
 		}
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
 	}, {deep:true});
 	proxy.new3 = 6;
 	proxy.new3 = 8;
@@ -336,7 +338,7 @@ test('6. Basic events of methods', () => {
 });
 
 test('7. Stop/Block/Activate proxies', () => {
-	let proxy = new Proxserve(cloneDeep(testObject), {delay:0});
+	let proxy = new Proxserve(cloneDeep(testObject));
 	let numberOfEmits = 0;
 	proxy.on('change', function(change) {
 		numberOfEmits++;
@@ -491,8 +493,8 @@ test('9. splitPath - split path to segments', () => {
 	expect(path).toEqual(['new',0,'1.0','1a','keyWith1',9876543210]);
 });
 
-test('10. evalPath - get target property of object and path', (done) => {
-	let proxy = new Proxserve(cloneDeep(testObject), {delay: 0});
+test('10. evalPath - get target property of object and path', () => {
+	let proxy = new Proxserve(cloneDeep(testObject));
 	proxy.on('change', function(changes) {
 		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
 		expect(object === proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep).toBe(true);
@@ -542,10 +544,9 @@ test('10. evalPath - get target property of object and path', (done) => {
 	expect(object === proxy).toBe(true);
 	expect(property).toEqual(undefined);
 	expect(value).toEqual(proxy);
-	setImmediate(done);
 });
 
-test('11. On-change listener that makes its own changes', (done) => {
+test('11. On-change listener that makes its own changes', () => {
 	let proxy = new Proxserve(cloneDeep(testObject));
 	let counter = 0;
 	proxy.level1_1.arr1.on('change', function(change) {
@@ -559,8 +560,8 @@ test('11. On-change listener that makes its own changes', (done) => {
 			expect(change.value).toBe(18);
 		} else if(counter === 4) {
 			expect(change.value).toBe(19);
-			setImmediate(done);
 		}
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
 	}, {deep:true});
 	proxy.level1_1.arr1[0] = 17;
 	proxy.level1_1.arr1[1] = 18;
@@ -568,7 +569,7 @@ test('11. On-change listener that makes its own changes', (done) => {
 });
 
 test('12. on/once/removeListener/removeAllListeners', () => {
-	let proxy = new Proxserve(cloneDeep(testObject), {delay: 0});
+	let proxy = new Proxserve(cloneDeep(testObject));
 	let counter = 0;
 	let countFunction = function(changes) {
 		counter++;
@@ -635,6 +636,7 @@ test('13. Listen for delete event of sub-properties when parent is deleted', (do
 			expect(change.value).toBe(true);
 			done();
 		}
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
 	});
 	proxy.on('delete', '.obj.arr[0][0][1]', function(change) {
 		setTimeout(() => { //make sure we run after the other delete event
@@ -644,6 +646,7 @@ test('13. Listen for delete event of sub-properties when parent is deleted', (do
 				expect(change.oldValue).toBe(1);
 				proxy.obj.arr[0][0] = [true, false];
 			}
+			else throw new Error(`shouldn't have gotten here on step #${counter}`);
 		}, 0);
 	});
 
@@ -654,4 +657,22 @@ test('13. Listen for delete event of sub-properties when parent is deleted', (do
 			]
 		]
 	};
+});
+
+test('14. turn off emitMethods option', () => {
+	let proxy = new Proxserve([0,1], { emitMethods: false });
+
+	let counter = 0;
+	proxy.on('change', function(change) {
+		counter++;
+		if(counter === 1) expect(change).toEqual({ type:'update', path:'[1]', oldValue:1, value:{a:'a'} }); //splice
+		else if(counter === 2) expect(change).toEqual({ type:'create', path:'[2]', value:{a:'a'} }); //unshift
+		else if(counter === 3) expect(change).toEqual({ type:'update', path:'[1]', oldValue:{a:'a'}, value:0 }); //unshift
+		else if(counter === 4) expect(change).toEqual({ type:'update', path:'[0]', oldValue:0, value:{b:'b'} }); //unshift
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
+	}, {deep:true});
+
+	let dataNode = proxy.getProxserveDataNode();
+	proxy.splice(1, 1, {a:'a'});
+	proxy.unshift({b:'b'});
 });
