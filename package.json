@@ -1,6 +1,6 @@
 {
 	"name": "proxserve",
-	"version": "1.5.3",
+	"version": "2.0.0",
 	"description": "Proxy Observe on objects and properties changes",
 	"license": "Apache 2.0",
 	"main": "dist/proxserve.js",
@@ -38,5 +38,7 @@
 		"testEnvironment": "node"
 	},
 	"babel": {},
-	"browserslist": ["last 1 Chrome version"]
+	"browserslist": [
+		"last 1 Chrome version"
+	]
 }
