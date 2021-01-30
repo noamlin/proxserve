@@ -1,0 +1,109 @@
+/**
+ * Copyright 2021 Noam Lin <noamlin@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Common assets for unit tests.
+ */
+
+const util = require('util');
+
+module.exports.cloneDeep = require('lodash').cloneDeep;
+module.exports.ND = Symbol.for('proxserve_node_data');
+module.exports.NID = Symbol.for('proxserve_node_inherited_data');
+module.exports.isProxy = util.types.isProxy;
+
+ //test if proxy's internal [[handler]] is revoked. according to https://www.ecma-international.org/ecma-262/#sec-proxycreate
+//currently (Jan 2021) not working
+/*function isRevoked(value) {
+	try {
+		new Proxy(value, value); //instantiating with revoked-proxy throws an error
+		return false;
+	} catch(err) {
+		return Object(value) === value; //check if value was an object at all. only revoked proxy will reach here and return true
+	}
+}*/
+/**
+ * 
+ * @param {Object} objects - the "dataNode[ND].objects". expected to be { target: *, proxy: undefined, status: * }
+ * @param {Proxy} proxy - the original proxy object (because the reference inside "objects" got deleted)
+ */
+module.exports.isRevoked = function isRevoked(objects, proxy) {
+	if(!util.types.isProxy(proxy)) {
+		return false; //not even a proxy so can't be revoked
+	}
+
+	if(objects.status === 'revoked') {
+		try {
+			proxy.getSomeProperty;
+		} catch(err) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+var consoleFuncs = { log: console.log, warn: console.warn, error: console.error };
+module.exports.silentConsole = function silentConsole() {
+	console.log = console.warn = console.error = function() { };
+}
+module.exports.wakeConsole = function wakeConsole() {
+	console.log = consoleFuncs.log;
+	console.warn = consoleFuncs.warn;
+	console.error = consoleFuncs.error;
+}
+
+module.exports.testObject = {
+	level1_1: {
+		arr1: [0,1,2]
+	},
+	level1_2: {
+		level2_1: {
+			level3_1: {
+				arr2: [
+					0,
+					1,
+					[
+						6,
+						7,
+						[
+							14,
+							{ deep: { deeper: 'abc' } },
+							16
+						],
+						9
+					],
+					3,
+					4
+				]
+			}
+		}
+	}
+};
+
+module.exports.deepCountObjects = function deepCountObjects(obj) {
+	let numChildObjects = 0;
+
+	if(Array.isArray(obj)) {
+		numChildObjects++;
+		for(let i = 0; i < obj.length; i++) {
+			if(typeof obj[i] === 'object') {
+				numChildObjects += deepCountObjects(obj[i]);
+			}
+		}
+	}
+	else if(typeof obj === 'object') {
+		numChildObjects++;
+		let keys = Object.keys(obj);
+		for(let key of keys) {
+			if(typeof obj[key] === 'object') {
+				numChildObjects += deepCountObjects(obj[key]);
+			}
+		}
+	}
+
+	return numChildObjects;
+}
