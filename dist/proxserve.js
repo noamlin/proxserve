@@ -117,7 +117,7 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"global-vars.js":[function(require,module,exports) {
+})({"GM15":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -130,19 +130,25 @@ parcelRequire = (function (modules, cache, entry, globalName) {
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.NID = exports.ND = exports.eventNames = exports.proxyStatuses = exports.proxyTypes = void 0;
+exports.NID = exports.ND = exports.eventNames = exports.proxyStatuses = exports.nodeStatuses = exports.proxyTypes = void 0;
 let proxyTypes = ['Object', 'Array']; //acceptable types to be proxied
 
 exports.proxyTypes = proxyTypes;
 proxyTypes.OBJECT = proxyTypes[0];
 proxyTypes.ARRAY = proxyTypes[1];
-let proxyStatuses = ['active', 'stopped', 'blocked', 'splicing']; //statuses of proxies
+let nodeStatuses = ['active', 'stopped', 'blocked', 'splicing']; //statuses of data-nodes
+
+exports.nodeStatuses = nodeStatuses;
+nodeStatuses.ACTIVE = nodeStatuses[0];
+nodeStatuses.STOPPED = nodeStatuses[1];
+nodeStatuses.BLOCKED = nodeStatuses[2];
+nodeStatuses.SPLICING = nodeStatuses[3];
+let proxyStatuses = ['alive', 'deleted', 'revoked']; //statuses of proxies
 
 exports.proxyStatuses = proxyStatuses;
-proxyStatuses.ACTIVE = proxyStatuses[0];
-proxyStatuses.STOPPED = proxyStatuses[1];
-proxyStatuses.BLOCKED = proxyStatuses[2];
-proxyStatuses.SPLICING = proxyStatuses[3];
+proxyStatuses.ALIVE = proxyStatuses[0];
+proxyStatuses.DELETED = proxyStatuses[1];
+proxyStatuses.REVOKED = proxyStatuses[2];
 let eventNames = ['create', 'update', 'delete', 'splice', 'shift', 'unshift'];
 exports.eventNames = eventNames;
 eventNames.CREATE = eventNames[0];
@@ -157,7 +163,7 @@ exports.ND = ND;
 let NID = Symbol.for('proxserve_node_inherited_data'); //key for the inherited data of a node
 
 exports.NID = NID;
-},{}],"general-functions.js":[function(require,module,exports) {
+},{}],"MDxB":[function(require,module,exports) {
 /**
  * Copyright 2020 Noam Lin <noamlin@gmail.com>
  *
@@ -348,7 +354,7 @@ function evalPath(obj, path) {
     value: obj[segments[i]]
   };
 }
-},{}],"supporting-functions.js":[function(require,module,exports) {
+},{}],"tgn0":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -486,13 +492,13 @@ function createDataNode(parentNode, property) {
       'target': undefined,
       'proxy': undefined,
       'revoke': undefined
-      /* inherits isDeleted */
+      /* inherits status */
 
     })
   });
   return node;
 }
-},{"./global-vars.js":"global-vars.js","./general-functions.js":"general-functions.js"}],"pseudo-methods.js":[function(require,module,exports) {
+},{"./global-vars.js":"GM15","./general-functions.js":"MDxB"}],"hyxV":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -532,7 +538,7 @@ var _generalFunctions = require("./general-functions.js");
  * automatically filled param {Object} dataNode
  */
 function stop(dataNode) {
-  dataNode[_globalVars.NID].status = _globalVars.proxyStatuses.STOPPED;
+  dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.STOPPED;
 }
 /**
  * block object and children from any changes.
@@ -542,7 +548,7 @@ function stop(dataNode) {
 
 
 function block(dataNode) {
-  dataNode[_globalVars.NID].status = _globalVars.proxyStatuses.BLOCKED;
+  dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.BLOCKED;
 }
 /**
  * resume default behavior of emitting change events, inherited from parent
@@ -555,7 +561,7 @@ function block(dataNode) {
 function activate(dataNode, objects, force = false) {
   if (force || dataNode === this.dataTree) {
     //force activation or we are on root proxy
-    dataNode[_globalVars.NID].status = _globalVars.proxyStatuses.ACTIVE;
+    dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.ACTIVE;
   } else {
     delete dataNode[_globalVars.NID].status;
   }
@@ -751,7 +757,7 @@ function getProxserveDataNode(dataNode) {
 function getProxserveInstance() {
   return this;
 }
-},{"./global-vars.js":"global-vars.js","./supporting-functions.js":"supporting-functions.js","./general-functions.js":"general-functions.js"}],"event-emitter.js":[function(require,module,exports) {
+},{"./global-vars.js":"GM15","./supporting-functions.js":"tgn0","./general-functions.js":"MDxB"}],"NGwh":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -783,7 +789,7 @@ var _supportingFunctions = require("./supporting-functions.js");
 function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, value, isValueProxy) {
   if (oldValue === value
   /*no new change was made*/
-  || dataNode[_globalVars.ND].objects.isDeleted
+  || dataNode[_globalVars.ND].objects.status !== _globalVars.proxyStatuses.ALIVE
   /*altered a deleted or detached proxy*/
   ) {
       return;
@@ -793,7 +799,7 @@ function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, value, is
   if (value === undefined) changeType = _globalVars.eventNames.DELETE;else if (oldValue === undefined) changeType = _globalVars.eventNames.CREATE;
   let deferredEvents; //altering properties of an array that's in the middle of a splicing phase
 
-  if (dataNode[_globalVars.NID].status === _globalVars.proxyStatuses.SPLICING) {
+  if (dataNode[_globalVars.NID].status === _globalVars.nodeStatuses.SPLICING) {
     //initiate (if needed) an object to hold side effect events
     if (!dataNode[_globalVars.ND].deferredEvents) dataNode[_globalVars.ND].deferredEvents = []; //save a reference to the deferredEvents
 
@@ -884,7 +890,7 @@ function initFunctionEmitEvent(dataNode, funcName, funcArgs, oldValue, value) {
 
 
 function bubbleEmit(dataNode, change) {
-  if (dataNode[_globalVars.NID].status === _globalVars.proxyStatuses.STOPPED) {
+  if (dataNode[_globalVars.NID].status === _globalVars.nodeStatuses.STOPPED) {
     return; //not allowed to emit
   }
 
@@ -936,7 +942,7 @@ function captureEmit(dataNode, change) {
         type: changeType
       }; //failing the status check will not emit for current property (but sub-properties might still be forcibly active)
 
-      if (dataNode[key][_globalVars.NID].status !== _globalVars.proxyStatuses.STOPPED) {
+      if (dataNode[key][_globalVars.NID].status !== _globalVars.nodeStatuses.STOPPED) {
         iterateAndEmit(dataNode[key][_globalVars.ND].listeners.shallow, dataNode[key][_globalVars.ND].objects.proxy, subChange);
       }
 
@@ -965,7 +971,7 @@ function iterateAndEmit(listenersArr, thisValue, change) {
     }
   }
 }
-},{"./global-vars.js":"global-vars.js","./supporting-functions.js":"supporting-functions.js"}],"proxy-methods.js":[function(require,module,exports) {
+},{"./global-vars.js":"GM15","./supporting-functions.js":"tgn0"}],"UXyj":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -998,12 +1004,12 @@ var _eventEmitter = require("./event-emitter.js");
  * @param  {...any} items 
  */
 function splice(dataNode, objects, start, deleteCount, ...items) {
-  if (dataNode[_globalVars.NID].status !== _globalVars.proxyStatuses.ACTIVE) {
+  if (dataNode[_globalVars.NID].status !== _globalVars.nodeStatuses.ACTIVE) {
     return Array.prototype.splice.call(objects.proxy, start, deleteCount, ...items);
   }
 
   let isActiveByInheritance = !dataNode[_globalVars.NID].hasOwnProperty('status');
-  dataNode[_globalVars.NID].status = _globalVars.proxyStatuses.SPLICING;
+  dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.SPLICING;
   let oldValue = objects.target.slice(0);
   let deleted = Array.prototype.splice.call(objects.proxy, start, deleteCount, ...items); //creates many side-effect events
 
@@ -1012,7 +1018,7 @@ function splice(dataNode, objects, start, deleteCount, ...items) {
     deleteCount,
     items
   };
-  if (isActiveByInheritance) delete dataNode[_globalVars.NID].status;else dataNode[_globalVars.NID].status = _globalVars.proxyStatuses.ACTIVE;
+  if (isActiveByInheritance) delete dataNode[_globalVars.NID].status;else dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.ACTIVE;
   (0, _eventEmitter.initFunctionEmitEvent)(dataNode, _globalVars.eventNames.SPLICE, args, oldValue, objects.target);
   return deleted;
 }
@@ -1024,16 +1030,16 @@ function splice(dataNode, objects, start, deleteCount, ...items) {
 
 
 function shift(dataNode, objects) {
-  if (dataNode[_globalVars.NID].status !== _globalVars.proxyStatuses.ACTIVE) {
+  if (dataNode[_globalVars.NID].status !== _globalVars.nodeStatuses.ACTIVE) {
     return Array.prototype.shift.call(objects.proxy);
   }
 
   let isActiveByInheritance = !dataNode[_globalVars.NID].hasOwnProperty('status');
-  dataNode[_globalVars.NID].status = _globalVars.proxyStatuses.SPLICING;
+  dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.SPLICING;
   let oldValue = objects.target.slice(0);
   let deleted = Array.prototype.shift.call(objects.proxy); //creates many side-effect events
 
-  if (isActiveByInheritance) delete dataNode[_globalVars.NID].status;else dataNode[_globalVars.NID].status = _globalVars.proxyStatuses.ACTIVE;
+  if (isActiveByInheritance) delete dataNode[_globalVars.NID].status;else dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.ACTIVE;
   (0, _eventEmitter.initFunctionEmitEvent)(dataNode, _globalVars.eventNames.SHIFT, {}, oldValue, objects.target);
   return deleted;
 }
@@ -1046,23 +1052,23 @@ function shift(dataNode, objects) {
 
 
 function unshift(dataNode, objects, ...items) {
-  if (dataNode[_globalVars.NID].status !== _globalVars.proxyStatuses.ACTIVE) {
+  if (dataNode[_globalVars.NID].status !== _globalVars.nodeStatuses.ACTIVE) {
     return Array.prototype.shift.call(objects.proxy);
   }
 
   let isActiveByInheritance = !dataNode[_globalVars.NID].hasOwnProperty('status');
-  dataNode[_globalVars.NID].status = _globalVars.proxyStatuses.SPLICING;
+  dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.SPLICING;
   let oldValue = objects.target.slice(0);
   let newLength = Array.prototype.unshift.call(objects.proxy, ...items); //creates many side-effect events
 
   let args = {
     items
   };
-  if (isActiveByInheritance) delete dataNode[_globalVars.NID].status;else dataNode[_globalVars.NID].status = _globalVars.proxyStatuses.ACTIVE;
+  if (isActiveByInheritance) delete dataNode[_globalVars.NID].status;else dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.ACTIVE;
   (0, _eventEmitter.initFunctionEmitEvent)(dataNode, _globalVars.eventNames.UNSHIFT, args, oldValue, objects.target);
   return newLength;
 }
-},{"./global-vars.js":"global-vars.js","./event-emitter.js":"event-emitter.js"}],"index.js":[function(require,module,exports) {
+},{"./global-vars.js":"GM15","./event-emitter.js":"NGwh"}],"Focm":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -1125,14 +1131,14 @@ class Proxserve {
     if (debug && debug.destroyDelay) this.destroyDelay = debug.destroyDelay;
     this.dataTree = (0, _supportingFunctions.createDataNode)({
       [NID]: {
-        'status': _globalVars.proxyStatuses.ACTIVE
+        status: _globalVars.nodeStatuses.ACTIVE
       },
       [ND]: {
-        'objects': {
-          'isDeleted': false
+        objects: {
+          status: _globalVars.proxyStatuses.ALIVE
         }
       },
-      'isTreePrototype': true
+      isTreePrototype: true
     }, '');
     this.dataTree[ND].path = '';
     this.dataTree[ND].propertyPath = '';
@@ -1178,8 +1184,7 @@ class Proxserve {
             return target[property]; //non-enumerable or non-path'able aren't proxied
           } else if (dataNode[property] //there's a child node
           && dataNode[property][ND].objects.proxy //it holds a proxy
-          && Object.getPrototypeOf(dataNode[property][ND].objects) === objects) {
-            //is child of this proxy, and not a ghost object left there after deletion
+          && dataNode[property][ND].objects.status === _globalVars.proxyStatuses.ALIVE) {
             return dataNode[property][ND].objects.proxy;
           } else {
             return target[property];
@@ -1199,7 +1204,7 @@ class Proxserve {
            *    except for: length
            * TODO - make a list of all possible properties exceptions (maybe function 'name'?)
            */
-          if (dataNode[NID].status === _globalVars.proxyStatuses.BLOCKED) {
+          if (dataNode[NID].status === _globalVars.nodeStatuses.BLOCKED) {
             //blocked from changing values
             console.error(`can't change value of property '${property}'. object is blocked.`);
             return true;
@@ -1223,7 +1228,7 @@ class Proxserve {
 
           if (dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
             //about to overwrite an existing property which is a proxy (about to detach a proxy)
-            dataNode[property][ND].objects.isDeleted = true;
+            dataNode[property][ND].objects.status = _globalVars.proxyStatuses.DELETED;
             isOldValueProxy = true;
 
             if (this.strict) {
@@ -1265,7 +1270,7 @@ class Proxserve {
 
           if (dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
             //about to overwrite an existing property which is a proxy (about to detach a proxy)
-            dataNode[property][ND].objects.isDeleted = true;
+            dataNode[property][ND].objects.status = _globalVars.proxyStatuses.DELETED;
             isOldValueProxy = true;
 
             if (this.strict) {
@@ -1300,7 +1305,7 @@ class Proxserve {
             return true;
           }
 
-          if (dataNode[NID].status === _globalVars.proxyStatuses.BLOCKED) {
+          if (dataNode[NID].status === _globalVars.nodeStatuses.BLOCKED) {
             //blocked from changing values
             console.error(`can't delete property '${property}'. object is blocked.`);
             return true;
@@ -1313,7 +1318,7 @@ class Proxserve {
 
             if (dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
               //about to overwrite an existing property which is a proxy (about to detach a proxy)
-              dataNode[property][ND].objects.isDeleted = true;
+              dataNode[property][ND].objects.status = _globalVars.proxyStatuses.DELETED;
               isOldValueProxy = true;
 
               if (this.strict) {
@@ -1369,53 +1374,41 @@ class Proxserve {
 
 
   static destroy(proxy) {
-    let objects;
+    let dataNode, objects;
 
     try {
+      dataNode = proxy.$getProxserveDataNode();
       objects = proxy.$getProxserveObjects();
     } catch (error) {
       return; //proxy variable isn't a proxy
     }
 
-    if (!objects.isDeleted) {
-      objects.isDeleted = true;
+    if (objects.status === _globalVars.proxyStatuses.ALIVE) {
+      objects.status = _globalVars.proxyStatuses.DELETED;
     }
 
     let typeofproxy = (0, _generalFunctions.realtypeof)(proxy);
 
     if (_globalVars.proxyTypes.includes(typeofproxy)) {
-      if (typeofproxy === 'Object') {
-        let keys = Object.keys(proxy);
+      let keys = Object.keys(proxy); //handles both Objects and Arrays
 
-        for (let key of keys) {
-          try {
-            let typeofproperty = (0, _generalFunctions.realtypeof)(proxy[key]);
+      for (let key of keys) {
+        try {
+          let typeofproperty = (0, _generalFunctions.realtypeof)(proxy[key]);
 
-            if (_globalVars.proxyTypes.includes(typeofproperty)) {
-              Proxserve.destroy(proxy[key]);
-            }
-          } catch (error) {
-            console.error(error); //don't throw and kill the whole process just if this iteration fails
+          if (_globalVars.proxyTypes.includes(typeofproperty)) {
+            Proxserve.destroy(dataNode[key][ND].objects.proxy);
           }
+        } catch (error) {
+          console.error(error); //don't throw and kill the whole process just if this iteration fails
         }
-      } else if (typeofproxy === 'Array') {
-        for (let i = proxy.length - 1; i >= 0; i--) {
-          try {
-            let typeofproperty = (0, _generalFunctions.realtypeof)(proxy[i]);
-
-            if (_globalVars.proxyTypes.includes(typeofproperty)) {
-              Proxserve.destroy(proxy[i]);
-            }
-          } catch (error) {
-            console.error(error); //don't throw and kill the whole process just if this iteration fails
-          }
-        }
-      } else {
-        console.warn('Not Implemented');
       }
 
       objects.revoke();
       objects.proxy = undefined;
+      objects.status = _globalVars.proxyStatuses.REVOKED;
+    } else {
+      console.warn(`Type of "${typeofproxy}" is not implemented`);
     }
   }
 
@@ -1430,208 +1423,5 @@ class Proxserve {
 }
 
 module.exports = exports = Proxserve; //makes ParcelJS expose this globally (for all platforms) after bundling everything
-},{"./global-vars.js":"global-vars.js","./supporting-functions.js":"supporting-functions.js","./pseudo-methods.js":"pseudo-methods.js","./proxy-methods.js":"proxy-methods.js","./general-functions.js":"general-functions.js","./event-emitter.js":"event-emitter.js"}],"../../../../home/noam/.nvm/versions/node/v15.4.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
-var global = arguments[3];
-var OVERLAY_ID = '__parcel__error__overlay__';
-var OldModule = module.bundle.Module;
-
-function Module(moduleName) {
-  OldModule.call(this, moduleName);
-  this.hot = {
-    data: module.bundle.hotData,
-    _acceptCallbacks: [],
-    _disposeCallbacks: [],
-    accept: function (fn) {
-      this._acceptCallbacks.push(fn || function () {});
-    },
-    dispose: function (fn) {
-      this._disposeCallbacks.push(fn);
-    }
-  };
-  module.bundle.hotData = null;
-}
-
-module.bundle.Module = Module;
-var checkedAssets, assetsToAccept;
-var parent = module.bundle.parent;
-
-if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
-  var hostname = "" || location.hostname;
-  var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "42647" + '/');
-
-  ws.onmessage = function (event) {
-    checkedAssets = {};
-    assetsToAccept = [];
-    var data = JSON.parse(event.data);
-
-    if (data.type === 'update') {
-      var handled = false;
-      data.assets.forEach(function (asset) {
-        if (!asset.isNew) {
-          var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
-
-          if (didAccept) {
-            handled = true;
-          }
-        }
-      }); // Enable HMR for CSS by default.
-
-      handled = handled || data.assets.every(function (asset) {
-        return asset.type === 'css' && asset.generated.js;
-      });
-
-      if (handled) {
-        console.clear();
-        data.assets.forEach(function (asset) {
-          hmrApply(global.parcelRequire, asset);
-        });
-        assetsToAccept.forEach(function (v) {
-          hmrAcceptRun(v[0], v[1]);
-        });
-      } else if (location.reload) {
-        // `location` global exists in a web worker context but lacks `.reload()` function.
-        location.reload();
-      }
-    }
-
-    if (data.type === 'reload') {
-      ws.close();
-
-      ws.onclose = function () {
-        location.reload();
-      };
-    }
-
-    if (data.type === 'error-resolved') {
-      console.log('[parcel] ✨ Error resolved');
-      removeErrorOverlay();
-    }
-
-    if (data.type === 'error') {
-      console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
-      removeErrorOverlay();
-      var overlay = createErrorOverlay(data);
-      document.body.appendChild(overlay);
-    }
-  };
-}
-
-function removeErrorOverlay() {
-  var overlay = document.getElementById(OVERLAY_ID);
-
-  if (overlay) {
-    overlay.remove();
-  }
-}
-
-function createErrorOverlay(data) {
-  var overlay = document.createElement('div');
-  overlay.id = OVERLAY_ID; // html encode message and stack trace
-
-  var message = document.createElement('div');
-  var stackTrace = document.createElement('pre');
-  message.innerText = data.error.message;
-  stackTrace.innerText = data.error.stack;
-  overlay.innerHTML = '<div style="background: black; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; opacity: 0.85; font-family: Menlo, Consolas, monospace; z-index: 9999;">' + '<span style="background: red; padding: 2px 4px; border-radius: 2px;">ERROR</span>' + '<span style="top: 2px; margin-left: 5px; position: relative;">🚨</span>' + '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' + message.innerHTML + '</div>' + '<pre>' + stackTrace.innerHTML + '</pre>' + '</div>';
-  return overlay;
-}
-
-function getParents(bundle, id) {
-  var modules = bundle.modules;
-
-  if (!modules) {
-    return [];
-  }
-
-  var parents = [];
-  var k, d, dep;
-
-  for (k in modules) {
-    for (d in modules[k][1]) {
-      dep = modules[k][1][d];
-
-      if (dep === id || Array.isArray(dep) && dep[dep.length - 1] === id) {
-        parents.push(k);
-      }
-    }
-  }
-
-  if (bundle.parent) {
-    parents = parents.concat(getParents(bundle.parent, id));
-  }
-
-  return parents;
-}
-
-function hmrApply(bundle, asset) {
-  var modules = bundle.modules;
-
-  if (!modules) {
-    return;
-  }
-
-  if (modules[asset.id] || !bundle.parent) {
-    var fn = new Function('require', 'module', 'exports', asset.generated.js);
-    asset.isNew = !modules[asset.id];
-    modules[asset.id] = [fn, asset.deps];
-  } else if (bundle.parent) {
-    hmrApply(bundle.parent, asset);
-  }
-}
-
-function hmrAcceptCheck(bundle, id) {
-  var modules = bundle.modules;
-
-  if (!modules) {
-    return;
-  }
-
-  if (!modules[id] && bundle.parent) {
-    return hmrAcceptCheck(bundle.parent, id);
-  }
-
-  if (checkedAssets[id]) {
-    return;
-  }
-
-  checkedAssets[id] = true;
-  var cached = bundle.cache[id];
-  assetsToAccept.push([bundle, id]);
-
-  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
-    return true;
-  }
-
-  return getParents(global.parcelRequire, id).some(function (id) {
-    return hmrAcceptCheck(global.parcelRequire, id);
-  });
-}
-
-function hmrAcceptRun(bundle, id) {
-  var cached = bundle.cache[id];
-  bundle.hotData = {};
-
-  if (cached) {
-    cached.hot.data = bundle.hotData;
-  }
-
-  if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
-    cached.hot._disposeCallbacks.forEach(function (cb) {
-      cb(bundle.hotData);
-    });
-  }
-
-  delete bundle.cache[id];
-  bundle(id);
-  cached = bundle.cache[id];
-
-  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
-    cached.hot._acceptCallbacks.forEach(function (cb) {
-      cb();
-    });
-
-    return true;
-  }
-}
-},{}]},{},["../../../../home/noam/.nvm/versions/node/v15.4.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","index.js"], "Proxserve")
+},{"./global-vars.js":"GM15","./supporting-functions.js":"tgn0","./pseudo-methods.js":"hyxV","./proxy-methods.js":"UXyj","./general-functions.js":"MDxB","./event-emitter.js":"NGwh"}]},{},["Focm"], "Proxserve")
+//# sourceMappingURL=/proxserve.js.map

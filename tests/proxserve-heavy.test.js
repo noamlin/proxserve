@@ -10,81 +10,8 @@
 "use strict"
 
 const Proxserve = require('../dist/proxserve.js');
-const util = require('util');
-const { cloneDeep } = require('lodash');
-const { error } = require('console');
 
-var ND = Symbol.for('proxserve_node_data');
-var NID = Symbol.for('proxserve_node_inherited_data');
-
-/**
- * 
- * @param {Object} objects - the "dataNode[ND].objects". expected to be { target: *, proxy: undefined, isDeleted: true }
- * @param {Proxy} proxy - the original proxy object (because the reference inside "objects" got deleted)
- */
-function isRevoked(objects, proxy) {
-	if(objects.isDeleted) {
-		try {
-			delete proxy.__some_test;
-		} catch(err) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-function deepCountObjects(obj) {
-	let numChildObjects = 0;
-
-	if(Array.isArray(obj)) {
-		numChildObjects++;
-		for(let i = 0; i < obj.length; i++) {
-			if(typeof obj[i] === 'object') {
-				numChildObjects += deepCountObjects(obj[i]);
-			}
-		}
-	}
-	else if(typeof obj === 'object') {
-		numChildObjects++;
-		let keys = Object.keys(obj);
-		for(let key of keys) {
-			if(typeof obj[key] === 'object') {
-				numChildObjects += deepCountObjects(obj[key]);
-			}
-		}
-	}
-
-	return numChildObjects;
-}
-
-const testObject = {
-	level1_1: {
-		arr1: [0,1,2]
-	},
-	level1_2: {
-		level2_1: {
-			level3_1: {
-				arr2: [
-					0,
-					1,
-					[
-						6,
-						7,
-						[
-							14,
-							{ deep: { deeper: 'abc' } },
-							16
-						],
-						9
-					],
-					3,
-					4
-				]
-			}
-		}
-	}
-};
+const { isProxy, isRevoked, testObject, cloneDeep, deepCountObjects, ND } = require('./common.js');
 
 test('1. Destroy proxy and sub-proxies', (done) => {
 	let proxy = new Proxserve(cloneDeep(testObject), { debug: { destroyDelay: 10 } }); //hack to decrease the 1000ms delay of destroy
@@ -302,43 +229,43 @@ test('4. Find recursively and handle proxies inside objects inserted to main pro
 		return proxy.getProxserveDataNode()[ND].path;
 	}
 
-	expect(util.types.isProxy(newObj)).toBe(false); //regular object (for now)
-	expect(util.types.isProxy(newObj.subObj_1)).toBe(true);
+	expect(isProxy(newObj)).toBe(false); //regular object (for now)
+	expect(isProxy(newObj.subObj_1)).toBe(true);
 	expect(getPath(newObj.subObj_1)).toBe('.arr[0]');
-	expect(util.types.isProxy(newObj.subObj_2)).toBe(true);
+	expect(isProxy(newObj.subObj_2)).toBe(true);
 	expect(getPath(newObj.subObj_2)).toBe('.arr[1]');
-	expect(util.types.isProxy(newObj.subArr)).toBe(false);
-	expect(util.types.isProxy(newObj.subArr[0])).toBe(true);
+	expect(isProxy(newObj.subArr)).toBe(false);
+	expect(isProxy(newObj.subArr[0])).toBe(true);
 	expect(getPath(newObj.subArr[0])).toBe('.arr[2]');
-	expect(util.types.isProxy(newObj.subArr[1])).toBe(false);
-	expect(util.types.isProxy(newObj.subArr[1][0])).toBe(true);
+	expect(isProxy(newObj.subArr[1])).toBe(false);
+	expect(isProxy(newObj.subArr[1][0])).toBe(true);
 	expect(getPath(newObj.subArr[1][0])).toBe('.arr[3]');
 
 	proxy.newObj = newObj;
 
-	expect(util.types.isProxy(proxy.newObj)).toBe(true);
+	expect(isProxy(proxy.newObj)).toBe(true);
 
-	expect(util.types.isProxy(newObj.subObj_1)).toBe(false); //unproxified
-	expect(util.types.isProxy(proxy.newObj.subObj_1)).toBe(true); //proxified again
+	expect(isProxy(newObj.subObj_1)).toBe(false); //unproxified
+	expect(isProxy(proxy.newObj.subObj_1)).toBe(true); //proxified again
 	expect(getPath(proxy.arr[0])).toBe('.arr[0]');
 	expect(getPath(proxy.newObj.subObj_1)).toBe('.newObj.subObj_1');
 	expect(proxy.newObj.subObj_1.getOriginalTarget() === proxy.arr[0].getOriginalTarget()).toBe(true);
 
-	expect(util.types.isProxy(newObj.subObj_2)).toBe(false);
-	expect(util.types.isProxy(proxy.newObj.subObj_2)).toBe(true);
+	expect(isProxy(newObj.subObj_2)).toBe(false);
+	expect(isProxy(proxy.newObj.subObj_2)).toBe(true);
 	expect(getPath(proxy.arr[1])).toBe('.arr[1]');
 	expect(getPath(proxy.newObj.subObj_2)).toBe('.newObj.subObj_2');
 	expect(proxy.newObj.subObj_2.getOriginalTarget() === proxy.arr[1].getOriginalTarget()).toBe(true);
 
-	expect(util.types.isProxy(newObj.subArr)).toBe(false);
-	expect(util.types.isProxy(proxy.newObj.subArr)).toBe(true);
+	expect(isProxy(newObj.subArr)).toBe(false);
+	expect(isProxy(proxy.newObj.subArr)).toBe(true);
 
 	expect(getPath(proxy.arr[2])).toBe('.arr[2]');
 	expect(getPath(proxy.newObj.subArr[0])).toBe('.newObj.subArr[0]');
 	expect(proxy.newObj.subArr[0].getOriginalTarget() === proxy.arr[2].getOriginalTarget()).toBe(true);
 
-	expect(util.types.isProxy(newObj.subArr[1])).toBe(false);
-	expect(util.types.isProxy(proxy.newObj.subArr[1])).toBe(true);
+	expect(isProxy(newObj.subArr[1])).toBe(false);
+	expect(isProxy(proxy.newObj.subArr[1])).toBe(true);
 
 	expect(getPath(proxy.arr[3])).toBe('.arr[3]');
 	expect(getPath(proxy.newObj.subArr[1][0])).toBe('.newObj.subArr[1][0]');

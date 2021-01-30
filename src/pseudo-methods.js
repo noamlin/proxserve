@@ -11,7 +11,7 @@
 // (i.e. someProxserve.pseudoFunction will return the pseudoFunction)
 "use strict"
 
-import { eventNames, proxyStatuses, ND, NID } from './global-vars.js';
+import { eventNames, nodeStatuses, ND, NID } from './global-vars.js';
 import { createDataNode } from './supporting-functions.js';
 import { splitPath } from './general-functions.js';
 
@@ -20,7 +20,7 @@ import { splitPath } from './general-functions.js';
  * automatically filled param {Object} dataNode
  */
 export function stop(dataNode) {
-	dataNode[NID].status = proxyStatuses.STOPPED;
+	dataNode[NID].status = nodeStatuses.STOPPED;
 }
 
 /**
@@ -29,7 +29,7 @@ export function stop(dataNode) {
  * automatically filled param {Object} dataNode
  */
 export function block(dataNode) {
-	dataNode[NID].status = proxyStatuses.BLOCKED;
+	dataNode[NID].status = nodeStatuses.BLOCKED;
 }
 
 /**
@@ -40,7 +40,7 @@ export function block(dataNode) {
  */
 export function activate(dataNode, objects, force=false) {
 	if(force || dataNode === this.dataTree) { //force activation or we are on root proxy
-		dataNode[NID].status = proxyStatuses.ACTIVE;
+		dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
 	else {
 		delete dataNode[NID].status;

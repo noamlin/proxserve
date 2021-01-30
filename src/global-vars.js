@@ -11,11 +11,16 @@ let proxyTypes = ['Object', 'Array']; //acceptable types to be proxied
 proxyTypes.OBJECT = proxyTypes[0];
 proxyTypes.ARRAY = proxyTypes[1];
 
-let proxyStatuses = ['active', 'stopped', 'blocked', 'splicing']; //statuses of proxies
-proxyStatuses.ACTIVE = proxyStatuses[0];
-proxyStatuses.STOPPED = proxyStatuses[1];
-proxyStatuses.BLOCKED = proxyStatuses[2];
-proxyStatuses.SPLICING = proxyStatuses[3];
+let nodeStatuses = ['active', 'stopped', 'blocked', 'splicing']; //statuses of data-nodes
+nodeStatuses.ACTIVE = nodeStatuses[0];
+nodeStatuses.STOPPED = nodeStatuses[1];
+nodeStatuses.BLOCKED = nodeStatuses[2];
+nodeStatuses.SPLICING = nodeStatuses[3];
+
+let proxyStatuses = ['alive', 'deleted', 'revoked']; //statuses of proxies
+proxyStatuses.ALIVE = proxyStatuses[0];
+proxyStatuses.DELETED = proxyStatuses[1];
+proxyStatuses.REVOKED = proxyStatuses[2];
 
 let eventNames = ['create', 'update', 'delete', 'splice', 'shift', 'unshift'];
 eventNames.CREATE = eventNames[0];
@@ -28,4 +33,4 @@ eventNames.UNSHIFT = eventNames[5];
 let ND = Symbol.for('proxserve_node_data'); //key for the data of a node
 let NID = Symbol.for('proxserve_node_inherited_data'); //key for the inherited data of a node
 
-export { proxyTypes, proxyStatuses, eventNames, ND, NID };
+export { proxyTypes, nodeStatuses, proxyStatuses, eventNames, ND, NID };

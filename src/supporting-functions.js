@@ -109,7 +109,7 @@ export function createDataNode(parentNode, property) {
 			'target': undefined,
 			'proxy': undefined,
 			'revoke': undefined
-			/* inherits isDeleted */
+			/* inherits status */
 		})
 	});
 

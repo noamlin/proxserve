@@ -7,7 +7,7 @@
  */
 "use strict"
 
-import { proxyTypes, proxyStatuses } from './global-vars.js';
+import { proxyTypes, nodeStatuses, proxyStatuses } from './global-vars.js';
 import { unproxify, createDataNode } from './supporting-functions.js';
 import * as pseudoMethods from './pseudo-methods.js';
 import * as proxyMethods from './proxy-methods.js';
@@ -45,9 +45,13 @@ class Proxserve {
 		if(debug && debug.destroyDelay) this.destroyDelay = debug.destroyDelay;
 
 		this.dataTree = createDataNode({
-			[NID]: { 'status': proxyStatuses.ACTIVE },
-			[ND]: { 'objects': { 'isDeleted': false } },
-			'isTreePrototype': true
+			[NID]: {
+				status: nodeStatuses.ACTIVE
+			},
+			[ND]: {
+				objects: { status: proxyStatuses.ALIVE }
+			},
+			isTreePrototype: true
 		}, '');
 		this.dataTree[ND].path = '';
 		this.dataTree[ND].propertyPath = '';
@@ -93,7 +97,7 @@ class Proxserve {
 					}
 					else if(dataNode[property] //there's a child node
 							&& dataNode[property][ND].objects.proxy //it holds a proxy
-							&& Object.getPrototypeOf(dataNode[property][ND].objects) === objects) { //is child of this proxy, and not a ghost object left there after deletion
+							&& dataNode[property][ND].objects.status === proxyStatuses.ALIVE) {
 						return dataNode[property][ND].objects.proxy;
 					} else {
 						return target[property];
@@ -110,7 +114,7 @@ class Proxserve {
 					 *    except for: length
 					 * TODO - make a list of all possible properties exceptions (maybe function 'name'?)
 					 */
-					if(dataNode[NID].status === proxyStatuses.BLOCKED) { //blocked from changing values
+					if(dataNode[NID].status === nodeStatuses.BLOCKED) { //blocked from changing values
 						console.error(`can't change value of property '${property}'. object is blocked.`);
 						return true;
 					}
@@ -131,7 +135,7 @@ class Proxserve {
 					let isOldValueProxy = false;
 					if(dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
 						//about to overwrite an existing property which is a proxy (about to detach a proxy)
-						dataNode[property][ND].objects.isDeleted = true;
+						dataNode[property][ND].objects.status = proxyStatuses.DELETED;
 						isOldValueProxy = true;
 						if(this.strict) {
 							//postpone this cpu intense function for later, probably when proxserve is not in use
@@ -167,7 +171,7 @@ class Proxserve {
 					let isOldValueProxy = false;
 					if(dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
 						//about to overwrite an existing property which is a proxy (about to detach a proxy)
-						dataNode[property][ND].objects.isDeleted = true;
+						dataNode[property][ND].objects.status = proxyStatuses.DELETED;
 						isOldValueProxy = true;
 						if(this.strict) {
 							//postpone this cpu intense function for later, probably when proxserve is not is use
@@ -198,7 +202,7 @@ class Proxserve {
 						return true;
 					}
 
-					if(dataNode[NID].status === proxyStatuses.BLOCKED) { //blocked from changing values
+					if(dataNode[NID].status === nodeStatuses.BLOCKED) { //blocked from changing values
 						console.error(`can't delete property '${property}'. object is blocked.`);
 						return true;
 					}
@@ -208,7 +212,7 @@ class Proxserve {
 						let isOldValueProxy = false;
 						if(dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
 							//about to overwrite an existing property which is a proxy (about to detach a proxy)
-							dataNode[property][ND].objects.isDeleted = true;
+							dataNode[property][ND].objects.status = proxyStatuses.DELETED;
 							isOldValueProxy = true;
 							if(this.strict) {
 								//postpone this cpu intense function for later, probably when proxserve is not is use
@@ -265,51 +269,39 @@ class Proxserve {
 	 * @param {*} proxy 
 	 */
 	static destroy(proxy) {
-		let objects;
+		let dataNode, objects;
 		try {
+			dataNode = proxy.$getProxserveDataNode();
 			objects = proxy.$getProxserveObjects();
 		} catch(error) {
 			return; //proxy variable isn't a proxy
 		}
 
-		if(!objects.isDeleted) {
-			objects.isDeleted = true;
+		if(objects.status === proxyStatuses.ALIVE) {
+			objects.status = proxyStatuses.DELETED;
 		}
 
 		let typeofproxy = realtypeof(proxy);
 
 		if(proxyTypes.includes(typeofproxy)) {
-			if(typeofproxy === 'Object') {
-				let keys = Object.keys(proxy);
-				for(let key of keys) {
-					try {
-						let typeofproperty = realtypeof(proxy[key]);
-						if(proxyTypes.includes(typeofproperty)) {
-							Proxserve.destroy(proxy[key]);
-						}
-					} catch(error) {
-						console.error(error); //don't throw and kill the whole process just if this iteration fails
+			let keys = Object.keys(proxy); //handles both Objects and Arrays
+			for(let key of keys) {
+				try {
+					let typeofproperty = realtypeof(proxy[key]);
+					if(proxyTypes.includes(typeofproperty)) {
+						Proxserve.destroy(dataNode[key][ND].objects.proxy);
 					}
+				} catch(error) {
+					console.error(error); //don't throw and kill the whole process just if this iteration fails
 				}
-			}
-			else if(typeofproxy === 'Array') {
-				for(let i = proxy.length - 1; i >= 0; i--) {
-					try {
-						let typeofproperty = realtypeof(proxy[i]);
-						if(proxyTypes.includes(typeofproperty)) {
-							Proxserve.destroy(proxy[i]);
-						}
-					} catch(error) {
-						console.error(error); //don't throw and kill the whole process just if this iteration fails
-					}
-				}
-			}
-			else {
-				console.warn('Not Implemented');
 			}
 
 			objects.revoke();
 			objects.proxy = undefined;
+			objects.status = proxyStatuses.REVOKED;
+		}
+		else {
+			console.warn(`Type of "${typeofproxy}" is not implemented`);
 		}
 	}
 

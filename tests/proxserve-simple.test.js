@@ -10,73 +10,8 @@
 "use strict"
 
 const Proxserve = require('../dist/proxserve.js');
-const util = require('util');
-const { cloneDeep } = require('lodash');
 
-//test if proxy's internal [[handler]] is revoked. according to https://www.ecma-international.org/ecma-262/#sec-proxycreate
-//currently (Jan 2021) not working
-/*function isRevoked(value) {
-	try {
-		new Proxy(value, value); //instantiating with revoked-proxy throws an error
-		return false;
-	} catch(err) {
-		return Object(value) === value; //check if value was an object at all. only revoked proxy will reach here and return true
-	}
-}*/
-/**
- * 
- * @param {Object} objects - the "dataNode[ND].objects". expected to be { target: *, proxy: undefined, isDeleted: true }
- * @param {Proxy} proxy - the original proxy object (because the reference inside "objects" got deleted)
- */
-function isRevoked(objects, proxy) {
-	if(objects.isDeleted) {
-		try {
-			proxy.test = 1;
-		} catch(err) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-var consoleFuncs = { log: console.log, warn: console.warn, error: console.error };
-function silentConsole() {
-	console.log = console.warn = console.error = function() { };
-}
-function wakeConsole() {
-	console.log = consoleFuncs.log;
-	console.warn = consoleFuncs.warn;
-	console.error = consoleFuncs.error;
-}
-
-const testObject = {
-	level1_1: {
-		arr1: [0,1,2]
-	},
-	level1_2: {
-		level2_1: {
-			level3_1: {
-				arr2: [
-					0,
-					1,
-					[
-						6,
-						7,
-						[
-							14,
-							{ deep: { deeper: 'abc' } },
-							16
-						],
-						9
-					],
-					3,
-					4
-				]
-			}
-		}
-	}
-};
+const { isProxy, isRevoked, testObject, silentConsole, wakeConsole, cloneDeep } = require('./common.js');
 
 test('1. Initiate a proxserve and check if original object stays intact', () => {
 	let origin = cloneDeep(testObject);
@@ -90,12 +25,12 @@ test('2. Object, child-objects and added-child-objects should convert to proxies
 	proxy.level1_3 = {
 		level2_2: [0,2,4,6]
 	};
-	expect(util.types.isProxy(testObject)).toBe(false);
-	expect(util.types.isProxy(proxy)).toBe(true);
-	expect(util.types.isProxy(testObject.level1_1.arr1)).toBe(false);
-	expect(util.types.isProxy(proxy.level1_1.arr1)).toBe(true);
-	expect(util.types.isProxy(proxy.level1_3)).toBe(true);
-	expect(util.types.isProxy(proxy.level1_3.level2_2)).toBe(true);
+	expect(isProxy(testObject)).toBe(false);
+	expect(isProxy(proxy)).toBe(true);
+	expect(isProxy(testObject.level1_1.arr1)).toBe(false);
+	expect(isProxy(proxy.level1_1.arr1)).toBe(true);
+	expect(isProxy(proxy.level1_3)).toBe(true);
+	expect(isProxy(proxy.level1_3.level2_2)).toBe(true);
 });
 
 test('3. defineProperty should convert string/number properties to proxy', (done) => {
@@ -113,17 +48,17 @@ test('3. defineProperty should convert string/number properties to proxy', (done
 	Object.defineProperty(proxy, sym, cloneDeep(desc));
 	Object.defineProperty(proxy, 'obj', cloneDeep(desc));
 
-	expect(util.types.isProxy(proxy[sym])).toBe(false);
-	expect(util.types.isProxy(proxy.obj)).toBe(false);
+	expect(isProxy(proxy[sym])).toBe(false);
+	expect(isProxy(proxy.obj)).toBe(false);
 
 	desc.enumerable = true;
 	Object.defineProperty(proxy, sym, cloneDeep(desc));
 	Object.defineProperty(proxy, 'obj', cloneDeep(desc));
 
-	expect(util.types.isProxy(proxy[sym])).toBe(false); //symbol isn't proxied anyway
-	expect(util.types.isProxy(proxy[sym].this_is)).toBe(false);
-	expect(util.types.isProxy(proxy.obj)).toBe(true);
-	expect(util.types.isProxy(proxy.obj.this_is)).toBe(true);
+	expect(isProxy(proxy[sym])).toBe(false); //symbol isn't proxied anyway
+	expect(isProxy(proxy[sym].this_is)).toBe(false);
+	expect(isProxy(proxy.obj)).toBe(true);
+	expect(isProxy(proxy.obj.this_is)).toBe(true);
 
 	let objects = proxy.obj.this_is.getProxserveObjects();
 	let originalProxy = objects.proxy;
@@ -436,10 +371,10 @@ test('8. get/set/delete properties after defineProperty', () => {
 	proxy[sym] = cloneDeep(valueObj); //set
 	proxy.obj = cloneDeep(valueObj); //set
 
-	expect(util.types.isProxy(proxy[sym])).toBe(false);
-	expect(util.types.isProxy(proxy[sym].this_is)).toBe(false);
-	expect(util.types.isProxy(proxy.obj)).toBe(false);
-	expect(util.types.isProxy(proxy.obj.this_is)).toBe(false);
+	expect(isProxy(proxy[sym])).toBe(false);
+	expect(isProxy(proxy[sym].this_is)).toBe(false);
+	expect(isProxy(proxy.obj)).toBe(false);
+	expect(isProxy(proxy.obj.this_is)).toBe(false);
 
 	delete proxy[sym];
 	delete proxy.obj; //deleting a non-proxy
@@ -452,10 +387,10 @@ test('8. get/set/delete properties after defineProperty', () => {
 	proxy[sym] = cloneDeep(valueObj); //set
 	proxy.obj = cloneDeep(valueObj); //set
 
-	expect(util.types.isProxy(proxy[sym])).toBe(false); //symbol isn't proxied anyway
-	expect(util.types.isProxy(proxy[sym].this_is)).toBe(false);
-	expect(util.types.isProxy(proxy.obj)).toBe(true);
-	expect(util.types.isProxy(proxy.obj.this_is)).toBe(true);
+	expect(isProxy(proxy[sym])).toBe(false); //symbol isn't proxied anyway
+	expect(isProxy(proxy[sym].this_is)).toBe(false);
+	expect(isProxy(proxy.obj)).toBe(true);
+	expect(isProxy(proxy.obj.this_is)).toBe(true);
 
 	delete proxy[sym];
 	delete proxy.obj; //deleting a regular proxy
@@ -665,14 +600,46 @@ test('14. turn off emitMethods option', () => {
 	let counter = 0;
 	proxy.on('change', function(change) {
 		counter++;
-		if(counter === 1) expect(change).toEqual({ type:'update', path:'[1]', oldValue:1, value:{a:'a'} }); //splice
-		else if(counter === 2) expect(change).toEqual({ type:'create', path:'[2]', value:{a:'a'} }); //unshift
-		else if(counter === 3) expect(change).toEqual({ type:'update', path:'[1]', oldValue:{a:'a'}, value:0 }); //unshift
-		else if(counter === 4) expect(change).toEqual({ type:'update', path:'[0]', oldValue:0, value:{b:'b'} }); //unshift
+		if(counter === 1) expect(change).toEqual({ type:'update', path:'[1]', oldValue:1, value:{a:'a'} });
+		else if(counter === 2) expect(change).toEqual({ type:'create', path:'[2]', value:99 });
+		else if(counter === 3) expect(change).toEqual({ type:'create', path:'[3]', value:{c:'c'} });
 		else throw new Error(`shouldn't have gotten here on step #${counter}`);
 	}, {deep:true});
+	proxy.splice(1, 1, {a:'a'}, 99, {c:'c'});
 
-	let dataNode = proxy.getProxserveDataNode();
-	proxy.splice(1, 1, {a:'a'});
+	proxy.removeAllListeners();
+	counter = 0;
+	proxy.on('change', function(change) {
+		counter++;
+		if(counter === 1) expect(change).toEqual({ type:'create', path:'[4]', value:{c:'c'} });
+		else if(counter === 2) expect(change).toEqual({ type:'update', path:'[3]', oldValue:{c:'c'}, value:99 });
+		else if(counter === 3) expect(change).toEqual({ type:'update', path:'[2]', oldValue:99, value:{a:'a'} });
+		else if(counter === 4) expect(change).toEqual({ type:'update', path:'[1]', oldValue:{a:'a'}, value:0 });
+		else if(counter === 5) expect(change).toEqual({ type:'update', path:'[0]', oldValue:0, value:{b:'b'} });
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
+	}, {deep:true});
 	proxy.unshift({b:'b'});
+
+	proxy.removeAllListeners();
+	counter = 0;
+	proxy.on('change', function(change) {
+		counter++;
+		if(counter === 1) expect(change).toEqual({ type:'update', path:'[0]', oldValue:{b:'b'}, value:0 });
+		else if(counter === 2) expect(change).toEqual({ type:'update', path:'[1]', oldValue:0, value:{a:'a'} });
+		else if(counter === 3) expect(change).toEqual({ type:'update', path:'[2]', oldValue:{a:'a'}, value:99 });
+		else if(counter === 4) expect(change).toEqual({ type:'update', path:'[3]', oldValue:99, value:{c:'c'} });
+		else if(counter === 5) expect(change).toEqual({ type:'delete', path:'[4]', oldValue:{c:'c'} });
+		else if(counter === 6) expect(change).toEqual({ type:'update', path:'[length]', oldValue:5, value:4 });
+
+		else if(counter === 7) expect(change).toEqual({ type:'update', path:'[0]', oldValue:0, value:{a:'a'} });
+		else if(counter === 8) expect(change).toEqual({ type:'update', path:'[1]', oldValue:{a:'a'}, value:99 });
+		else if(counter === 9) expect(change).toEqual({ type:'update', path:'[2]', oldValue:99, value:{c:'c'} });
+		else if(counter === 10) expect(change).toEqual({ type:'delete', path:'[3]', oldValue:{c:'c'} });
+		else if(counter === 11) expect(change).toEqual({ type:'update', path:'[length]', oldValue:4, value:3 });
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
+	}, {deep:true});
+	//this is a very(!) important test because it also switches between primitives and proxies several times and checks
+	//that there is no contradiction between received dataNode's value to dataNode.objects' value of deleted proxies
+	proxy.shift();
+	proxy.shift();
 });

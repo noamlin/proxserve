@@ -7,7 +7,7 @@
  */
 "use strict"
 
-import { eventNames, proxyStatuses, ND, NID } from './global-vars.js';
+import { eventNames, nodeStatuses, proxyStatuses, ND, NID } from './global-vars.js';
 import { property2path } from './supporting-functions.js';
 
 /**
@@ -21,7 +21,7 @@ import { property2path } from './supporting-functions.js';
  */
 export function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, value, isValueProxy) {
 	if(oldValue === value/*no new change was made*/
-	|| dataNode[ND].objects.isDeleted/*altered a deleted or detached proxy*/) {
+	|| dataNode[ND].objects.status !== proxyStatuses.ALIVE/*altered a deleted or detached proxy*/) {
 		return;
 	}
 
@@ -31,7 +31,7 @@ export function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, va
 
 	let deferredEvents;
 	//altering properties of an array that's in the middle of a splicing phase
-	if(dataNode[NID].status === proxyStatuses.SPLICING) {
+	if(dataNode[NID].status === nodeStatuses.SPLICING) {
 		//initiate (if needed) an object to hold side effect events
 		if(!dataNode[ND].deferredEvents) dataNode[ND].deferredEvents = [];
 		//save a reference to the deferredEvents
@@ -108,7 +108,7 @@ export function initFunctionEmitEvent(dataNode, funcName, funcArgs, oldValue, va
  * 	@property {String} change.type
  */
 function bubbleEmit(dataNode, change) {
-	if(dataNode[NID].status === proxyStatuses.STOPPED) {
+	if(dataNode[NID].status === nodeStatuses.STOPPED) {
 		return; //not allowed to emit
 	}
 
@@ -158,7 +158,7 @@ function captureEmit(dataNode, change) {
 			}
 
 			//failing the status check will not emit for current property (but sub-properties might still be forcibly active)
-			if(dataNode[key][NID].status !== proxyStatuses.STOPPED) {
+			if(dataNode[key][NID].status !== nodeStatuses.STOPPED) {
 				iterateAndEmit(dataNode[key][ND].listeners.shallow, dataNode[key][ND].objects.proxy, subChange);
 			}
 
