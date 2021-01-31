@@ -9,6 +9,38 @@
 
 import { eventNames, nodeStatuses, proxyStatuses, ND, NID } from './global-vars.js';
 import { property2path } from './supporting-functions.js';
+import { splitPath } from './general-functions.js';
+
+/**
+ * try to get the proxy-object from a data-node. if can't then from it's parent's proxy
+ * @param {Object} dataNode 
+ * @param {String} property - the property as the dataNode is assigned on its parent
+ */
+function getProxyValue(dataNode, property) {
+	if(dataNode[ND].proxyNode && dataNode[ND].proxyNode[NID].status === proxyStatuses.ALIVE) {
+		return dataNode[ND].proxyNode[ND].proxy; //actual proxy of child node
+	}
+	else {
+		if(!property) {
+			//my property on the parent
+			property = splitPath(dataNode[ND].propertyPath)[0];
+		}
+
+		let parentNode = dataNode[ND].parentNode;
+
+		if(parentNode[ND].proxyNode && parentNode[ND].proxyNode[NID].status === proxyStatuses.ALIVE) {
+			return parentNode[ND].proxyNode[ND].proxy[ property ]; //proxy or primitive via parent's proxy object
+		}
+		else {
+			//if we reached here then probably we are on a capture phase of a deep deletion.
+			//for example 'obj.sub1.sub2' gets 'delete obj.sub1' so now there are no values for 'sub2' nor its parent 'sub1'.
+			//the warning is turned off because this situation seems okay
+			// console.warn(`reached a capture level where neither child not parent proxy-nodes exist`);
+		}
+	}
+
+	return undefined;
+}
 
 /**
  * process event and then bubble up and capture down the data tree
@@ -20,8 +52,13 @@ import { property2path } from './supporting-functions.js';
  * @param {Boolean} isValueProxy
  */
 export function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, value, isValueProxy) {
-	if(oldValue === value/*no new change was made*/
-	|| dataNode[ND].objects.status !== proxyStatuses.ALIVE/*altered a deleted or detached proxy*/) {
+	if(oldValue === value //no new change was made
+	|| !dataNode[ND].proxyNode) { //proxy-node is detached from data-node
+		return;
+	}
+
+	let proxyNode = dataNode[ND].proxyNode;
+	if(proxyNode[NID].status !== proxyStatuses.ALIVE) { //altered a deleted proxy
 		return;
 	}
 
@@ -43,7 +80,7 @@ export function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, va
 		dataNode = dataNode[property];
 		path = '';
 	} else {
-		path = property2path(dataNode[ND].objects.target, property);
+		path = property2path(proxyNode[ND].target, property);
 	}
 
 	let change = {
@@ -51,7 +88,7 @@ export function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, va
 	};
 
 	if(!deferredEvents) {
-		bubbleEmit(dataNode, change);
+		bubbleEmit(dataNode, change, property);
 	
 		if(wasOldValueProxy || isValueProxy) { //old value or new value are proxy meaning they are objects with children
 			captureEmit(dataNode, change);
@@ -83,8 +120,9 @@ export function initFunctionEmitEvent(dataNode, funcName, funcArgs, oldValue, va
 				//no path means its an event directly on the property, not on the parent.
 				//i.e: not an event on "arr" with path "0", but on "arr[0]" with no path.
 				//function event on "arr" already ran, but now a regular event on "arr[0]" is due
-				iterateAndEmit(event.dataNode[ND].listeners.shallow, event.dataNode[ND].objects.proxy, event.change);
-				iterateAndEmit(event.dataNode[ND].listeners.deep, event.dataNode[ND].objects.proxy, event.change);
+				let thisValue = getProxyValue(event.dataNode);
+				iterateAndEmit(event.dataNode[ND].listeners.shallow, thisValue, event.change);
+				iterateAndEmit(event.dataNode[ND].listeners.deep, thisValue, event.change);
 			}
 
 			if(event.shouldCapture) {
@@ -106,28 +144,31 @@ export function initFunctionEmitEvent(dataNode, funcName, funcArgs, oldValue, va
  * 	@property {*} change.oldValue
  * 	@property {*} change.value
  * 	@property {String} change.type
+ * @param {String} [property] - property name of the data-node (i.e. as the data-node is assigned to its parent)
  */
-function bubbleEmit(dataNode, change) {
+function bubbleEmit(dataNode, change, property) {
 	if(dataNode[NID].status === nodeStatuses.STOPPED) {
 		return; //not allowed to emit
 	}
 
+	let thisValue = getProxyValue(dataNode, property);
+
 	if(change.path === '') { //iterate over 'shallow' listeners
-		iterateAndEmit(dataNode[ND].listeners.shallow, dataNode[ND].objects.proxy, change);
+		iterateAndEmit(dataNode[ND].listeners.shallow, thisValue, change);
 	}
 
 	//iterate over 'deep' listeners
-	iterateAndEmit(dataNode[ND].listeners.deep, dataNode[ND].objects.proxy, change);
+	iterateAndEmit(dataNode[ND].listeners.deep, thisValue, change);
 
-	if(!dataNode[ND].parentNode.isTreePrototype) { //we are not on root node yet
+	if(!dataNode[ND].parentNode[ND].isTreePrototype) { //we are not on root node yet
 		//create a shallow copy of 'change' and update its path
-		//(we don't want to alter the 'change' object just emitted to the listener)
+		//(we don't want to alter the 'change' object that was just emitted to a listener)
 		let nextChange = {
 			...change,
 			path: dataNode[ND].propertyPath + change.path
 		};
-		dataNode = dataNode[ND].parentNode;
-		bubbleEmit(dataNode, nextChange);
+
+		bubbleEmit(dataNode[ND].parentNode, nextChange);
 	}
 }
 
@@ -158,11 +199,13 @@ function captureEmit(dataNode, change) {
 			}
 
 			//failing the status check will not emit for current property (but sub-properties might still be forcibly active)
-			if(dataNode[key][NID].status !== nodeStatuses.STOPPED) {
-				iterateAndEmit(dataNode[key][ND].listeners.shallow, dataNode[key][ND].objects.proxy, subChange);
+			let childNode = dataNode[key];
+			if(childNode[NID].status !== nodeStatuses.STOPPED) {
+				let thisValue = getProxyValue(childNode, key);
+				iterateAndEmit(childNode[ND].listeners.shallow, thisValue, subChange);
 			}
 
-			captureEmit(dataNode[key], subChange);
+			captureEmit(childNode, subChange);
 		}
 	}
 }

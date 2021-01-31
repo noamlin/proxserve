@@ -117,7 +117,7 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"GM15":[function(require,module,exports) {
+})({"global-vars.js":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -163,7 +163,7 @@ exports.ND = ND;
 let NID = Symbol.for('proxserve_node_inherited_data'); //key for the inherited data of a node
 
 exports.NID = NID;
-},{}],"MDxB":[function(require,module,exports) {
+},{}],"general-functions.js":[function(require,module,exports) {
 /**
  * Copyright 2020 Noam Lin <noamlin@gmail.com>
  *
@@ -354,7 +354,7 @@ function evalPath(obj, path) {
     value: obj[segments[i]]
   };
 }
-},{}],"tgn0":[function(require,module,exports) {
+},{}],"supporting-functions.js":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -369,7 +369,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.property2path = property2path;
 exports.unproxify = unproxify;
-exports.createDataNode = createDataNode;
+exports.createNodes = createNodes;
 
 var _globalVars = require("./global-vars.js");
 
@@ -450,55 +450,76 @@ function unproxify(value) {
   }
 }
 /**
- * create a node in a tree that mimics the proxserve's object and holds meta-data
- * @param {Object} parentNode 
+ * create or reset a node in a tree of meta-data (mainly path related)
+ * and optionally create a node in a tree of proxy data (mainly objects related)
+ * @param {Object} parentDataNode 
+ * @param {Object} [parentProxyNode] 
  * @param {String|Number} property 
+ * @param {*} [target] 
  */
 
 
-function createDataNode(parentNode, property) {
+function createNodes(parentDataNode, parentProxyNode, property, target) {
+  //handle property path
   let propertyPath;
 
-  if (parentNode[_globalVars.ND] && parentNode[_globalVars.ND].objects && parentNode[_globalVars.ND].objects.target) {
-    propertyPath = property2path(parentNode[_globalVars.ND].objects.target, property);
+  if (parentProxyNode && parentProxyNode[_globalVars.ND].target) {
+    propertyPath = property2path(parentProxyNode[_globalVars.ND].target, property);
   } else {
     propertyPath = property2path({}, property); //if parent doesn't have target then treat it as object
-  }
+  } //handle data node
 
-  let node = parentNode[property];
 
-  if (!node) {
-    node = {
-      [_globalVars.NID]: Object.create(parentNode[_globalVars.NID]),
+  let dataNode = parentDataNode[property]; //try to receive existing data-node
+
+  if (!dataNode) {
+    dataNode = {
+      [_globalVars.NID]: Object.create(parentDataNode[_globalVars.NID]),
       [_globalVars.ND]: {
-        'parentNode': parentNode,
-        'listeners': {
-          'shallow': [],
-          'deep': []
+        parentNode: parentDataNode,
+        listeners: {
+          shallow: [],
+          deep: []
         }
       }
     };
-    parentNode[property] = node;
+    parentDataNode[property] = dataNode;
   }
 
-  delete node[_globalVars.NID].status; //clears old status in case a node previously existed
+  delete dataNode[_globalVars.NID].status; //clears old status in case a node previously existed
   //updates path (for rare case where parent was array and then changed to object or vice versa)
-  //and also makes a new and clean 'objects' property
 
-  Object.assign(node[_globalVars.ND], {
-    'path': parentNode[_globalVars.ND].path + propertyPath,
-    'propertyPath': propertyPath,
-    'objects': Object.assign(Object.create(parentNode[_globalVars.ND].objects), {
-      'target': undefined,
-      'proxy': undefined,
-      'revoke': undefined
-      /* inherits status */
+  if (!parentDataNode[_globalVars.ND].isTreePrototype) {
+    Object.assign(dataNode[_globalVars.ND], {
+      path: parentDataNode[_globalVars.ND].path + propertyPath,
+      propertyPath
+    });
+  } else {
+    Object.assign(dataNode[_globalVars.ND], {
+      path: '',
+      propertyPath: ''
+    });
+  } //handle proxy node
 
-    })
-  });
-  return node;
+
+  let proxyNode;
+
+  if (parentProxyNode) {
+    proxyNode = {
+      [_globalVars.NID]: Object.create(parentProxyNode[_globalVars.NID]),
+      [_globalVars.ND]: {
+        target
+      }
+    };
+    parentProxyNode[property] = proxyNode; //attach nodes to each other
+
+    dataNode[_globalVars.ND].proxyNode = proxyNode;
+    proxyNode[_globalVars.ND].dataNode = dataNode;
+  }
+
+  return [dataNode, proxyNode];
 }
-},{"./global-vars.js":"GM15","./general-functions.js":"MDxB"}],"hyxV":[function(require,module,exports) {
+},{"./global-vars.js":"global-vars.js","./general-functions.js":"general-functions.js"}],"pseudo-methods.js":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -523,8 +544,7 @@ exports.once = once;
 exports.removeListener = removeListener;
 exports.removeAllListeners = removeAllListeners;
 exports.getOriginalTarget = getOriginalTarget;
-exports.getProxserveObjects = getProxserveObjects;
-exports.getProxserveDataNode = getProxserveDataNode;
+exports.getProxserveNodes = getProxserveNodes;
 exports.getProxserveInstance = getProxserveInstance;
 
 var _globalVars = require("./global-vars.js");
@@ -553,12 +573,12 @@ function block(dataNode) {
 /**
  * resume default behavior of emitting change events, inherited from parent
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {Boolean} [force] - force being active regardless of parent
  */
 
 
-function activate(dataNode, objects, force = false) {
+function activate(dataNode, proxyNode, force = false) {
   if (force || dataNode === this.dataTree) {
     //force activation or we are on root proxy
     dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.ACTIVE;
@@ -569,7 +589,7 @@ function activate(dataNode, objects, force = false) {
 /**
  * add event listener on a proxy or on a descending path
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener
@@ -580,7 +600,7 @@ function activate(dataNode, objects, force = false) {
  */
 
 
-function on(dataNode, objects, events, path, listener, {
+function on(dataNode, proxyNode, events, path, listener, {
   deep = false,
   id = undefined,
   once = false
@@ -597,6 +617,7 @@ function on(dataNode, objects, events, path, listener, {
   if (typeof path === 'function') {
     //if called without path
     if (typeof listener === 'object') {
+      //listener is options
       if (typeof listener.deep === 'boolean') deep = listener.deep;
       if (listener.id !== undefined) id = listener.id;
       if (typeof listener.once === 'boolean') once = listener.once;
@@ -608,11 +629,13 @@ function on(dataNode, objects, events, path, listener, {
     throw new Error(`invalid arguments were given. listener must be a function`);
   }
 
-  let segments = (0, _generalFunctions.splitPath)(path); //traverse down the tree. create data-nodes if needed
+  let segments = (0, _generalFunctions.splitPath)(path);
 
   for (let property of segments) {
+    //traverse down the tree
     if (!dataNode[property]) {
-      (0, _supportingFunctions.createDataNode)(dataNode, property);
+      //create data-nodes if needed
+      (0, _supportingFunctions.createNodes)(dataNode, undefined, property);
     }
 
     dataNode = dataNode[property];
@@ -635,7 +658,7 @@ function on(dataNode, objects, events, path, listener, {
 /**
  * add event listener on a proxy or on a descending path which will run only once
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener 
@@ -643,22 +666,22 @@ function on(dataNode, objects, events, path, listener, {
  */
 
 
-function once(dataNode, objects, events, path, listener, options) {
+function once(dataNode, proxyNode, events, path, listener, options) {
   if (typeof options !== 'object') options = {};
   options.once = true;
-  on.call(this, dataNode, objects, events, path, listener, options);
+  on.call(this, dataNode, proxyNode, events, path, listener, options);
 }
 /**
  * removes a listener from a path by an identifier (can have multiple listeners with the same ID)
  * or by the listener function itself
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {String} [path] - path selector
  * @param {String|Function} id - the listener(s) identifier or listener-function
  */
 
 
-function removeListener(dataNode, objects, path, id) {
+function removeListener(dataNode, proxyNode, path, id) {
   if (arguments.length === 3) {
     //if called without path
     id = path;
@@ -693,12 +716,12 @@ function removeListener(dataNode, objects, path, id) {
 /**
  * removing all listeners of a path
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {String} [path] - path selector
  */
 
 
-function removeAllListeners(dataNode, objects, path = '') {
+function removeAllListeners(dataNode, proxyNode, path = '') {
   let fullPath = `${dataNode[_globalVars.ND].path}${path}`;
   let segments = (0, _generalFunctions.splitPath)(path); //traverse down the tree
 
@@ -715,7 +738,7 @@ function removeAllListeners(dataNode, objects, path = '') {
   dataNode[_globalVars.ND].listeners.deep = [];
 }
 /**
- * the following functions (getOriginalTarget, getProxserveObjects, getProxserveDataNode, getProxserveInstance) seem silly
+ * the following functions (getOriginalTarget, getProxserveNodes, getProxserveInstance) seem silly
  * because they could have been written directly on the handler's get() method but it's here as part of the convention of
  * exposing proxy-"inherited"-methods
  */
@@ -723,31 +746,23 @@ function removeAllListeners(dataNode, objects, path = '') {
 /**
  * get original target that is behind the proxy
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  */
 
 
-function getOriginalTarget(dataNode, objects) {
-  return objects.target;
+function getOriginalTarget(dataNode, proxyNode) {
+  return proxyNode[_globalVars.ND].target;
 }
 /**
- * get 'objects' (which holds all related objects) of a proxy
+ * get the data-node of a proxy (which holds all meta data)
+ * and also get proxy-node of a proxy (which holds all related objects)
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  */
 
 
-function getProxserveObjects(dataNode, objects) {
-  return objects;
-}
-/**
- * get the data-node of the proxy or sub-proxy
- * automatically filled param {Object} dataNode
- */
-
-
-function getProxserveDataNode(dataNode) {
-  return dataNode;
+function getProxserveNodes(dataNode, proxyNode) {
+  return [dataNode, proxyNode];
 }
 /**
  * get the Proxserve's instance that created this proxy
@@ -757,7 +772,7 @@ function getProxserveDataNode(dataNode) {
 function getProxserveInstance() {
   return this;
 }
-},{"./global-vars.js":"GM15","./supporting-functions.js":"tgn0","./general-functions.js":"MDxB"}],"NGwh":[function(require,module,exports) {
+},{"./global-vars.js":"global-vars.js","./supporting-functions.js":"supporting-functions.js","./general-functions.js":"general-functions.js"}],"event-emitter.js":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -777,6 +792,35 @@ var _globalVars = require("./global-vars.js");
 
 var _supportingFunctions = require("./supporting-functions.js");
 
+var _generalFunctions = require("./general-functions.js");
+
+/**
+ * try to get the proxy-object from a data-node. if can't then from it's parent's proxy
+ * @param {Object} dataNode 
+ * @param {String} property - the property as the dataNode is assigned on its parent
+ */
+function getProxyValue(dataNode, property) {
+  if (dataNode[_globalVars.ND].proxyNode && dataNode[_globalVars.ND].proxyNode[_globalVars.NID].status === _globalVars.proxyStatuses.ALIVE) {
+    return dataNode[_globalVars.ND].proxyNode[_globalVars.ND].proxy; //actual proxy of child node
+  } else {
+    if (!property) {
+      //my property on the parent
+      property = (0, _generalFunctions.splitPath)(dataNode[_globalVars.ND].propertyPath)[0];
+    }
+
+    let parentNode = dataNode[_globalVars.ND].parentNode;
+
+    if (parentNode[_globalVars.ND].proxyNode && parentNode[_globalVars.ND].proxyNode[_globalVars.NID].status === _globalVars.proxyStatuses.ALIVE) {
+      return parentNode[_globalVars.ND].proxyNode[_globalVars.ND].proxy[property]; //proxy or primitive via parent's proxy object
+    } else {//if we reached here then probably we are on a capture phase of a deep deletion.
+        //for example 'obj.sub1.sub2' gets 'delete obj.sub1' so now there are no values for 'sub2' nor its parent 'sub1'.
+        //the warning is turned off because this situation seems okay
+        // console.warn(`reached a capture level where neither child not parent proxy-nodes exist`);
+      }
+  }
+
+  return undefined;
+}
 /**
  * process event and then bubble up and capture down the data tree
  * @param {Object} dataNode
@@ -786,14 +830,21 @@ var _supportingFunctions = require("./supporting-functions.js");
  * @param {*} value
  * @param {Boolean} isValueProxy
  */
+
+
 function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, value, isValueProxy) {
-  if (oldValue === value
-  /*no new change was made*/
-  || dataNode[_globalVars.ND].objects.status !== _globalVars.proxyStatuses.ALIVE
-  /*altered a deleted or detached proxy*/
-  ) {
-      return;
-    }
+  if (oldValue === value //no new change was made
+  || !dataNode[_globalVars.ND].proxyNode) {
+    //proxy-node is detached from data-node
+    return;
+  }
+
+  let proxyNode = dataNode[_globalVars.ND].proxyNode;
+
+  if (proxyNode[_globalVars.NID].status !== _globalVars.proxyStatuses.ALIVE) {
+    //altered a deleted proxy
+    return;
+  }
 
   let changeType = _globalVars.eventNames.UPDATE;
   if (value === undefined) changeType = _globalVars.eventNames.DELETE;else if (oldValue === undefined) changeType = _globalVars.eventNames.CREATE;
@@ -813,7 +864,7 @@ function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, value, is
     dataNode = dataNode[property];
     path = '';
   } else {
-    path = (0, _supportingFunctions.property2path)(dataNode[_globalVars.ND].objects.target, property);
+    path = (0, _supportingFunctions.property2path)(proxyNode[_globalVars.ND].target, property);
   }
 
   let change = {
@@ -824,7 +875,7 @@ function initEmitEvent(dataNode, property, oldValue, wasOldValueProxy, value, is
   };
 
   if (!deferredEvents) {
-    bubbleEmit(dataNode, change);
+    bubbleEmit(dataNode, change, property);
 
     if (wasOldValueProxy || isValueProxy) {
       //old value or new value are proxy meaning they are objects with children
@@ -864,8 +915,9 @@ function initFunctionEmitEvent(dataNode, funcName, funcArgs, oldValue, value) {
         //no path means its an event directly on the property, not on the parent.
         //i.e: not an event on "arr" with path "0", but on "arr[0]" with no path.
         //function event on "arr" already ran, but now a regular event on "arr[0]" is due
-        iterateAndEmit(event.dataNode[_globalVars.ND].listeners.shallow, event.dataNode[_globalVars.ND].objects.proxy, event.change);
-        iterateAndEmit(event.dataNode[_globalVars.ND].listeners.deep, event.dataNode[_globalVars.ND].objects.proxy, event.change);
+        let thisValue = getProxyValue(event.dataNode);
+        iterateAndEmit(event.dataNode[_globalVars.ND].listeners.shallow, thisValue, event.change);
+        iterateAndEmit(event.dataNode[_globalVars.ND].listeners.deep, thisValue, event.change);
       }
 
       if (event.shouldCapture) {
@@ -886,31 +938,33 @@ function initFunctionEmitEvent(dataNode, funcName, funcArgs, oldValue, value) {
  * 	@property {*} change.oldValue
  * 	@property {*} change.value
  * 	@property {String} change.type
+ * @param {String} [property] - property name of the data-node (i.e. as the data-node is assigned to its parent)
  */
 
 
-function bubbleEmit(dataNode, change) {
+function bubbleEmit(dataNode, change, property) {
   if (dataNode[_globalVars.NID].status === _globalVars.nodeStatuses.STOPPED) {
     return; //not allowed to emit
   }
 
+  let thisValue = getProxyValue(dataNode, property);
+
   if (change.path === '') {
     //iterate over 'shallow' listeners
-    iterateAndEmit(dataNode[_globalVars.ND].listeners.shallow, dataNode[_globalVars.ND].objects.proxy, change);
+    iterateAndEmit(dataNode[_globalVars.ND].listeners.shallow, thisValue, change);
   } //iterate over 'deep' listeners
 
 
-  iterateAndEmit(dataNode[_globalVars.ND].listeners.deep, dataNode[_globalVars.ND].objects.proxy, change);
+  iterateAndEmit(dataNode[_globalVars.ND].listeners.deep, thisValue, change);
 
-  if (!dataNode[_globalVars.ND].parentNode.isTreePrototype) {
+  if (!dataNode[_globalVars.ND].parentNode[_globalVars.ND].isTreePrototype) {
     //we are not on root node yet
     //create a shallow copy of 'change' and update its path
-    //(we don't want to alter the 'change' object just emitted to the listener)
+    //(we don't want to alter the 'change' object that was just emitted to a listener)
     let nextChange = { ...change,
       path: dataNode[_globalVars.ND].propertyPath + change.path
     };
-    dataNode = dataNode[_globalVars.ND].parentNode;
-    bubbleEmit(dataNode, nextChange);
+    bubbleEmit(dataNode[_globalVars.ND].parentNode, nextChange);
   }
 }
 /**
@@ -942,11 +996,14 @@ function captureEmit(dataNode, change) {
         type: changeType
       }; //failing the status check will not emit for current property (but sub-properties might still be forcibly active)
 
-      if (dataNode[key][_globalVars.NID].status !== _globalVars.nodeStatuses.STOPPED) {
-        iterateAndEmit(dataNode[key][_globalVars.ND].listeners.shallow, dataNode[key][_globalVars.ND].objects.proxy, subChange);
+      let childNode = dataNode[key];
+
+      if (childNode[_globalVars.NID].status !== _globalVars.nodeStatuses.STOPPED) {
+        let thisValue = getProxyValue(childNode, key);
+        iterateAndEmit(childNode[_globalVars.ND].listeners.shallow, thisValue, subChange);
       }
 
-      captureEmit(dataNode[key], subChange);
+      captureEmit(childNode, subChange);
     }
   }
 }
@@ -971,7 +1028,7 @@ function iterateAndEmit(listenersArr, thisValue, change) {
     }
   }
 }
-},{"./global-vars.js":"GM15","./supporting-functions.js":"tgn0"}],"UXyj":[function(require,module,exports) {
+},{"./global-vars.js":"global-vars.js","./supporting-functions.js":"supporting-functions.js","./general-functions.js":"general-functions.js"}],"proxy-methods.js":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -998,20 +1055,22 @@ var _eventEmitter = require("./event-emitter.js");
 /**
  * a wrapper function for the 'splice' method
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {Number} start 
  * @param {Number} deleteCount 
  * @param  {...any} items 
  */
-function splice(dataNode, objects, start, deleteCount, ...items) {
+function splice(dataNode, proxyNode, start, deleteCount, ...items) {
   if (dataNode[_globalVars.NID].status !== _globalVars.nodeStatuses.ACTIVE) {
-    return Array.prototype.splice.call(objects.proxy, start, deleteCount, ...items);
+    return Array.prototype.splice.call(proxyNode[_globalVars.ND].proxy, start, deleteCount, ...items);
   }
 
   let isActiveByInheritance = !dataNode[_globalVars.NID].hasOwnProperty('status');
   dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.SPLICING;
-  let oldValue = objects.target.slice(0);
-  let deleted = Array.prototype.splice.call(objects.proxy, start, deleteCount, ...items); //creates many side-effect events
+
+  let oldValue = proxyNode[_globalVars.ND].target.slice(0);
+
+  let deleted = Array.prototype.splice.call(proxyNode[_globalVars.ND].proxy, start, deleteCount, ...items); //creates many side-effect events
 
   let args = {
     start,
@@ -1019,56 +1078,60 @@ function splice(dataNode, objects, start, deleteCount, ...items) {
     items
   };
   if (isActiveByInheritance) delete dataNode[_globalVars.NID].status;else dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.ACTIVE;
-  (0, _eventEmitter.initFunctionEmitEvent)(dataNode, _globalVars.eventNames.SPLICE, args, oldValue, objects.target);
+  (0, _eventEmitter.initFunctionEmitEvent)(dataNode, _globalVars.eventNames.SPLICE, args, oldValue, proxyNode[_globalVars.ND].target);
   return deleted;
 }
 /**
  * a wrapper function for the 'shift' method
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  */
 
 
-function shift(dataNode, objects) {
+function shift(dataNode, proxyNode) {
   if (dataNode[_globalVars.NID].status !== _globalVars.nodeStatuses.ACTIVE) {
-    return Array.prototype.shift.call(objects.proxy);
+    return Array.prototype.shift.call(proxyNode[_globalVars.ND].proxy);
   }
 
   let isActiveByInheritance = !dataNode[_globalVars.NID].hasOwnProperty('status');
   dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.SPLICING;
-  let oldValue = objects.target.slice(0);
-  let deleted = Array.prototype.shift.call(objects.proxy); //creates many side-effect events
+
+  let oldValue = proxyNode[_globalVars.ND].target.slice(0);
+
+  let deleted = Array.prototype.shift.call(proxyNode[_globalVars.ND].proxy); //creates many side-effect events
 
   if (isActiveByInheritance) delete dataNode[_globalVars.NID].status;else dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.ACTIVE;
-  (0, _eventEmitter.initFunctionEmitEvent)(dataNode, _globalVars.eventNames.SHIFT, {}, oldValue, objects.target);
+  (0, _eventEmitter.initFunctionEmitEvent)(dataNode, _globalVars.eventNames.SHIFT, {}, oldValue, proxyNode[_globalVars.ND].target);
   return deleted;
 }
 /**
  * a wrapper function for the 'unshift' method
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param  {...any} items 
  */
 
 
-function unshift(dataNode, objects, ...items) {
+function unshift(dataNode, proxyNode, ...items) {
   if (dataNode[_globalVars.NID].status !== _globalVars.nodeStatuses.ACTIVE) {
-    return Array.prototype.shift.call(objects.proxy);
+    return Array.prototype.shift.call(proxyNode[_globalVars.ND].proxy);
   }
 
   let isActiveByInheritance = !dataNode[_globalVars.NID].hasOwnProperty('status');
   dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.SPLICING;
-  let oldValue = objects.target.slice(0);
-  let newLength = Array.prototype.unshift.call(objects.proxy, ...items); //creates many side-effect events
+
+  let oldValue = proxyNode[_globalVars.ND].target.slice(0);
+
+  let newLength = Array.prototype.unshift.call(proxyNode[_globalVars.ND].proxy, ...items); //creates many side-effect events
 
   let args = {
     items
   };
   if (isActiveByInheritance) delete dataNode[_globalVars.NID].status;else dataNode[_globalVars.NID].status = _globalVars.nodeStatuses.ACTIVE;
-  (0, _eventEmitter.initFunctionEmitEvent)(dataNode, _globalVars.eventNames.UNSHIFT, args, oldValue, objects.target);
+  (0, _eventEmitter.initFunctionEmitEvent)(dataNode, _globalVars.eventNames.UNSHIFT, args, oldValue, proxyNode[_globalVars.ND].target);
   return newLength;
 }
-},{"./global-vars.js":"GM15","./event-emitter.js":"NGwh"}],"Focm":[function(require,module,exports) {
+},{"./global-vars.js":"global-vars.js","./event-emitter.js":"event-emitter.js"}],"index.js":[function(require,module,exports) {
 /**
  * Copyright 2021 Noam Lin <noamlin@gmail.com>
  *
@@ -1129,44 +1192,46 @@ class Proxserve {
     this.emitMethods = emitMethods;
     this.destroyDelay = 1000;
     if (debug && debug.destroyDelay) this.destroyDelay = debug.destroyDelay;
-    this.dataTree = (0, _supportingFunctions.createDataNode)({
+    let dataTreePrototype = {
       [NID]: {
         status: _globalVars.nodeStatuses.ACTIVE
       },
       [ND]: {
-        objects: {
-          status: _globalVars.proxyStatuses.ALIVE
-        }
+        isTreePrototype: true
+      }
+    };
+    let proxyTreePrototype = {
+      [NID]: {
+        status: _globalVars.proxyStatuses.ALIVE
       },
-      isTreePrototype: true
-    }, '');
-    this.dataTree[ND].path = '';
-    this.dataTree[ND].propertyPath = '';
-    this.dataTree[ND].objects.target = target;
+      [ND]: {
+        isTreePrototype: true
+      }
+    };
+    [this.dataTree, this.proxyTree] = (0, _supportingFunctions.createNodes)(dataTreePrototype, proxyTreePrototype, '', target);
     return this.createProxy(this.dataTree);
   }
   /**
    * create a new proxy and a new node for a property of the parent's target-object
-   * @param {Object} parentNode
+   * @param {Object} parentDataNode
    * @param {String} [targetProperty]
    */
 
 
-  createProxy(parentNode, targetProperty) {
-    let dataNode;
+  createProxy(parentDataNode, targetProperty) {
+    let parentProxyNode = parentDataNode[ND].proxyNode;
+    let dataNode, proxyNode;
 
     if (targetProperty === undefined) {
       //refering to own node and not a child property (meaning root object)
-      dataNode = parentNode;
+      dataNode = parentDataNode;
+      proxyNode = parentProxyNode;
     } else {
-      dataNode = (0, _supportingFunctions.createDataNode)(parentNode, targetProperty); //either creates new or returns an existing one with cleaned properties
-
-      dataNode[ND].objects.target = parentNode[ND].objects.target[targetProperty]; //assign said 'target' to the dataNode
+      //creates new or reset an existing data-node and then creates a new proxy-node
+      [dataNode, proxyNode] = (0, _supportingFunctions.createNodes)(parentDataNode, parentProxyNode, targetProperty, parentProxyNode[ND].target[targetProperty]);
     }
 
-    let objects = dataNode[ND].objects; //a new one for every iteration
-
-    let target = objects.target;
+    let target = proxyNode[ND].target;
     let typeoftarget = (0, _generalFunctions.realtypeof)(target);
 
     if (_globalVars.proxyTypes.includes(typeoftarget)) {
@@ -1176,16 +1241,16 @@ class Proxserve {
         , property, proxy) => {
           if (this.emitMethods && proxyMethods.hasOwnProperty(property) && property in Object.getPrototypeOf(target)) {
             //use a proxy method instead of the built-in method that is on the prototype chain
-            return proxyMethods[property].bind(this, dataNode, objects);
+            return proxyMethods[property].bind(this, dataNode, proxyNode);
           } else if (pseudoMethodsNames.includes(property) && typeof target[property] === 'undefined') {
             //can access a pseudo function (or its synonym) if their keywords isn't used
-            return pseudoMethods[property].bind(this, dataNode, objects);
+            return pseudoMethods[property].bind(this, dataNode, proxyNode);
           } else if (!target.propertyIsEnumerable(property) || typeof property === 'symbol') {
             return target[property]; //non-enumerable or non-path'able aren't proxied
-          } else if (dataNode[property] //there's a child node
-          && dataNode[property][ND].objects.proxy //it holds a proxy
-          && dataNode[property][ND].objects.status === _globalVars.proxyStatuses.ALIVE) {
-            return dataNode[property][ND].objects.proxy;
+          } else if (proxyNode[property] //there's a child node
+          && proxyNode[property][ND].proxy //it holds a proxy
+          && proxyNode[property][NID].status === _globalVars.proxyStatuses.ALIVE) {
+            return proxyNode[property][ND].proxy;
           } else {
             return target[property];
           }
@@ -1226,14 +1291,16 @@ class Proxserve {
 
           let isOldValueProxy = false;
 
-          if (dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
+          if (proxyNode[property] !== undefined && proxyNode[property][ND].proxy !== undefined) {
             //about to overwrite an existing property which is a proxy (about to detach a proxy)
-            dataNode[property][ND].objects.status = _globalVars.proxyStatuses.DELETED;
+            proxyNode[property][NID].status = _globalVars.proxyStatuses.DELETED;
+            delete dataNode[property][ND].proxyNode; //detach reference from data-node to proxy-node
+
             isOldValueProxy = true;
 
             if (this.strict) {
               //postpone this cpu intense function for later, probably when proxserve is not in use
-              setTimeout(Proxserve.destroy, this.destroyDelay, dataNode[property][ND].objects.proxy);
+              setTimeout(Proxserve.destroy, this.destroyDelay, proxyNode[property][ND].proxy);
             }
           }
 
@@ -1268,14 +1335,16 @@ class Proxserve {
 
           let isOldValueProxy = false;
 
-          if (dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
+          if (proxyNode[property] !== undefined && proxyNode[property][ND].proxy !== undefined) {
             //about to overwrite an existing property which is a proxy (about to detach a proxy)
-            dataNode[property][ND].objects.status = _globalVars.proxyStatuses.DELETED;
+            proxyNode[property][NID].status = _globalVars.proxyStatuses.DELETED;
+            delete dataNode[property][ND].proxyNode; //detach reference from data-node to proxy-node
+
             isOldValueProxy = true;
 
             if (this.strict) {
               //postpone this cpu intense function for later, probably when proxserve is not is use
-              setTimeout(Proxserve.destroy, this.destroyDelay, dataNode[property][ND].objects.proxy);
+              setTimeout(Proxserve.destroy, this.destroyDelay, proxyNode[property][ND].proxy);
             }
           }
 
@@ -1316,14 +1385,16 @@ class Proxserve {
 
             let isOldValueProxy = false;
 
-            if (dataNode[property] !== undefined && dataNode[property][ND].objects.proxy !== undefined) {
+            if (proxyNode[property] !== undefined && proxyNode[property][ND].proxy !== undefined) {
               //about to overwrite an existing property which is a proxy (about to detach a proxy)
-              dataNode[property][ND].objects.status = _globalVars.proxyStatuses.DELETED;
+              proxyNode[property][NID].status = _globalVars.proxyStatuses.DELETED;
+              delete dataNode[property][ND].proxyNode; //detach reference from data-node to proxy-node
+
               isOldValueProxy = true;
 
               if (this.strict) {
                 //postpone this cpu intense function for later, probably when proxserve is not is use
-                setTimeout(Proxserve.destroy, this.destroyDelay, dataNode[property][ND].objects.proxy);
+                setTimeout(Proxserve.destroy, this.destroyDelay, proxyNode[property][ND].proxy);
               }
             }
 
@@ -1336,11 +1407,11 @@ class Proxserve {
           }
         }
       });
-      dataNode[ND].objects.proxy = revocable.proxy;
-      dataNode[ND].objects.revoke = revocable.revoke;
+      proxyNode[ND].proxy = revocable.proxy;
+      proxyNode[ND].revoke = revocable.revoke;
 
-      if (typeoftarget === 'Object') {
-        let keys = Object.keys(target);
+      if (_globalVars.proxyTypes.includes(typeoftarget)) {
+        let keys = Object.keys(target); //handles both Objects and Arrays
 
         for (let key of keys) {
           let typeofproperty = (0, _generalFunctions.realtypeof)(target[key]);
@@ -1349,16 +1420,8 @@ class Proxserve {
             this.createProxy(dataNode, key); //recursively make child objects also proxies
           }
         }
-      } else if (typeoftarget === 'Array') {
-        for (let i = 0; i < target.length; i++) {
-          let typeofproperty = (0, _generalFunctions.realtypeof)(target[i]);
-
-          if (_globalVars.proxyTypes.includes(typeofproperty)) {
-            this.createProxy(dataNode, i); //recursively make child objects also proxies
-          }
-        }
       } else {
-        console.warn('Not Implemented');
+        console.warn(`Type of "${typeoftarget}" is not implemented`);
       }
 
       return revocable.proxy;
@@ -1374,17 +1437,16 @@ class Proxserve {
 
 
   static destroy(proxy) {
-    let dataNode, objects;
+    let proxyNode;
 
     try {
-      dataNode = proxy.$getProxserveDataNode();
-      objects = proxy.$getProxserveObjects();
+      [, proxyNode] = proxy.$getProxserveNodes();
     } catch (error) {
       return; //proxy variable isn't a proxy
     }
 
-    if (objects.status === _globalVars.proxyStatuses.ALIVE) {
-      objects.status = _globalVars.proxyStatuses.DELETED;
+    if (proxyNode[NID].status === _globalVars.proxyStatuses.ALIVE) {
+      proxyNode[NID].status = _globalVars.proxyStatuses.DELETED;
     }
 
     let typeofproxy = (0, _generalFunctions.realtypeof)(proxy);
@@ -1397,16 +1459,17 @@ class Proxserve {
           let typeofproperty = (0, _generalFunctions.realtypeof)(proxy[key]);
 
           if (_globalVars.proxyTypes.includes(typeofproperty)) {
-            Proxserve.destroy(dataNode[key][ND].objects.proxy);
+            //going to proxy[key], which is deleted, will return the original target so we will bypass it
+            Proxserve.destroy(proxyNode[key][ND].proxy);
           }
         } catch (error) {
           console.error(error); //don't throw and kill the whole process just if this iteration fails
         }
       }
 
-      objects.revoke();
-      objects.proxy = undefined;
-      objects.status = _globalVars.proxyStatuses.REVOKED;
+      proxyNode[ND].revoke(); //proxyNode[ND].proxy = undefined;
+
+      proxyNode[NID].status = _globalVars.proxyStatuses.REVOKED;
     } else {
       console.warn(`Type of "${typeofproxy}" is not implemented`);
     }
@@ -1423,5 +1486,208 @@ class Proxserve {
 }
 
 module.exports = exports = Proxserve; //makes ParcelJS expose this globally (for all platforms) after bundling everything
-},{"./global-vars.js":"GM15","./supporting-functions.js":"tgn0","./pseudo-methods.js":"hyxV","./proxy-methods.js":"UXyj","./general-functions.js":"MDxB","./event-emitter.js":"NGwh"}]},{},["Focm"], "Proxserve")
-//# sourceMappingURL=/proxserve.js.map
+},{"./global-vars.js":"global-vars.js","./supporting-functions.js":"supporting-functions.js","./pseudo-methods.js":"pseudo-methods.js","./proxy-methods.js":"proxy-methods.js","./general-functions.js":"general-functions.js","./event-emitter.js":"event-emitter.js"}],"../../../../home/noam/.nvm/versions/node/v15.4.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+var global = arguments[3];
+var OVERLAY_ID = '__parcel__error__overlay__';
+var OldModule = module.bundle.Module;
+
+function Module(moduleName) {
+  OldModule.call(this, moduleName);
+  this.hot = {
+    data: module.bundle.hotData,
+    _acceptCallbacks: [],
+    _disposeCallbacks: [],
+    accept: function (fn) {
+      this._acceptCallbacks.push(fn || function () {});
+    },
+    dispose: function (fn) {
+      this._disposeCallbacks.push(fn);
+    }
+  };
+  module.bundle.hotData = null;
+}
+
+module.bundle.Module = Module;
+var checkedAssets, assetsToAccept;
+var parent = module.bundle.parent;
+
+if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
+  var hostname = "" || location.hostname;
+  var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "42401" + '/');
+
+  ws.onmessage = function (event) {
+    checkedAssets = {};
+    assetsToAccept = [];
+    var data = JSON.parse(event.data);
+
+    if (data.type === 'update') {
+      var handled = false;
+      data.assets.forEach(function (asset) {
+        if (!asset.isNew) {
+          var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
+
+          if (didAccept) {
+            handled = true;
+          }
+        }
+      }); // Enable HMR for CSS by default.
+
+      handled = handled || data.assets.every(function (asset) {
+        return asset.type === 'css' && asset.generated.js;
+      });
+
+      if (handled) {
+        console.clear();
+        data.assets.forEach(function (asset) {
+          hmrApply(global.parcelRequire, asset);
+        });
+        assetsToAccept.forEach(function (v) {
+          hmrAcceptRun(v[0], v[1]);
+        });
+      } else if (location.reload) {
+        // `location` global exists in a web worker context but lacks `.reload()` function.
+        location.reload();
+      }
+    }
+
+    if (data.type === 'reload') {
+      ws.close();
+
+      ws.onclose = function () {
+        location.reload();
+      };
+    }
+
+    if (data.type === 'error-resolved') {
+      console.log('[parcel] ✨ Error resolved');
+      removeErrorOverlay();
+    }
+
+    if (data.type === 'error') {
+      console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
+      removeErrorOverlay();
+      var overlay = createErrorOverlay(data);
+      document.body.appendChild(overlay);
+    }
+  };
+}
+
+function removeErrorOverlay() {
+  var overlay = document.getElementById(OVERLAY_ID);
+
+  if (overlay) {
+    overlay.remove();
+  }
+}
+
+function createErrorOverlay(data) {
+  var overlay = document.createElement('div');
+  overlay.id = OVERLAY_ID; // html encode message and stack trace
+
+  var message = document.createElement('div');
+  var stackTrace = document.createElement('pre');
+  message.innerText = data.error.message;
+  stackTrace.innerText = data.error.stack;
+  overlay.innerHTML = '<div style="background: black; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; opacity: 0.85; font-family: Menlo, Consolas, monospace; z-index: 9999;">' + '<span style="background: red; padding: 2px 4px; border-radius: 2px;">ERROR</span>' + '<span style="top: 2px; margin-left: 5px; position: relative;">🚨</span>' + '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' + message.innerHTML + '</div>' + '<pre>' + stackTrace.innerHTML + '</pre>' + '</div>';
+  return overlay;
+}
+
+function getParents(bundle, id) {
+  var modules = bundle.modules;
+
+  if (!modules) {
+    return [];
+  }
+
+  var parents = [];
+  var k, d, dep;
+
+  for (k in modules) {
+    for (d in modules[k][1]) {
+      dep = modules[k][1][d];
+
+      if (dep === id || Array.isArray(dep) && dep[dep.length - 1] === id) {
+        parents.push(k);
+      }
+    }
+  }
+
+  if (bundle.parent) {
+    parents = parents.concat(getParents(bundle.parent, id));
+  }
+
+  return parents;
+}
+
+function hmrApply(bundle, asset) {
+  var modules = bundle.modules;
+
+  if (!modules) {
+    return;
+  }
+
+  if (modules[asset.id] || !bundle.parent) {
+    var fn = new Function('require', 'module', 'exports', asset.generated.js);
+    asset.isNew = !modules[asset.id];
+    modules[asset.id] = [fn, asset.deps];
+  } else if (bundle.parent) {
+    hmrApply(bundle.parent, asset);
+  }
+}
+
+function hmrAcceptCheck(bundle, id) {
+  var modules = bundle.modules;
+
+  if (!modules) {
+    return;
+  }
+
+  if (!modules[id] && bundle.parent) {
+    return hmrAcceptCheck(bundle.parent, id);
+  }
+
+  if (checkedAssets[id]) {
+    return;
+  }
+
+  checkedAssets[id] = true;
+  var cached = bundle.cache[id];
+  assetsToAccept.push([bundle, id]);
+
+  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
+    return true;
+  }
+
+  return getParents(global.parcelRequire, id).some(function (id) {
+    return hmrAcceptCheck(global.parcelRequire, id);
+  });
+}
+
+function hmrAcceptRun(bundle, id) {
+  var cached = bundle.cache[id];
+  bundle.hotData = {};
+
+  if (cached) {
+    cached.hot.data = bundle.hotData;
+  }
+
+  if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
+    cached.hot._disposeCallbacks.forEach(function (cb) {
+      cb(bundle.hotData);
+    });
+  }
+
+  delete bundle.cache[id];
+  bundle(id);
+  cached = bundle.cache[id];
+
+  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
+    cached.hot._acceptCallbacks.forEach(function (cb) {
+      cb();
+    });
+
+    return true;
+  }
+}
+},{}]},{},["../../../../home/noam/.nvm/versions/node/v15.4.0/lib/node_modules/parcel-bundler/src/builtins/hmr-runtime.js","index.js"], "Proxserve")

@@ -12,7 +12,7 @@
 "use strict"
 
 import { eventNames, nodeStatuses, ND, NID } from './global-vars.js';
-import { createDataNode } from './supporting-functions.js';
+import { createNodes } from './supporting-functions.js';
 import { splitPath } from './general-functions.js';
 
 /**
@@ -35,10 +35,10 @@ export function block(dataNode) {
 /**
  * resume default behavior of emitting change events, inherited from parent
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {Boolean} [force] - force being active regardless of parent
  */
-export function activate(dataNode, objects, force=false) {
+export function activate(dataNode, proxyNode, force=false) {
 	if(force || dataNode === this.dataTree) { //force activation or we are on root proxy
 		dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
@@ -50,7 +50,7 @@ export function activate(dataNode, objects, force=false) {
 /**
  * add event listener on a proxy or on a descending path
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener
@@ -59,7 +59,7 @@ export function activate(dataNode, objects, force=false) {
  * 	@property {Boolean} [options.id] - identifier for removing this listener later
  * 	@property {Boolean} [options.once] - whether this listener will run only once or always
  */
-export function on(dataNode, objects, events, path, listener, {deep=false, id=undefined, once=false} = {}) {
+export function on(dataNode, proxyNode, events, path, listener, {deep=false, id=undefined, once=false} = {}) {
 	if(events === 'change') events = eventNames.slice(0); //will listen to all events
 	else if(!Array.isArray(events)) events = [events];
 
@@ -70,7 +70,7 @@ export function on(dataNode, objects, events, path, listener, {deep=false, id=un
 	}
 	
 	if(typeof path === 'function') { //if called without path
-		if(typeof listener === 'object') {
+		if(typeof listener === 'object') { //listener is options
 			if(typeof listener.deep === 'boolean') deep = listener.deep;
 			if(listener.id !== undefined) id = listener.id;
 			if(typeof listener.once === 'boolean') once = listener.once;
@@ -82,11 +82,11 @@ export function on(dataNode, objects, events, path, listener, {deep=false, id=un
 	}
 	
 	let segments = splitPath(path);
-	//traverse down the tree. create data-nodes if needed
-	for(let property of segments) {
-		if(!dataNode[property]) {
-			createDataNode(dataNode, property);
+	for(let property of segments) { //traverse down the tree
+		if(!dataNode[property]) { //create data-nodes if needed
+			createNodes(dataNode, undefined, property);
 		}
+
 		dataNode = dataNode[property];
 	}
 
@@ -107,27 +107,27 @@ export function on(dataNode, objects, events, path, listener, {deep=false, id=un
 /**
  * add event listener on a proxy or on a descending path which will run only once
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {String|Array.String} events
  * @param {String} [path] - path selector
  * @param {Function} listener 
  * @param {String} [options]
  */
-export function once(dataNode, objects, events, path, listener, options) {
+export function once(dataNode, proxyNode, events, path, listener, options) {
 	if(typeof options !== 'object') options = {};
 	options.once = true;
-	on.call(this, dataNode, objects, events, path, listener, options);
+	on.call(this, dataNode, proxyNode, events, path, listener, options);
 }
 
 /**
  * removes a listener from a path by an identifier (can have multiple listeners with the same ID)
  * or by the listener function itself
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {String} [path] - path selector
  * @param {String|Function} id - the listener(s) identifier or listener-function
  */
-export function removeListener(dataNode, objects, path, id) {
+export function removeListener(dataNode, proxyNode, path, id) {
 	if(arguments.length === 3) { //if called without path
 		id = path;
 		path = '';
@@ -160,10 +160,10 @@ export function removeListener(dataNode, objects, path, id) {
 /**
  * removing all listeners of a path
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  * @param {String} [path] - path selector
  */
-export function removeAllListeners(dataNode, objects, path='') {
+export function removeAllListeners(dataNode, proxyNode, path='') {
 	let fullPath = `${dataNode[ND].path}${path}`;
 	let segments = splitPath(path);
 	//traverse down the tree
@@ -180,34 +180,27 @@ export function removeAllListeners(dataNode, objects, path='') {
 }
 
 /**
- * the following functions (getOriginalTarget, getProxserveObjects, getProxserveDataNode, getProxserveInstance) seem silly
+ * the following functions (getOriginalTarget, getProxserveNodes, getProxserveInstance) seem silly
  * because they could have been written directly on the handler's get() method but it's here as part of the convention of
  * exposing proxy-"inherited"-methods
  */
 /**
  * get original target that is behind the proxy
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  */
-export function getOriginalTarget(dataNode, objects) {
-	return objects.target;
+export function getOriginalTarget(dataNode, proxyNode) {
+	return proxyNode[ND].target;
 }
 
 /**
- * get 'objects' (which holds all related objects) of a proxy
+ * get the data-node of a proxy (which holds all meta data)
+ * and also get proxy-node of a proxy (which holds all related objects)
  * automatically filled param {Object} dataNode
- * automatically filled param {Object} objects
+ * automatically filled param {Object} proxyNode
  */
-export function getProxserveObjects(dataNode, objects) {
-	return objects;
-}
-
-/**
- * get the data-node of the proxy or sub-proxy
- * automatically filled param {Object} dataNode
- */
-export function getProxserveDataNode(dataNode) {
-	return dataNode;
+export function getProxserveNodes(dataNode, proxyNode) {
+	return [dataNode, proxyNode];
 }
 
 /**

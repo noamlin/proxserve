@@ -60,14 +60,13 @@ test('3. defineProperty should convert string/number properties to proxy', (done
 	expect(isProxy(proxy.obj)).toBe(true);
 	expect(isProxy(proxy.obj.this_is)).toBe(true);
 
-	let objects = proxy.obj.this_is.getProxserveObjects();
-	let originalProxy = objects.proxy;
+	let [dataNode, proxyNode] = proxy.obj.this_is.getProxserveNodes();
 
 	desc.value = 5;
 	Object.defineProperty(proxy, 'obj', cloneDeep(desc)); //overwrite existing property 'obj'
 
 	setTimeout(() => {
-		expect(isRevoked(objects, originalProxy)).toBe(true);
+		expect(isRevoked(proxyNode)).toBe(true);
 		done();
 	}, 30);
 });
@@ -115,15 +114,10 @@ test('4. Proxies should contain built-in functions', () => {
 	expect(typeof proxy.level1_1.arr1.getOriginalTarget).toBe('function');
 	expect(typeof proxy.level1_1.arr1.$getOriginalTarget).toBe('function');
 
-	expect(typeof proxy.getProxserveObjects).toBe('function');
-	expect(typeof proxy.$getProxserveObjects).toBe('function');
-	expect(typeof proxy.level1_1.arr1.getProxserveObjects).toBe('function');
-	expect(typeof proxy.level1_1.arr1.$getProxserveObjects).toBe('function');
-
-	expect(typeof proxy.getProxserveDataNode).toBe('function');
-	expect(typeof proxy.$getProxserveDataNode).toBe('function');
-	expect(typeof proxy.level1_1.arr1.getProxserveDataNode).toBe('function');
-	expect(typeof proxy.level1_1.arr1.$getProxserveDataNode).toBe('function');
+	expect(typeof proxy.getProxserveNodes).toBe('function');
+	expect(typeof proxy.$getProxserveNodes).toBe('function');
+	expect(typeof proxy.level1_1.arr1.getProxserveNodes).toBe('function');
+	expect(typeof proxy.level1_1.arr1.$getProxserveNodes).toBe('function');
 
 	expect(typeof proxy.getProxserveInstance).toBe('function');
 	expect(typeof proxy.$getProxserveInstance).toBe('function');

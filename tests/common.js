@@ -9,10 +9,12 @@
  */
 
 const util = require('util');
+let ND = Symbol.for('proxserve_node_data');
+let NID = Symbol.for('proxserve_node_inherited_data');
 
 module.exports.cloneDeep = require('lodash').cloneDeep;
-module.exports.ND = Symbol.for('proxserve_node_data');
-module.exports.NID = Symbol.for('proxserve_node_inherited_data');
+module.exports.ND = ND;
+module.exports.NID = NID;
 module.exports.isProxy = util.types.isProxy;
 
  //test if proxy's internal [[handler]] is revoked. according to https://www.ecma-international.org/ecma-262/#sec-proxycreate
@@ -27,17 +29,16 @@ module.exports.isProxy = util.types.isProxy;
 }*/
 /**
  * 
- * @param {Object} objects - the "dataNode[ND].objects". expected to be { target: *, proxy: undefined, status: * }
- * @param {Proxy} proxy - the original proxy object (because the reference inside "objects" got deleted)
+ * @param {Object} proxyNode - the objects related to proxy
  */
-module.exports.isRevoked = function isRevoked(objects, proxy) {
-	if(!util.types.isProxy(proxy)) {
+module.exports.isRevoked = function isRevoked(proxyNode) {
+	if(!util.types.isProxy(proxyNode[ND].proxy)) {
 		return false; //not even a proxy so can't be revoked
 	}
 
-	if(objects.status === 'revoked') {
+	if(proxyNode[NID].status === 'revoked') {
 		try {
-			proxy.getSomeProperty;
+			proxyNode[ND].proxy.getSomeProperty; //get on revoked proxy should throw
 		} catch(err) {
 			return true;
 		}

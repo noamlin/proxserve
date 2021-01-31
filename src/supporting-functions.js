@@ -72,46 +72,67 @@ export function unproxify(value) {
 }
 
 /**
- * create a node in a tree that mimics the proxserve's object and holds meta-data
- * @param {Object} parentNode 
+ * create or reset a node in a tree of meta-data (mainly path related)
+ * and optionally create a node in a tree of proxy data (mainly objects related)
+ * @param {Object} parentDataNode 
+ * @param {Object} [parentProxyNode] 
  * @param {String|Number} property 
+ * @param {*} [target] 
  */
-export function createDataNode(parentNode, property) {
+export function createNodes(parentDataNode, parentProxyNode, property, target) {
+	//handle property path
 	let propertyPath;
-	if(parentNode[ND] && parentNode[ND].objects && parentNode[ND].objects.target) {
-		propertyPath = property2path(parentNode[ND].objects.target, property);
+	if(parentProxyNode && parentProxyNode[ND].target) {
+		propertyPath = property2path(parentProxyNode[ND].target, property);
 	} else {
 		propertyPath = property2path({}, property); //if parent doesn't have target then treat it as object
 	}
 	
-	let node = parentNode[property];
-	if(!node) {
-		node = {
-			[NID]: Object.create(parentNode[NID]),
+	//handle data node
+	let dataNode = parentDataNode[property]; //try to receive existing data-node
+	if(!dataNode) {
+		dataNode = {
+			[NID]: Object.create(parentDataNode[NID]),
 			[ND]: {
-				'parentNode': parentNode,
-				'listeners': {
-					'shallow': [],
-					'deep': []
+				parentNode: parentDataNode,
+				listeners: {
+					shallow: [],
+					deep: []
 				}
 			}
 		};
-		parentNode[property] = node;
+		parentDataNode[property] = dataNode;
 	}
 
-	delete node[NID].status; //clears old status in case a node previously existed
+	delete dataNode[NID].status; //clears old status in case a node previously existed
 	//updates path (for rare case where parent was array and then changed to object or vice versa)
-	//and also makes a new and clean 'objects' property
-	Object.assign(node[ND], {
-		'path': parentNode[ND].path + propertyPath,
-		'propertyPath': propertyPath,
-		'objects': Object.assign(Object.create(parentNode[ND].objects), {
-			'target': undefined,
-			'proxy': undefined,
-			'revoke': undefined
-			/* inherits status */
-		})
-	});
+	if(!parentDataNode[ND].isTreePrototype) {
+		Object.assign(dataNode[ND], {
+			path: parentDataNode[ND].path + propertyPath,
+			propertyPath
+		});
+	}
+	else {
+		Object.assign(dataNode[ND], {
+			path: '',
+			propertyPath: ''
+		});
+	}
 
-	return node;
+	//handle proxy node
+	let proxyNode;
+	if(parentProxyNode) {
+		proxyNode = {
+			[NID]: Object.create(parentProxyNode[NID]),
+			[ND]: { target }
+		};
+
+		parentProxyNode[property] = proxyNode;
+
+		//attach nodes to each other
+		dataNode[ND].proxyNode = proxyNode;
+		proxyNode[ND].dataNode = dataNode;
+	}
+
+	return [dataNode, proxyNode];
 }
