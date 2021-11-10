@@ -10,18 +10,27 @@
 // the actual "splice" function internally
 "use strict"
 
-import { nodeStatuses, eventNames, ND, NID } from './global-vars.js';
+import { nodeStatuses, eventNames, ND, NID, DataNode, ProxyNode } from './globals.js';
 import { initFunctionEmitEvent } from './event-emitter.js';
 
 /**
  * a wrapper function for the 'splice' method
+ * 
+ * @remarks
  * automatically filled param {Object} dataNode
  * automatically filled param {Object} proxyNode
- * @param {Number} start 
- * @param {Number} deleteCount 
- * @param  {...any} items 
+ * 
+ * @param start 
+ * @param deleteCount 
+ * @param items - rest of arguments
  */
-export function splice(dataNode, proxyNode, start, deleteCount, ...items) {
+export function splice(
+	dataNode: DataNode,
+	proxyNode: ProxyNode,
+	start: number,
+	deleteCount: number,
+	...items: any[]
+): any[] {
 	if(dataNode[NID].status !== nodeStatuses.ACTIVE) {
 		return Array.prototype.splice.call(proxyNode[ND].proxy, start, deleteCount, ...items);
 	}
@@ -29,61 +38,77 @@ export function splice(dataNode, proxyNode, start, deleteCount, ...items) {
 	let isActiveByInheritance = !dataNode[NID].hasOwnProperty('status');
 	dataNode[NID].status = nodeStatuses.SPLICING;
 	let oldValue = proxyNode[ND].target.slice(0);
-	let deleted = Array.prototype.splice.call(proxyNode[ND].proxy, start, deleteCount, ...items); //creates many side-effect events
+	let deleted = Array.prototype.splice.call(proxyNode[ND].proxy, start, deleteCount, ...items); // creates many side-effect events
 	let args = { start, deleteCount, items };
 	
-	if(isActiveByInheritance) delete dataNode[NID].status;
-	else dataNode[NID].status = nodeStatuses.ACTIVE;
+	if(isActiveByInheritance) {
+		delete dataNode[NID].status;
+	} else {
+		dataNode[NID].status = nodeStatuses.ACTIVE;
+	}
 
-	initFunctionEmitEvent(dataNode, eventNames.SPLICE, args, oldValue, proxyNode[ND].target);
+	initFunctionEmitEvent(dataNode, eventNames.splice, args, oldValue, proxyNode[ND].target);
 
 	return deleted;
 }
 
 /**
  * a wrapper function for the 'shift' method
+ * 
+ * @remarks
  * automatically filled param {Object} dataNode
  * automatically filled param {Object} proxyNode
  */
-export function shift(dataNode, proxyNode) {
+export function shift(dataNode: DataNode, proxyNode: ProxyNode): any {
 	if(dataNode[NID].status !== nodeStatuses.ACTIVE) {
+		// if not active then run regular `shift`
+		// which will reach the `set` of the ProxyHandler and will be blocked or events stopped, etc.
 		return Array.prototype.shift.call(proxyNode[ND].proxy);
 	}
 
 	let isActiveByInheritance = !dataNode[NID].hasOwnProperty('status');
 	dataNode[NID].status = nodeStatuses.SPLICING;
 	let oldValue = proxyNode[ND].target.slice(0);
-	let deleted = Array.prototype.shift.call(proxyNode[ND].proxy); //creates many side-effect events
+	let deleted = Array.prototype.shift.call(proxyNode[ND].proxy); // creates many side-effect events
 	
-	if(isActiveByInheritance) delete dataNode[NID].status;
-	else dataNode[NID].status = nodeStatuses.ACTIVE;
+	if(isActiveByInheritance) {
+		delete dataNode[NID].status;
+	} else {
+		dataNode[NID].status = nodeStatuses.ACTIVE;
+	}
 
-	initFunctionEmitEvent(dataNode, eventNames.SHIFT, {}, oldValue, proxyNode[ND].target);
+	initFunctionEmitEvent(dataNode, eventNames.shift, {}, oldValue, proxyNode[ND].target);
 
 	return deleted;
 }
 
 /**
  * a wrapper function for the 'unshift' method
+ * 
+ * @remarks
  * automatically filled param {Object} dataNode
  * automatically filled param {Object} proxyNode
- * @param  {...any} items 
+ * 
+ * @param items 
  */
-export function unshift(dataNode, proxyNode, ...items) {
+export function unshift(dataNode: DataNode, proxyNode: ProxyNode, ...items: any[]): number {
 	if(dataNode[NID].status !== nodeStatuses.ACTIVE) {
-		return Array.prototype.shift.call(proxyNode[ND].proxy);
+		return Array.prototype.shift.call(proxyNode[ND].proxy) as number;
 	}
 
 	let isActiveByInheritance = !dataNode[NID].hasOwnProperty('status');
 	dataNode[NID].status = nodeStatuses.SPLICING;
 	let oldValue = proxyNode[ND].target.slice(0);
-	let newLength = Array.prototype.unshift.call(proxyNode[ND].proxy, ...items); //creates many side-effect events
+	let newLength: number = Array.prototype.unshift.call(proxyNode[ND].proxy, ...items); // creates many side-effect events
 	let args = { items };
 	
-	if(isActiveByInheritance) delete dataNode[NID].status;
-	else dataNode[NID].status = nodeStatuses.ACTIVE;
+	if(isActiveByInheritance) {
+		delete dataNode[NID].status;
+	} else {
+		dataNode[NID].status = nodeStatuses.ACTIVE;
+	}
 
-	initFunctionEmitEvent(dataNode, eventNames.UNSHIFT, args, oldValue, proxyNode[ND].target);
+	initFunctionEmitEvent(dataNode, eventNames.unshift, args, oldValue, proxyNode[ND].target);
 
 	return newLength;
 }

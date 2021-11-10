@@ -11,15 +11,15 @@
 // (i.e. someProxserve.pseudoFunction will return the pseudoFunction)
 "use strict"
 
-import { eventNames, nodeStatuses, ND, NID } from './global-vars.js';
-import { createNodes } from './supporting-functions.js';
-import { splitPath } from './general-functions.js';
+import { eventNames, nodeStatuses, ND, NID, DataNode, ProxyNode, ListenerData, SomeObject, SomeArray, TargetVariable, ProxserveInterface } from './globals';
+import { createNodes } from './supporting-functions';
+import { splitPath } from './general-functions';
 
 /**
  * stop object and children from emitting change events
  * automatically filled param {Object} dataNode
  */
-export function stop(dataNode) {
+export function stop(dataNode: DataNode): void {
 	dataNode[NID].status = nodeStatuses.STOPPED;
 }
 
@@ -28,7 +28,7 @@ export function stop(dataNode) {
  * user can't set nor delete any property
  * automatically filled param {Object} dataNode
  */
-export function block(dataNode) {
+export function block(dataNode: DataNode): void {
 	dataNode[NID].status = nodeStatuses.BLOCKED;
 }
 
@@ -38,7 +38,7 @@ export function block(dataNode) {
  * automatically filled param {Object} proxyNode
  * @param {Boolean} [force] - force being active regardless of parent
  */
-export function activate(dataNode, proxyNode, force=false) {
+export function activate(dataNode: DataNode, proxyNode: ProxyNode, force=false): void {
 	if(force || dataNode === this.dataTree) { //force activation or we are on root proxy
 		dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
@@ -47,57 +47,92 @@ export function activate(dataNode, proxyNode, force=false) {
 	}
 }
 
+interface OnOptions {
+	deep?: boolean;
+	id?: number | string;
+	once?: boolean;
+}
 /**
  * add event listener on a proxy or on a descending path
+ * 
+ * @remarks
  * automatically filled param {Object} dataNode
  * automatically filled param {Object} proxyNode
- * @param {String|Array.String} events
- * @param {String} [path] - path selector
- * @param {Function} listener
- * @param {Object} [options]
- * 	@property {Boolean} [options.deep] - should listen for event emitted by sub-objects or not
- * 	@property {Boolean} [options.id] - identifier for removing this listener later
- * 	@property {Boolean} [options.once] - whether this listener will run only once or always
+ * 
+ * @param events
+ * @param [path] - path selector
+ * @param listener
+ * @param [options]
+ * 	@property [options.deep] - should listen for event emitted by sub-objects or not
+ * 	@property [options.id] - identifier for removing this listener later
+ * 	@property [options.once] - whether this listener will run only once or always
  */
-export function on(dataNode, proxyNode, events, path, listener, {deep=false, id=undefined, once=false} = {}) {
-	if(events === 'change') events = eventNames.slice(0); //will listen to all events
-	else if(!Array.isArray(events)) events = [events];
+export function on(
+	dataNode: DataNode,
+	proxyNode: ProxyNode,
+	events: eventNames | eventNames[],
+	path: string,
+	listener: Function,
+	options?: OnOptions,
+) {
+	let {
+		deep = false,
+		id = undefined,
+		once = false
+	} = options;
+
+	if((events as string) === 'change') {
+		events = Object.keys(eventNames) as eventNames[]; // will listen to all events
+	} else if(!Array.isArray(events)) {
+		events = [events];
+	}
 
 	for(let event of events) {
-		if(!eventNames.includes(event)) {
-			throw new Error(`${event} is not a valid event. valid events are ${eventNames.join(',')}`);
+		if(!eventNames[event]) {
+			const names = Object.keys(eventNames);
+			throw new Error(`${event} is not a valid event. valid events are ${names.join(',')}`);
 		}
 	}
-	
-	if(typeof path === 'function') { //if called without path
-		if(typeof listener === 'object') { //listener is options
-			if(typeof listener.deep === 'boolean') deep = listener.deep;
-			if(listener.id !== undefined) id = listener.id;
-			if(typeof listener.once === 'boolean') once = listener.once;
+
+	if(typeof path === 'function') { // if called without path
+		if(typeof listener === 'object') { // listener is options
+			const optionsFromListener = listener as OnOptions;
+			if(typeof optionsFromListener.deep === 'boolean') {
+				deep = optionsFromListener.deep;
+			}
+			if(optionsFromListener.id !== undefined) {
+				id = optionsFromListener.id;
+			}
+			if(typeof optionsFromListener.once === 'boolean') {
+				once = optionsFromListener.once;
+			}
 		}
-		listener = path;
+		listener = path as Function;
 		path = '';
 	} else if(typeof listener !== 'function') {
 		throw new Error(`invalid arguments were given. listener must be a function`);
 	}
 	
 	let segments = splitPath(path);
-	for(let property of segments) { //traverse down the tree
-		if(!dataNode[property]) { //create data-nodes if needed
-			createNodes(dataNode, undefined, property);
+	for(let property of segments) { // traverse down the tree
+		if(!dataNode[property]) { // create data-nodes if needed
+			createNodes(dataNode, undefined, property, undefined);
 		}
 
 		dataNode = dataNode[property];
 	}
 
 	let listenersPool = dataNode[ND].listeners.shallow;
-	if(deep) listenersPool = dataNode[ND].listeners.deep;
+	if(deep) {
+		listenersPool = dataNode[ND].listeners.deep;
+	}
 
 	let listenerObj = {
 		type: events,
 		once: once,
 		func: listener
-	};
+	} as ListenerData;
+
 	if(id !== undefined) {
 		listenerObj.id = id;
 	}
@@ -105,37 +140,52 @@ export function on(dataNode, proxyNode, events, path, listener, {deep=false, id=
 }
 
 /**
- * add event listener on a proxy or on a descending path which will run only once
- * automatically filled param {Object} dataNode
- * automatically filled param {Object} proxyNode
- * @param {String|Array.String} events
- * @param {String} [path] - path selector
- * @param {Function} listener 
- * @param {String} [options]
+ * just like `on` but the listener will run only once
+ * @see on() function
  */
-export function once(dataNode, proxyNode, events, path, listener, options) {
-	if(typeof options !== 'object') options = {};
+export function once(
+	dataNode: DataNode,
+	proxyNode: ProxyNode,
+	events: eventNames | eventNames[],
+	path: string,
+	listener: Function,
+	options?: OnOptions): void {
+	if(typeof options !== 'object') {
+		options = {};
+	}
 	options.once = true;
 	on.call(this, dataNode, proxyNode, events, path, listener, options);
+}
+
+function removeById(listenersArr: ListenerData[], id: string | number | Function): void {
+	for(let i = listenersArr.length - 1; i >= 0; i--) {
+		let listenerObj = listenersArr[i];
+		if((id !== undefined && listenerObj.id === id) || listenerObj.func === id) {
+			listenersArr.splice(i, 1);
+		}
+	}
 }
 
 /**
  * removes a listener from a path by an identifier (can have multiple listeners with the same ID)
  * or by the listener function itself
+ * 
+ * @remarks
  * automatically filled param {Object} dataNode
  * automatically filled param {Object} proxyNode
- * @param {String} [path] - path selector
- * @param {String|Function} id - the listener(s) identifier or listener-function
+ * 
+ * @param [path] - path selector
+ * @param id - the listener(s) identifier or listener-function
  */
-export function removeListener(dataNode, proxyNode, path, id) {
-	if(arguments.length === 3) { //if called without path
-		id = path;
+export function removeListener(dataNode: DataNode, proxyNode: ProxyNode, path: string, id: string | number | Function): void {
+	if(arguments.length === 3) { // if called without path
+		id = path as string | number | Function;
 		path = '';
 	}
 
 	let fullPath = `${dataNode[ND].path}${path}`;
 	let segments = splitPath(path);
-	//traverse down the tree
+	// traverse down the tree
 	for(let property of segments) {
 		if(!dataNode[property]) {
 			console.warn(`can't remove listener from a non-existent path '${fullPath}'`);
@@ -144,26 +194,20 @@ export function removeListener(dataNode, proxyNode, path, id) {
 		dataNode = dataNode[property];
 	}
 
-	function removeById(listenersArr, id) {
-		for(let i = listenersArr.length - 1; i >= 0; i--) {
-			let listenerObj = listenersArr[i];
-			if((id !== undefined && listenerObj.id === id) || listenerObj.func === id) {
-				listenersArr.splice(i, 1);
-			}
-		}
-	}
-
 	removeById(dataNode[ND].listeners.shallow, id);
 	removeById(dataNode[ND].listeners.deep, id);
 }
 
 /**
  * removing all listeners of a path
+ * 
+ * @remarks
  * automatically filled param {Object} dataNode
  * automatically filled param {Object} proxyNode
- * @param {String} [path] - path selector
+ * 
+ * @param [path] - path selector
  */
-export function removeAllListeners(dataNode, proxyNode, path='') {
+export function removeAllListeners(dataNode: DataNode, proxyNode: ProxyNode, path = '') {
 	let fullPath = `${dataNode[ND].path}${path}`;
 	let segments = splitPath(path);
 	//traverse down the tree
@@ -175,8 +219,8 @@ export function removeAllListeners(dataNode, proxyNode, path='') {
 		dataNode = dataNode[property];
 	}
 
-	dataNode[ND].listeners.shallow = [];
-	dataNode[ND].listeners.deep = [];
+	dataNode[ND].listeners.shallow = [] as ListenerData[];
+	dataNode[ND].listeners.deep = [] as ListenerData[];
 }
 
 /**
@@ -186,26 +230,33 @@ export function removeAllListeners(dataNode, proxyNode, path='') {
  */
 /**
  * get original target that is behind the proxy
+ * 
+ * @remarks
  * automatically filled param {Object} dataNode
  * automatically filled param {Object} proxyNode
  */
-export function getOriginalTarget(dataNode, proxyNode) {
+export function getOriginalTarget(dataNode: DataNode, proxyNode: ProxyNode): TargetVariable {
 	return proxyNode[ND].target;
 }
 
 /**
  * get the data-node of a proxy (which holds all meta data)
  * and also get proxy-node of a proxy (which holds all related objects)
+ * 
+ * @remarks
  * automatically filled param {Object} dataNode
  * automatically filled param {Object} proxyNode
  */
-export function getProxserveNodes(dataNode, proxyNode) {
-	return [dataNode, proxyNode];
+export function getProxserveNodes(dataNode: DataNode, proxyNode: ProxyNode): {
+	dataNode: DataNode;
+	proxyNode: ProxyNode;
+} {
+	return { dataNode, proxyNode };
 }
 
 /**
  * get the Proxserve's instance that created this proxy
  */
-export function getProxserveInstance() {
-	return this;
+export function getProxserveInstance(): ProxserveInterface {
+	return (this as ProxserveInterface);
 }
