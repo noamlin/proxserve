@@ -11,7 +11,7 @@
 // (i.e. someProxserve.pseudoFunction will return the pseudoFunction)
 "use strict"
 
-import { eventNames, nodeStatuses, ND, NID, DataNode, ProxyNode, ListenerData, SomeObject, SomeArray, TargetVariable, ProxserveInterface } from './globals';
+import { eventNames, nodeStatuses, ND, NID, DataNode, ProxyNode, ListenerData, TargetVariable, ProxserveInterface } from './globals';
 import { createNodes } from './supporting-functions';
 import { splitPath } from './general-functions';
 

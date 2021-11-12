@@ -10,8 +10,8 @@
 // the actual "splice" function internally
 "use strict"
 
-import { nodeStatuses, eventNames, ND, NID, DataNode, ProxyNode } from './globals.js';
-import { initFunctionEmitEvent } from './event-emitter.js';
+import { nodeStatuses, eventNames, ND, NID, DataNode, ProxyNode } from './globals';
+import { initFunctionEmitEvent } from './event-emitter';
 
 /**
  * a wrapper function for the 'splice' method

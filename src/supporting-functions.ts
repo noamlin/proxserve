@@ -7,7 +7,7 @@
  */
 "use strict"
 
-import { proxyTypes, ND, NID, DataNode, ProxyNode, SomeObject, SomeArray, TargetVariable } from './globals';
+import { proxyTypes, ND, NID, DataNode, ProxyNode, TargetVariable } from './globals';
 import { realtypeof } from './general-functions';
 
 /**

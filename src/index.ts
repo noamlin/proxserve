@@ -7,7 +7,7 @@
  */
 "use strict"
 
-import { proxyTypes, nodeStatuses, proxyStatuses, ND, NID, SomeProxy, DataNode, ProxyNode, SomeObject, SomeArray, TargetVariable, ProxserveInterface } from './globals';
+import { proxyTypes, nodeStatuses, proxyStatuses, ND, NID, SomeProxy, DataNode, ProxyNode, TargetVariable, ProxserveInterface } from './globals';
 import { unproxify, createNodes } from './supporting-functions';
 import * as pseudoMethods from './pseudo-methods';
 import * as proxyMethods from './proxy-methods';
@@ -34,7 +34,7 @@ interface ConstructorOptions {
 	};
 }
 
-class Proxserve implements ProxserveInterface {
+export class Proxserve implements ProxserveInterface {
 	strict: boolean;
 	emitMethods: boolean;
 	destroyDelay: number;
@@ -105,7 +105,7 @@ class Proxserve implements ProxserveInterface {
 		if(proxyTypes[typeoftarget]) {
 			let revocable = Proxy.revocable<TargetVariable>(target, {
 				get: (target: TargetVariable/*same as parent scope 'target'*/, property: string|symbol, proxy) => {
-					if(this.emitMethods && proxyMethods.hasOwnProperty(property) && property in Object.getPrototypeOf(target)) {
+					if(this.emitMethods && Object.prototype.hasOwnProperty.call(proxyMethods, property) && property in Object.getPrototypeOf(target)) {
 						// use a proxy method instead of the built-in method that is on the prototype chain
 						return proxyMethods[property].bind(this, dataNode, proxyNode);
 					}
@@ -330,5 +330,3 @@ class Proxserve implements ProxserveInterface {
 		return evalPath(obj, path);
 	}
 }
-
-module.exports = exports = Proxserve; // makes ParcelJS expose this globally (for all platforms) after bundling everything

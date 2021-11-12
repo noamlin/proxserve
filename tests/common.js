@@ -33,7 +33,7 @@ module.exports.isProxy = util.types.isProxy;
  */
 module.exports.isRevoked = function isRevoked(proxyNode) {
 	if(!util.types.isProxy(proxyNode[ND].proxy)) {
-		return false; //not even a proxy so can't be revoked
+		return false; // not even a proxy so can't be revoked
 	}
 
 	if(proxyNode[NID].status === 'revoked') {
