@@ -7,7 +7,7 @@
  */
 "use strict"
 
-import { proxyTypes, ND, NID, DataNode, ProxyNode, TargetVariable } from './globals';
+import { proxyTypes, ND, NID, DataNode, ProxyNode, TargetVariable, ListenerData } from './globals';
 import { realtypeof } from './general-functions';
 
 /**
@@ -82,9 +82,9 @@ export function unproxify(value: any): any {
  */
 export function createNodes(
 	parentDataNode: DataNode,
-	parentProxyNode: ProxyNode | undefined,
 	property: string | number,
-	target: TargetVariable | undefined,
+	parentProxyNode?: ProxyNode,
+	target?: TargetVariable,
 ): { dataNode: DataNode, proxyNode: ProxyNode } {
 	//handle property path
 	let propertyPath: string;
@@ -102,8 +102,8 @@ export function createNodes(
 			[ND]: {
 				parentNode: parentDataNode,
 				listeners: {
-					shallow: [],
-					deep: []
+					shallow: [] as ListenerData[],
+					deep: [] as ListenerData[],
 				},
 			}
 		} as DataNode;
@@ -125,21 +125,25 @@ export function createNodes(
 		});
 	}
 
-	//handle proxy node
+	// handle proxy node
 	let proxyNode: ProxyNode;
 	if(parentProxyNode) {
 		proxyNode = {
 			[NID]: Object.create(parentProxyNode[NID]),
 			[ND]: {
-				target,
+				target: target as TargetVariable,
 				dataNode,
 			},
 		};
 
 		parentProxyNode[property] = proxyNode;
 
-		//attach nodes to each other
+		// attach nodes to each other
 		dataNode[ND].proxyNode = proxyNode;
+	} else {
+		// hack to satisfy TS.
+		// this scenario is dangerous and exists only for `on()` of future variables (paths) that don't yet exist
+		proxyNode = undefined as unknown as ProxyNode;
 	}
 
 	return { dataNode, proxyNode };

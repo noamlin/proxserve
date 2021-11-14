@@ -29,7 +29,7 @@ function getProxyValue(dataNode: DataNode, property?: string): any {
 		let parentNode = dataNode[ND].parentNode;
 
 		if(parentNode[ND].proxyNode && parentNode[ND].proxyNode[NID].status === proxyStatuses.ALIVE) {
-			return parentNode[ND].proxyNode[ND].proxy[ property ]; // proxy or primitive via parent's proxy object
+			return parentNode[ND].proxyNode[ND].proxy?.[property]; // proxy or primitive via parent's proxy object
 		}
 		else {
 			// if we reached here then probably we are on a capture phase of a deep deletion.
@@ -76,7 +76,7 @@ export function initEmitEvent(
 		changeType = eventNames.create;
 	}
 
-	let deferredEvents: DeferredEvent[];
+	let deferredEvents: DeferredEvent[] | undefined;
 	// altering properties of an array that's in the middle of a splicing phase
 	if(dataNode[NID].status === nodeStatuses.SPLICING) {
 		// initiate (if needed) an object to hold side effect events
@@ -222,7 +222,7 @@ export function initFunctionEmitEvent(
 	if(dataNode[ND].deferredEvents) {
 		// manually handle the side-effect events that were caught
 		// in order to not bubble up, but should capture down
-		for(let event of dataNode[ND].deferredEvents) {
+		for(let event of dataNode[ND].deferredEvents!) {
 			if(event.change.path === '') {
 				// no path means its an event directly on the property, not on the parent.
 				// i.e: not an event with path "0" on ".arr", but an event with no path on ".arr[0]".

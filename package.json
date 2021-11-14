@@ -7,7 +7,7 @@
 	"main": "dist/cjs/index.js",
 	"module": "dist/mjs/index.js",
 	"moduleMinified": "dist/mjs/index.min.js",
-	"types": "dist/index.d.ts",
+	"types": "dist/cjs/index.d.ts",
 	"targets": {
 		"main": {
 			"outputFormat": "commonjs",
@@ -40,7 +40,7 @@
 	"scripts": {
 		"start": "node index.js",
 		"test": "jest",
-		"build": "parcel build",
+		"build": "parcel build && cp -f -t ./dist/mjs ./dist/cjs/index.d.ts ./dist/cjs/index.d.ts.map",
 		"watch": "parcel watch"
 	},
 	"devDependencies": {

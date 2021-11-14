@@ -136,7 +136,7 @@ function $c0486756bd3a8c4d$export$824c337f43f2b64d(path) {
 function $c0486756bd3a8c4d$export$8ffa680996c65fde(obj, path) {
     if (path === '') return {
         object: obj,
-        property: undefined,
+        property: '',
         value: obj
     };
     let segments = $c0486756bd3a8c4d$export$824c337f43f2b64d(path);
@@ -195,7 +195,7 @@ function $431788524d5470e1$export$a58c3ed528c9c399(value) {
         return target;
     } else return value; // primitive
 }
-function $431788524d5470e1$export$953dd193a01bd6ec(parentDataNode, parentProxyNode, property, target) {
+function $431788524d5470e1$export$953dd193a01bd6ec(parentDataNode, property, parentProxyNode, target) {
     //handle property path
     let propertyPath;
     if (parentProxyNode === null || parentProxyNode === void 0 ? void 0 : parentProxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target) propertyPath = $431788524d5470e1$export$1b787634d8e3bf02(parentProxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target, property);
@@ -226,7 +226,7 @@ function $431788524d5470e1$export$953dd193a01bd6ec(parentDataNode, parentProxyNo
         path: '',
         propertyPath: ''
     });
-    //handle proxy node
+    // handle proxy node
     let proxyNode;
     if (parentProxyNode) {
         proxyNode = {
@@ -237,9 +237,11 @@ function $431788524d5470e1$export$953dd193a01bd6ec(parentDataNode, parentProxyNo
             }
         };
         parentProxyNode[property] = proxyNode;
-        //attach nodes to each other
+        // attach nodes to each other
         dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode = proxyNode;
-    }
+    } else // hack to satisfy TS.
+    // this scenario is dangerous and exists only for `on()` of future variables (paths) that don't yet exist
+    proxyNode = undefined;
     return {
         dataNode: dataNode,
         proxyNode: proxyNode
@@ -258,7 +260,6 @@ $parcel$export($f6f254486f25c78f$exports, "removeListener", function () { return
 $parcel$export($f6f254486f25c78f$exports, "removeAllListeners", function () { return $f6f254486f25c78f$export$6f2e3a6079f109b1; });
 $parcel$export($f6f254486f25c78f$exports, "getOriginalTarget", function () { return $f6f254486f25c78f$export$35f261dd63190ac1; });
 $parcel$export($f6f254486f25c78f$exports, "getProxserveNodes", function () { return $f6f254486f25c78f$export$c3c6db5039118967; });
-$parcel$export($f6f254486f25c78f$exports, "getProxserveInstance", function () { return $f6f254486f25c78f$export$8caee43385408ac4; });
 
 
 
@@ -284,7 +285,12 @@ function $f6f254486f25c78f$export$234c45b355edd85b(dataNode, proxyNode, force = 
     else delete dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status;
 }
 function $f6f254486f25c78f$export$af631764ddc44097(dataNode, proxyNode, events, path, listener, options) {
-    let { deep: deep = false , id: id , once: once = false  } = options;
+    var ref;
+    let deep = (ref = options === null || options === void 0 ? void 0 : options.deep) !== null && ref !== void 0 ? ref : false;
+    var ref1;
+    let id = (ref1 = options === null || options === void 0 ? void 0 : options.id) !== null && ref1 !== void 0 ? ref1 : undefined;
+    var ref2;
+    let once = (ref2 = options === null || options === void 0 ? void 0 : options.once) !== null && ref2 !== void 0 ? ref2 : false;
     if (events === 'change') events = Object.keys($cebd7357bd8525a2$export$4a2e650c134b86af); // will listen to all events
     else if (!Array.isArray(events)) events = [
         events
@@ -305,7 +311,8 @@ function $f6f254486f25c78f$export$af631764ddc44097(dataNode, proxyNode, events, 
     } else if (typeof listener !== 'function') throw new Error(`invalid arguments were given. listener must be a function`);
     let segments = $c0486756bd3a8c4d$export$824c337f43f2b64d(path);
     for (let property of segments){
-        if (!dataNode[property]) $431788524d5470e1$export$953dd193a01bd6ec(dataNode, undefined, property, undefined);
+        if (!dataNode[property]) // create data-nodes if needed, but don't create/overwrite proxy-nodes
+        $431788524d5470e1$export$953dd193a01bd6ec(dataNode, property);
         dataNode = dataNode[property];
     }
     let listenersPool = dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].listeners.shallow;
@@ -371,9 +378,6 @@ function $f6f254486f25c78f$export$c3c6db5039118967(dataNode, proxyNode) {
         proxyNode: proxyNode
     };
 }
-function $f6f254486f25c78f$export$8caee43385408ac4() {
-    return this;
-}
 
 
 var $26afb3b451fe81b5$exports = {};
@@ -399,10 +403,11 @@ $parcel$export($26afb3b451fe81b5$exports, "unshift", function () { return $26afb
  */ function $590092d9df4e6b38$var$getProxyValue(dataNode, property) {
     if (dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode && dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status === $cebd7357bd8525a2$export$89e04a1d3d3065f6.ALIVE) return dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy; // actual proxy of child node
     else {
+        var ref;
         if (!property) // my property on the parent
         property = $c0486756bd3a8c4d$export$824c337f43f2b64d(dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].propertyPath)[0];
         let parentNode = dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].parentNode;
-        if (parentNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode && parentNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status === $cebd7357bd8525a2$export$89e04a1d3d3065f6.ALIVE) return parentNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy[property]; // proxy or primitive via parent's proxy object
+        if (parentNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode && parentNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status === $cebd7357bd8525a2$export$89e04a1d3d3065f6.ALIVE) return (ref = parentNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy) === null || ref === void 0 ? void 0 : ref[property]; // proxy or primitive via parent's proxy object
     }
     return undefined;
 }
@@ -611,10 +616,41 @@ for(let i = $643fcf18b2d2e76f$var$pseudoMethodsNames.length - 1; i >= 0; i--){
 }
 class $643fcf18b2d2e76f$export$d402cf8388053971 {
     /**
+	 * make a new proxserve instance
+	 */ static make(target2, options = {
+    }) {
+        const { strict: strict = true , emitMethods: emitMethods = true , debug: debug = {
+            destroyDelay: 1000
+        } ,  } = options;
+        let dataTreePrototype = {
+            [$cebd7357bd8525a2$export$d1c20e4ad7d32581]: {
+                status: $cebd7357bd8525a2$export$eb0c55c6f2ee7170.ACTIVE
+            },
+            [$cebd7357bd8525a2$export$f7e0aa381a5261fc]: {
+                isTreePrototype: true
+            }
+        };
+        let proxyTreePrototype = {
+            [$cebd7357bd8525a2$export$d1c20e4ad7d32581]: {
+                status: $cebd7357bd8525a2$export$89e04a1d3d3065f6.ALIVE
+            },
+            [$cebd7357bd8525a2$export$f7e0aa381a5261fc]: {
+                isTreePrototype: true
+            }
+        };
+        const newNodes = $431788524d5470e1$export$953dd193a01bd6ec(dataTreePrototype, '', proxyTreePrototype, target2);
+        const metadata = {
+            strict: strict,
+            emitMethods: emitMethods,
+            destroyDelay: debug.destroyDelay,
+            dataTree: newNodes.dataNode,
+            proxyTree: newNodes.proxyNode
+        };
+        return $643fcf18b2d2e76f$export$d402cf8388053971.createProxy(metadata, metadata.dataTree);
+    }
+    /**
 	 * create a new proxy and a new node for a property of the parent's target-object
-	 * @param {Object} parentDataNode
-	 * @param {String} [targetProperty]
-	 */ createProxy(parentDataNode, targetProperty) {
+	 */ static createProxy(metadata, parentDataNode, targetProperty) {
         let parentProxyNode = parentDataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode;
         let dataNode, proxyNode;
         if (targetProperty === undefined) {
@@ -622,7 +658,7 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
             proxyNode = parentProxyNode;
         } else {
             //creates new or reset an existing data-node and then creates a new proxy-node
-            const newNodes = $431788524d5470e1$export$953dd193a01bd6ec(parentDataNode, parentProxyNode, targetProperty, parentProxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target[targetProperty]);
+            const newNodes = $431788524d5470e1$export$953dd193a01bd6ec(parentDataNode, targetProperty, parentProxyNode, parentProxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target[targetProperty]);
             dataNode = newNodes.dataNode;
             proxyNode = newNodes.proxyNode;
         }
@@ -631,10 +667,10 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
         if ($cebd7357bd8525a2$export$94b8be4ec3303efd[typeoftarget]) {
             let revocable = Proxy.revocable(target1, {
                 get: (target /*same as parent scope 'target'*/ , property, proxy)=>{
-                    if (this.emitMethods && Object.prototype.hasOwnProperty.call($26afb3b451fe81b5$exports, property) && property in Object.getPrototypeOf(target)) // use a proxy method instead of the built-in method that is on the prototype chain
-                    return $26afb3b451fe81b5$exports[property].bind(this, dataNode, proxyNode);
+                    if (metadata.emitMethods && Object.prototype.hasOwnProperty.call($26afb3b451fe81b5$exports, property) && property in Object.getPrototypeOf(target)) // use a proxy method instead of the built-in method that is on the prototype chain
+                    return $26afb3b451fe81b5$exports[property].bind(metadata, dataNode, proxyNode);
                     else if ($643fcf18b2d2e76f$var$pseudoMethodsNames.includes(property) && typeof target[property] === 'undefined') // can access a pseudo function (or its synonym) if their keywords isn't used
-                    return $f6f254486f25c78f$exports[property].bind(this, dataNode, proxyNode);
+                    return $f6f254486f25c78f$exports[property].bind(metadata, dataNode, proxyNode);
                     else if (!target.propertyIsEnumerable(property) || typeof property === 'symbol') return target[property]; // non-enumerable or non-path'able aren't proxied
                     else if (proxyNode[property] // there's a child node
                      && proxyNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy // it holds a proxy
@@ -671,15 +707,15 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
                         proxyNode[property][$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$89e04a1d3d3065f6.DELETED;
                         delete dataNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode; // detach reference from data-node to proxy-node
                         isOldValueProxy = true;
-                        if (this.strict) // postpone this cpu intense function for later, probably when proxserve is not in use
-                        setTimeout($643fcf18b2d2e76f$export$d402cf8388053971.destroy, this.destroyDelay, proxyNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy);
+                        if (metadata.strict) // postpone this cpu intense function for later, probably when proxserve is not in use
+                        setTimeout($643fcf18b2d2e76f$export$d402cf8388053971.destroy, metadata.destroyDelay, proxyNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy);
                     }
                     value = $431788524d5470e1$export$a58c3ed528c9c399(value);
                     target[property] = value; //assign new value
                     let isValueProxy = false;
                     let typeofvalue = $c0486756bd3a8c4d$export$99a2acdf670c1bf4(value);
                     if ($cebd7357bd8525a2$export$94b8be4ec3303efd[typeofvalue]) {
-                        this.createProxy(dataNode, property); //if trying to add a new value which is an object then make it a proxy
+                        $643fcf18b2d2e76f$export$d402cf8388053971.createProxy(metadata, dataNode, property); // if trying to add a new value which is an object then make it a proxy
                         isValueProxy = true;
                     }
                     $590092d9df4e6b38$export$febbc75e71f4ca1b(dataNode, property, oldValue, isOldValueProxy, value, isValueProxy);
@@ -699,8 +735,8 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
                         proxyNode[property][$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$89e04a1d3d3065f6.DELETED;
                         delete dataNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode; //detach reference from data-node to proxy-node
                         isOldValueProxy = true;
-                        if (this.strict) //postpone this cpu intense function for later, probably when proxserve is not is use
-                        setTimeout($643fcf18b2d2e76f$export$d402cf8388053971.destroy, this.destroyDelay, proxyNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy);
+                        if (metadata.strict) //postpone this cpu intense function for later, probably when proxserve is not is use
+                        setTimeout($643fcf18b2d2e76f$export$d402cf8388053971.destroy, metadata.destroyDelay, proxyNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy);
                     }
                     descriptor.value = $431788524d5470e1$export$a58c3ed528c9c399(descriptor.value);
                     Object.defineProperty(target, property, descriptor); //defining the new value
@@ -709,7 +745,7 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
                     //excluding non-enumerable properties from being proxied
                     let typeofvalue = $c0486756bd3a8c4d$export$99a2acdf670c1bf4(descriptor.value);
                     if ($cebd7357bd8525a2$export$94b8be4ec3303efd[typeofvalue] && descriptor.enumerable === true) {
-                        this.createProxy(dataNode, property); //if trying to add a new value which is an object then make it a proxy
+                        $643fcf18b2d2e76f$export$d402cf8388053971.createProxy(metadata, dataNode, property); //if trying to add a new value which is an object then make it a proxy
                         isValueProxy = true;
                     }
                     $590092d9df4e6b38$export$febbc75e71f4ca1b(dataNode, property, oldValue, isOldValueProxy, value, isValueProxy);
@@ -733,10 +769,10 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
                             proxyNode[property][$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$89e04a1d3d3065f6.DELETED;
                             delete dataNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode; //detach reference from data-node to proxy-node
                             isOldValueProxy = true;
-                            if (this.strict) //postpone this cpu intense function for later, probably when proxserve is not is use
-                            setTimeout($643fcf18b2d2e76f$export$d402cf8388053971.destroy, this.destroyDelay, proxyNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy);
+                            if (metadata.strict) //postpone this cpu intense function for later, probably when proxserve is not is use
+                            setTimeout($643fcf18b2d2e76f$export$d402cf8388053971.destroy, metadata.destroyDelay, proxyNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy);
                         }
-                        delete target[property]; //actual delete
+                        delete target[property]; // actual delete
                         $590092d9df4e6b38$export$febbc75e71f4ca1b(dataNode, property, oldValue, isOldValueProxy, undefined, false);
                         return true;
                     } else return true; //do nothing because there's nothing to delete
@@ -748,7 +784,7 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
                 let keys = Object.keys(target1); //handles both Objects and Arrays
                 for (let key of keys){
                     let typeofproperty = $c0486756bd3a8c4d$export$99a2acdf670c1bf4(target1[key]);
-                    if ($cebd7357bd8525a2$export$94b8be4ec3303efd[typeofproperty]) this.createProxy(dataNode, key); //recursively make child objects also proxies
+                    if ($cebd7357bd8525a2$export$94b8be4ec3303efd[typeofproperty]) $643fcf18b2d2e76f$export$d402cf8388053971.createProxy(metadata, dataNode, key); //recursively make child objects also proxies
                 }
             } else console.warn(`Type of "${typeoftarget}" is not implemented`);
             return revocable.proxy;
@@ -760,11 +796,11 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
     /**
 	 * Recursively revoke proxies, allowing them to be garbage collected.
 	 * this functions delays 1000 milliseconds to let time for all events to finish
-	 * @param {*} proxy 
 	 */ static destroy(proxy) {
         let proxyNode;
         try {
-            [, proxyNode] = proxy.$getProxserveNodes();
+            const nodes = proxy.$getProxserveNodes();
+            proxyNode = nodes.proxyNode;
         } catch (error) {
             return; // proxy variable isn't a proxy
         }
@@ -789,43 +825,6 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
     }
     static evalPath(obj, path1) {
         return $c0486756bd3a8c4d$export$8ffa680996c65fde(obj, path1);
-    }
-    /**
-	 * construct a new proxserve instance
-	 * @param target 
-	 * @param [options]
-	 * 	@property [options.strict] - should destroy detached child-objects or deleted properties automatically
-	 * 	@property [options.emitMethods] - should splice/shift/unshift emit one event or all CRUD events
-	 */ constructor(target, options = {
-    }){
-        const { strict: strict = true , emitMethods: emitMethods = true , debug: debug = {
-            destroyDelay: 1000
-        } ,  } = options;
-        this.strict = strict;
-        this.emitMethods = emitMethods;
-        this.destroyDelay = debug.destroyDelay;
-        let dataTreePrototype = {
-            [$cebd7357bd8525a2$export$d1c20e4ad7d32581]: {
-                status: $cebd7357bd8525a2$export$eb0c55c6f2ee7170.ACTIVE
-            },
-            [$cebd7357bd8525a2$export$f7e0aa381a5261fc]: {
-                isTreePrototype: true
-            }
-        };
-        let proxyTreePrototype = {
-            [$cebd7357bd8525a2$export$d1c20e4ad7d32581]: {
-                status: $cebd7357bd8525a2$export$89e04a1d3d3065f6.ALIVE
-            },
-            [$cebd7357bd8525a2$export$f7e0aa381a5261fc]: {
-                isTreePrototype: true
-            }
-        };
-        const newNodes = $431788524d5470e1$export$953dd193a01bd6ec(dataTreePrototype, proxyTreePrototype, '', target);
-        this.dataTree = newNodes.dataNode;
-        this.proxyTree = newNodes.proxyNode;
-        // `as any` to stop TS from erroring because it wants us to return the `this` object
-        // but instead we are returning a different object
-        return this.createProxy(this.dataTree);
     }
 }
 

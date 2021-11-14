@@ -22,13 +22,29 @@ enum eventNames {
 type SomeObject = {
     [key: string | number | symbol]: any;
 };
-type SomeProxy = {
+type SomeArray = Array<any>;
+type TargetVariable = SomeObject | SomeArray;
+interface ProxserveInstance {
     [ND]: ProxyNode[typeof ND];
     [NID]: ProxyNode[typeof NID];
     [property: string]: any;
-};
-type SomeArray = Array<any>;
-type TargetVariable = SomeObject | SomeArray;
+}
+interface ProxserveInstanceMetadata {
+    /**
+     * should destroy detached child-objects or deleted properties automatically
+     */
+    strict: boolean;
+    /**
+     * should splice, shift or unshift emit one event or all internal CRUD events
+     */
+    emitMethods: boolean;
+    /**
+     * delay before destroying a detached child-object
+     */
+    destroyDelay: number;
+    dataTree: DataNode;
+    proxyTree: ProxyNode;
+}
 type ListenerData = {
     type: eventNames[];
     once: boolean;
@@ -75,56 +91,45 @@ interface ProxyNode {
     [ND]: {
         target: TargetVariable;
         dataNode: DataNode;
-        proxy?: SomeProxy;
+        proxy?: ProxserveInstance;
         revoke?: () => void;
         isTreePrototype?: boolean;
     };
     [property: string]: ProxyNode;
 }
-interface ProxserveInterface {
+interface MakeOptions {
+    /**
+     * should destroy detached child-objects or deleted properties automatically
+     */
     strict: boolean;
-    emitMethods: boolean;
-    destroyDelay: number;
-    dataTree: DataNode;
-    proxyTree: ProxyNode;
-    createProxy(parentDataNode: DataNode, targetProperty?: string): SomeProxy;
-}
-interface ConstructorOptions {
-    strict: boolean;
+    /**
+     * should splice, shift or unshift emit one event or all internal CRUD events
+     */
     emitMethods: boolean;
     debug?: {
+        /**
+         * delay before destroying a detached child-object
+         */
         destroyDelay: number;
     };
 }
-export class Proxserve implements ProxserveInterface {
-    strict: boolean;
-    emitMethods: boolean;
-    destroyDelay: number;
-    dataTree: DataNode;
-    proxyTree: ProxyNode;
+export class Proxserve {
     /**
-     * construct a new proxserve instance
-     * @param target
-     * @param [options]
-     * 	@property [options.strict] - should destroy detached child-objects or deleted properties automatically
-     * 	@property [options.emitMethods] - should splice/shift/unshift emit one event or all CRUD events
+     * make a new proxserve instance
      */
-    constructor(target: TargetVariable, options?: ConstructorOptions);
+    static make(target: TargetVariable, options?: MakeOptions): ProxserveInstance;
     /**
      * create a new proxy and a new node for a property of the parent's target-object
-     * @param {Object} parentDataNode
-     * @param {String} [targetProperty]
      */
-    createProxy(parentDataNode: DataNode, targetProperty?: string): SomeProxy;
+    static createProxy(metadata: ProxserveInstanceMetadata, parentDataNode: DataNode, targetProperty?: string): ProxserveInstance;
     /**
      * Recursively revoke proxies, allowing them to be garbage collected.
      * this functions delays 1000 milliseconds to let time for all events to finish
-     * @param {*} proxy
      */
-    static destroy(proxy: any): void;
-    static splitPath(path: any): (string | number)[];
-    static evalPath(obj: any, path: any): {
-        object: import("globals").SomeObject;
+    static destroy(proxy: ProxserveInstance): void;
+    static splitPath(path: string): Array<string | number>;
+    static evalPath(obj: SomeObject, path: string): {
+        object: SomeObject;
         property: string | number;
         value: any;
     };

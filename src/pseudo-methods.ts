@@ -11,7 +11,7 @@
 // (i.e. someProxserve.pseudoFunction will return the pseudoFunction)
 "use strict"
 
-import { eventNames, nodeStatuses, ND, NID, DataNode, ProxyNode, ListenerData, TargetVariable, ProxserveInterface } from './globals';
+import { eventNames, nodeStatuses, ND, NID, DataNode, ProxyNode, ListenerData, TargetVariable } from './globals';
 import { createNodes } from './supporting-functions';
 import { splitPath } from './general-functions';
 
@@ -75,11 +75,9 @@ export function on(
 	listener: Function,
 	options?: OnOptions,
 ): void {
-	let {
-		deep = false,
-		id = undefined,
-		once = false
-	} = options;
+	let deep: boolean = options?.deep ?? false;
+	let id: number | string | undefined = options?.id ?? undefined;
+	let once: boolean = options?.once ?? false;
 
 	if((events as string) === 'change') {
 		events = Object.keys(eventNames) as eventNames[]; // will listen to all events
@@ -115,8 +113,9 @@ export function on(
 	
 	let segments = splitPath(path);
 	for(let property of segments) { // traverse down the tree
-		if(!dataNode[property]) { // create data-nodes if needed
-			createNodes(dataNode, undefined, property, undefined);
+		if(!dataNode[property]) {
+			// create data-nodes if needed, but don't create/overwrite proxy-nodes
+			createNodes(dataNode, property);
 		}
 
 		dataNode = dataNode[property];
@@ -224,7 +223,7 @@ export function removeAllListeners(dataNode: DataNode, proxyNode: ProxyNode, pat
 }
 
 /**
- * the following functions (getOriginalTarget, getProxserveNodes, getProxserveInstance) seem silly
+ * the following functions (getOriginalTarget, getProxserveNodes) seem silly
  * because they could have been written directly on the handler's get() method but it's here as part of the convention of
  * exposing proxy-"inherited"-methods
  */
@@ -252,11 +251,4 @@ export function getProxserveNodes(dataNode: DataNode, proxyNode: ProxyNode): {
 	proxyNode: ProxyNode;
 } {
 	return { dataNode, proxyNode };
-}
-
-/**
- * get the Proxserve's instance that created this proxy
- */
-export function getProxserveInstance(): ProxserveInterface {
-	return (this as ProxserveInterface);
 }

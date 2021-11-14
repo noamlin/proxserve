@@ -44,13 +44,31 @@ export enum eventNames {
 export type SomeObject = {
 	[key: string | number | symbol]: any,
 };
-export type SomeProxy = {
-	[ND]: ProxyNode[typeof ND],
-	[NID]: ProxyNode[typeof NID],
-	[property: string]: any,
-};
 export type SomeArray = Array<any>;
 export type TargetVariable = SomeObject | SomeArray;
+
+export interface ProxserveInstance {
+	[ND]: ProxyNode[typeof ND];
+	[NID]: ProxyNode[typeof NID];
+	[property: string]: any;
+}
+
+export interface ProxserveInstanceMetadata {
+	/**
+	 * should destroy detached child-objects or deleted properties automatically
+	 */
+	strict: boolean;
+	/**
+	 * should splice, shift or unshift emit one event or all internal CRUD events
+	 */
+	emitMethods: boolean;
+	/**
+	 * delay before destroying a detached child-object
+	 */
+	destroyDelay: number;
+	dataTree: DataNode;
+	proxyTree: ProxyNode;
+}
 
 // theoretically can have any string possible as a type. but these are the most common and they help our TS autocomplete
 export type variableTypes = 'Object'|'Array'|'Number'|'String'|'Boolean'|'Null'|'Undefined'|'BigInt'|'Symbol'|'Date';
@@ -107,18 +125,9 @@ export interface ProxyNode {
 	[ND]: {
 		target: TargetVariable;
 		dataNode: DataNode;
-		proxy?: SomeProxy;
+		proxy?: ProxserveInstance;
 		revoke?: () => void;
 		isTreePrototype?: boolean;
 	};
 	[property: string]: ProxyNode;
 };
-
-export interface ProxserveInterface {
-	strict: boolean;
-	emitMethods: boolean;
-	destroyDelay: number;
-	dataTree: DataNode;
-	proxyTree: ProxyNode;
-	createProxy(parentDataNode: DataNode, targetProperty?: string): SomeProxy;
-}

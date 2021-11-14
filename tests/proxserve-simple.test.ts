@@ -122,11 +122,6 @@ test('4. Proxies should contain built-in functions', () => {
 	expect(typeof proxy.$getProxserveNodes).toBe('function');
 	expect(typeof proxy.level1_1.arr1.getProxserveNodes).toBe('function');
 	expect(typeof proxy.level1_1.arr1.$getProxserveNodes).toBe('function');
-
-	expect(typeof proxy.getProxserveInstance).toBe('function');
-	expect(typeof proxy.$getProxserveInstance).toBe('function');
-	expect(typeof proxy.level1_1.arr1.getProxserveInstance).toBe('function');
-	expect(typeof proxy.level1_1.arr1.$getProxserveInstance).toBe('function');
 });
 
 test('5. Basic events of changes', () => {

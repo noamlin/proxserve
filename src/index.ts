@@ -7,7 +7,9 @@
  */
 "use strict"
 
-import { proxyTypes, nodeStatuses, proxyStatuses, ND, NID, SomeProxy, DataNode, ProxyNode, TargetVariable, ProxserveInterface } from './globals';
+import { proxyTypes, nodeStatuses, proxyStatuses,
+	ND, NID, ProxserveInstance, DataNode, ProxyNode,
+	TargetVariable, SomeObject, ProxserveInstanceMetadata } from './globals';
 import { unproxify, createNodes } from './supporting-functions';
 import * as pseudoMethods from './pseudo-methods';
 import * as proxyMethods from './proxy-methods';
@@ -26,45 +28,33 @@ for(let i = pseudoMethodsNames.length - 1; i >= 0; i--) {
 	pseudoMethodsNames.push(synonym);
 }
 
-interface ConstructorOptions {
+interface MakeOptions {
+	/**
+	 * should destroy detached child-objects or deleted properties automatically
+	 */
 	strict: boolean;
+	/**
+	 * should splice, shift or unshift emit one event or all internal CRUD events
+	 */
 	emitMethods: boolean;
 	debug?: {
+		/**
+		 * delay before destroying a detached child-object
+		 */
 		destroyDelay: number;
 	};
 }
 
-/**
- * ====================================================================================================
- * TODO:
- * instantiating a class but receiving another object (the proxy) instead of an instance makes everything a bit crazy -
- * too hard to reach the actual instance and the biggest problem is worng typing in the type definitions file.
- * should move to a `const proxy = Proxserve.make({})` approach
- */
-export class Proxserve implements ProxserveInterface {
-	strict: boolean;
-	emitMethods: boolean;
-	destroyDelay: number;
-	dataTree: DataNode;
-	proxyTree: ProxyNode;
-
+export class Proxserve {
 	/**
-	 * construct a new proxserve instance
-	 * @param target 
-	 * @param [options]
-	 * 	@property [options.strict] - should destroy detached child-objects or deleted properties automatically
-	 * 	@property [options.emitMethods] - should splice/shift/unshift emit one event or all CRUD events
+	 * make a new proxserve instance
 	 */
-	constructor(target: TargetVariable, options = {} as ConstructorOptions) {
+	static make(target: TargetVariable, options = {} as MakeOptions): ProxserveInstance {
 		const {
 			strict = true,
 			emitMethods = true,
 			debug = { destroyDelay: 1000 },
 		} = options;
-
-		this.strict = strict;
-		this.emitMethods = emitMethods;
-		this.destroyDelay = debug.destroyDelay;
 
 		let dataTreePrototype: DataNode = {
 			[NID]: { status: nodeStatuses.ACTIVE },
@@ -75,21 +65,23 @@ export class Proxserve implements ProxserveInterface {
 			[ND]: { isTreePrototype: true } as ProxyNode[typeof ND],
 		};
 
-		const newNodes = createNodes(dataTreePrototype, proxyTreePrototype, '', target);
-		this.dataTree = newNodes.dataNode;
-		this.proxyTree = newNodes.proxyNode;
+		const newNodes = createNodes(dataTreePrototype, '', proxyTreePrototype, target);
 
-		// `as any` to stop TS from erroring because it wants us to return the `this` object
-		// but instead we are returning a different object
-		return this.createProxy(this.dataTree) as any;
+		const metadata = {
+			strict,
+			emitMethods,
+			destroyDelay: debug.destroyDelay,
+			dataTree: newNodes.dataNode,
+			proxyTree: newNodes.proxyNode,
+		} as ProxserveInstanceMetadata;
+
+		return Proxserve.createProxy(metadata, metadata.dataTree);
 	}
 
 	/**
 	 * create a new proxy and a new node for a property of the parent's target-object
-	 * @param {Object} parentDataNode
-	 * @param {String} [targetProperty]
 	 */
-	createProxy(parentDataNode: DataNode, targetProperty?: string): SomeProxy {
+	static createProxy(metadata: ProxserveInstanceMetadata, parentDataNode: DataNode, targetProperty?: string): ProxserveInstance {
 		let parentProxyNode = parentDataNode[ND].proxyNode
 		let dataNode: DataNode, proxyNode: ProxyNode;
 
@@ -101,8 +93,8 @@ export class Proxserve implements ProxserveInterface {
 			//creates new or reset an existing data-node and then creates a new proxy-node
 			const newNodes = createNodes(
 				parentDataNode,
-				parentProxyNode,
 				targetProperty,
+				parentProxyNode,
 				parentProxyNode[ND].target[targetProperty],
 			);
 			dataNode = newNodes.dataNode;
@@ -116,13 +108,13 @@ export class Proxserve implements ProxserveInterface {
 		if(proxyTypes[typeoftarget]) {
 			let revocable = Proxy.revocable<TargetVariable>(target, {
 				get: (target: TargetVariable/*same as parent scope 'target'*/, property: string|symbol, proxy) => {
-					if(this.emitMethods && Object.prototype.hasOwnProperty.call(proxyMethods, property) && property in Object.getPrototypeOf(target)) {
+					if(metadata.emitMethods && Object.prototype.hasOwnProperty.call(proxyMethods, property) && property in Object.getPrototypeOf(target)) {
 						// use a proxy method instead of the built-in method that is on the prototype chain
-						return proxyMethods[property].bind(this, dataNode, proxyNode);
+						return proxyMethods[property].bind(metadata, dataNode, proxyNode);
 					}
 					else if(pseudoMethodsNames.includes(property as string) && typeof target[property] === 'undefined') {
 						// can access a pseudo function (or its synonym) if their keywords isn't used
-						return pseudoMethods[property].bind(this, dataNode, proxyNode);
+						return pseudoMethods[property].bind(metadata, dataNode, proxyNode);
 					}
 					else if(!target.propertyIsEnumerable(property) || typeof property === 'symbol') {
 						return target[property]; // non-enumerable or non-path'able aren't proxied
@@ -170,9 +162,9 @@ export class Proxserve implements ProxserveInterface {
 						proxyNode[property][NID].status = proxyStatuses.DELETED;
 						delete dataNode[property][ND].proxyNode; // detach reference from data-node to proxy-node
 						isOldValueProxy = true;
-						if(this.strict) {
+						if(metadata.strict) {
 							// postpone this cpu intense function for later, probably when proxserve is not in use
-							setTimeout(Proxserve.destroy, this.destroyDelay, proxyNode[property][ND].proxy);
+							setTimeout(Proxserve.destroy, metadata.destroyDelay, proxyNode[property][ND].proxy);
 						}
 					}
 
@@ -182,7 +174,7 @@ export class Proxserve implements ProxserveInterface {
 					let isValueProxy = false;
 					let typeofvalue = realtypeof(value);
 					if(proxyTypes[typeofvalue]) {
-						this.createProxy(dataNode, property); //if trying to add a new value which is an object then make it a proxy
+						Proxserve.createProxy(metadata, dataNode, property); // if trying to add a new value which is an object then make it a proxy
 						isValueProxy = true;
 					}
 
@@ -207,9 +199,9 @@ export class Proxserve implements ProxserveInterface {
 						proxyNode[property][NID].status = proxyStatuses.DELETED;
 						delete dataNode[property][ND].proxyNode; //detach reference from data-node to proxy-node
 						isOldValueProxy = true;
-						if(this.strict) {
+						if(metadata.strict) {
 							//postpone this cpu intense function for later, probably when proxserve is not is use
-							setTimeout(Proxserve.destroy, this.destroyDelay, proxyNode[property][ND].proxy);
+							setTimeout(Proxserve.destroy, metadata.destroyDelay, proxyNode[property][ND].proxy);
 						}
 					}
 
@@ -220,7 +212,7 @@ export class Proxserve implements ProxserveInterface {
 					//excluding non-enumerable properties from being proxied
 					let typeofvalue = realtypeof(descriptor.value);
 					if(proxyTypes[typeofvalue] && descriptor.enumerable === true) {
-						this.createProxy(dataNode, property); //if trying to add a new value which is an object then make it a proxy
+						Proxserve.createProxy(metadata, dataNode, property); //if trying to add a new value which is an object then make it a proxy
 						isValueProxy = true;
 					}
 
@@ -249,13 +241,13 @@ export class Proxserve implements ProxserveInterface {
 							proxyNode[property][NID].status = proxyStatuses.DELETED;
 							delete dataNode[property][ND].proxyNode; //detach reference from data-node to proxy-node
 							isOldValueProxy = true;
-							if(this.strict) {
+							if(metadata.strict) {
 								//postpone this cpu intense function for later, probably when proxserve is not is use
-								setTimeout(Proxserve.destroy, this.destroyDelay, proxyNode[property][ND].proxy);
+								setTimeout(Proxserve.destroy, metadata.destroyDelay, proxyNode[property][ND].proxy);
 							}
 						}
 
-						delete target[property]; //actual delete
+						delete target[property]; // actual delete
 
 						initEmitEvent(dataNode, property, oldValue, isOldValueProxy, undefined, false);
 
@@ -265,7 +257,7 @@ export class Proxserve implements ProxserveInterface {
 						return true; //do nothing because there's nothing to delete
 					}
 				}
-			} as ProxyHandler<TargetVariable>) as { proxy: SomeProxy, revoke: ()=>void };
+			} as ProxyHandler<TargetVariable>) as { proxy: ProxserveInstance, revoke: ()=>void };
 
 			proxyNode[ND].proxy = revocable.proxy;
 			proxyNode[ND].revoke = revocable.revoke;
@@ -275,7 +267,7 @@ export class Proxserve implements ProxserveInterface {
 				for(let key of keys) {
 					let typeofproperty = realtypeof(target[key]);
 					if(proxyTypes[typeofproperty]) {
-						this.createProxy(dataNode, key); //recursively make child objects also proxies
+						Proxserve.createProxy(metadata, dataNode, key); //recursively make child objects also proxies
 					}
 				}
 			}
@@ -294,9 +286,8 @@ export class Proxserve implements ProxserveInterface {
 	/**
 	 * Recursively revoke proxies, allowing them to be garbage collected.
 	 * this functions delays 1000 milliseconds to let time for all events to finish
-	 * @param {*} proxy 
 	 */
-	static destroy(proxy) {
+	static destroy(proxy: ProxserveInstance) {
 		let proxyNode;
 		try {
 			const nodes = proxy.$getProxserveNodes();
@@ -334,11 +325,15 @@ export class Proxserve implements ProxserveInterface {
 		}
 	}
 
-	static splitPath(path) {
+	static splitPath(path: string): Array<string|number> {
 		return splitPath(path);
 	}
 
-	static evalPath(obj, path) {
+	static evalPath(obj: SomeObject, path: string): {
+		object: SomeObject,
+		property: string|number,
+		value: any,
+	} {
 		return evalPath(obj, path);
 	}
 }

@@ -14,7 +14,7 @@ import { SomeObject, SomeArray, variableTypes } from './globals';
  */
 export function realtypeof(variable: any): variableTypes {
 	let rawType = Object.prototype.toString.call(variable); //[object Object], [object Array], [object Number]...
-	return rawType.substring(8, rawType.length - 1);
+	return rawType.substring(8, rawType.length - 1) as variableTypes;
 }
 
 /**
@@ -54,7 +54,7 @@ export function simpleClone(variable: any): any {
 	else if(typeofvar === 'Array') {
 		const arr = variable as SomeArray;
 		simpleCloneSet.add(arr);
-		const cloned = [];
+		const cloned = [] as any[];
 		for(let i = 0; i < arr.length; i++) {
 			if(simpleCloneSet.has(arr[i])) {
 				cloned[i] = arr[i];
@@ -156,14 +156,14 @@ export function evalPath(obj: SomeObject, path: string): {
 	if(path === '') {
 		return {
 			object: obj,
-			property: undefined,
+			property: '',
 			value: obj,
 		};
 	}
 
 	let segments = splitPath(path);
 	let i: number;
-	for(i = 0; i <= segments.length - 2; i++) { //iterate until one before last property because they all must exist
+	for(i = 0; i <= segments.length - 2; i++) { // iterate until one before last property because they all must exist
 		obj = obj[segments[i]];
 		if(typeof obj === 'undefined') {
 			throw new Error(`Invalid path was given - "${path}"`);
