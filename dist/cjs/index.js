@@ -614,15 +614,18 @@ for(let i = $758ea81f4f7b53ee$var$pseudoMethodsNames.length - 1; i >= 0; i--){
 class $758ea81f4f7b53ee$export$d402cf8388053971 {
     /**
 	 * construct a new proxserve instance
-	 * @param {Object|Array} target 
-	 * @param {Object} [options]
-	 * 	@property {Boolean} [options.strict] - should destroy detached child-objects or deleted properties automatically
-	 * 	@property {Boolean} [options.emitMethods] - should splice/shift/unshift emit one event or all CRUD events
-	 */ constructor(target2, options){
-        this.strict = options.strict;
-        this.emitMethods = options.emitMethods;
-        this.destroyDelay = 1000;
-        if (options.debug && options.debug.destroyDelay) this.destroyDelay = options.debug.destroyDelay;
+	 * @param target 
+	 * @param [options]
+	 * 	@property [options.strict] - should destroy detached child-objects or deleted properties automatically
+	 * 	@property [options.emitMethods] - should splice/shift/unshift emit one event or all CRUD events
+	 */ constructor(target2, options = {
+    }){
+        const { strict: strict = true , emitMethods: emitMethods = true , debug: debug = {
+            destroyDelay: 1000
+        } ,  } = options;
+        this.strict = strict;
+        this.emitMethods = emitMethods;
+        this.destroyDelay = debug.destroyDelay;
         let dataTreePrototype = {
             [$518557bad313f8f1$export$d1c20e4ad7d32581]: {
                 status: $518557bad313f8f1$export$eb0c55c6f2ee7170.ACTIVE

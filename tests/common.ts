@@ -8,17 +8,15 @@
  * Common assets for unit tests.
  */
 
-const util = require('util');
-let ND = Symbol.for('proxserve_node_data');
-let NID = Symbol.for('proxserve_node_inherited_data');
+import util from 'util';
 
-module.exports.cloneDeep = require('lodash').cloneDeep;
-module.exports.ND = ND;
-module.exports.NID = NID;
-module.exports.isProxy = util.types.isProxy;
+export { cloneDeep } from 'lodash';
+export const isProxy = util.types.isProxy;
+export let ND = Symbol.for('proxserve_node_data');
+export let NID = Symbol.for('proxserve_node_inherited_data');
 
- //test if proxy's internal [[handler]] is revoked. according to https://www.ecma-international.org/ecma-262/#sec-proxycreate
-//currently (Jan 2021) not working
+// test if proxy's internal [[handler]] is revoked. according to https://www.ecma-international.org/ecma-262/#sec-proxycreate
+// currently (Jan 2021) not working
 /*function isRevoked(value) {
 	try {
 		new Proxy(value, value); //instantiating with revoked-proxy throws an error
@@ -31,7 +29,7 @@ module.exports.isProxy = util.types.isProxy;
  * 
  * @param {Object} proxyNode - the objects related to proxy
  */
-module.exports.isRevoked = function isRevoked(proxyNode) {
+export const isRevoked = function isRevoked(proxyNode) {
 	if(!util.types.isProxy(proxyNode[ND].proxy)) {
 		return false; // not even a proxy so can't be revoked
 	}
@@ -48,16 +46,16 @@ module.exports.isRevoked = function isRevoked(proxyNode) {
 }
 
 var consoleFuncs = { log: console.log, warn: console.warn, error: console.error };
-module.exports.silentConsole = function silentConsole() {
+export const silentConsole = function silentConsole() {
 	console.log = console.warn = console.error = function() { };
 }
-module.exports.wakeConsole = function wakeConsole() {
+export const wakeConsole = function wakeConsole() {
 	console.log = consoleFuncs.log;
 	console.warn = consoleFuncs.warn;
 	console.error = consoleFuncs.error;
 }
 
-module.exports.testObject = {
+export const testObject = {
 	level1_1: {
 		arr1: [0,1,2]
 	},
@@ -85,7 +83,7 @@ module.exports.testObject = {
 	}
 };
 
-module.exports.deepCountObjects = function deepCountObjects(obj) {
+export const deepCountObjects = function deepCountObjects(obj) {
 	let numChildObjects = 0;
 
 	if(Array.isArray(obj)) {

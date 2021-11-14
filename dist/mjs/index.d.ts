@@ -81,14 +81,6 @@ interface ProxyNode {
     };
     [property: string]: ProxyNode;
 }
-interface ProxserveInterface {
-    strict: boolean;
-    emitMethods: boolean;
-    destroyDelay: number;
-    dataTree: DataNode;
-    proxyTree: ProxyNode;
-    createProxy(parentDataNode: DataNode, targetProperty?: string): SomeProxy;
-}
 interface ConstructorOptions {
     strict: boolean;
     emitMethods: boolean;
@@ -96,7 +88,8 @@ interface ConstructorOptions {
         destroyDelay: number;
     };
 }
-export class Proxserve implements ProxserveInterface {
+export class Proxserve {
+	 getOriginalTarget: () => void;
     strict: boolean;
     emitMethods: boolean;
     destroyDelay: number;

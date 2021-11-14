@@ -74,7 +74,7 @@ export function on(
 	path: string,
 	listener: Function,
 	options?: OnOptions,
-) {
+): void {
 	let {
 		deep = false,
 		id = undefined,
@@ -207,7 +207,7 @@ export function removeListener(dataNode: DataNode, proxyNode: ProxyNode, path: s
  * 
  * @param [path] - path selector
  */
-export function removeAllListeners(dataNode: DataNode, proxyNode: ProxyNode, path = '') {
+export function removeAllListeners(dataNode: DataNode, proxyNode: ProxyNode, path = ''): void {
 	let fullPath = `${dataNode[ND].path}${path}`;
 	let segments = splitPath(path);
 	//traverse down the tree

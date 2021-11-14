@@ -34,6 +34,13 @@ interface ConstructorOptions {
 	};
 }
 
+/**
+ * ====================================================================================================
+ * TODO:
+ * instantiating a class but receiving another object (the proxy) instead of an instance makes everything a bit crazy -
+ * too hard to reach the actual instance and the biggest problem is worng typing in the type definitions file.
+ * should move to a `const proxy = Proxserve.make({})` approach
+ */
 export class Proxserve implements ProxserveInterface {
 	strict: boolean;
 	emitMethods: boolean;
@@ -43,17 +50,21 @@ export class Proxserve implements ProxserveInterface {
 
 	/**
 	 * construct a new proxserve instance
-	 * @param {Object|Array} target 
-	 * @param {Object} [options]
-	 * 	@property {Boolean} [options.strict] - should destroy detached child-objects or deleted properties automatically
-	 * 	@property {Boolean} [options.emitMethods] - should splice/shift/unshift emit one event or all CRUD events
+	 * @param target 
+	 * @param [options]
+	 * 	@property [options.strict] - should destroy detached child-objects or deleted properties automatically
+	 * 	@property [options.emitMethods] - should splice/shift/unshift emit one event or all CRUD events
 	 */
-	constructor(target: TargetVariable, options: ConstructorOptions) {
-		this.strict = options.strict;
-		this.emitMethods = options.emitMethods;
-		this.destroyDelay = 1000;
+	constructor(target: TargetVariable, options = {} as ConstructorOptions) {
+		const {
+			strict = true,
+			emitMethods = true,
+			debug = { destroyDelay: 1000 },
+		} = options;
 
-		if(options.debug && options.debug.destroyDelay) this.destroyDelay = options.debug.destroyDelay;
+		this.strict = strict;
+		this.emitMethods = emitMethods;
+		this.destroyDelay = debug.destroyDelay;
 
 		let dataTreePrototype: DataNode = {
 			[NID]: { status: nodeStatuses.ACTIVE },
@@ -161,7 +172,7 @@ export class Proxserve implements ProxserveInterface {
 						isOldValueProxy = true;
 						if(this.strict) {
 							// postpone this cpu intense function for later, probably when proxserve is not in use
-							setTimeout(Proxserve.destroy, this.destroyDelay, proxyNode[property][ND].proxy); 
+							setTimeout(Proxserve.destroy, this.destroyDelay, proxyNode[property][ND].proxy);
 						}
 					}
 
@@ -288,7 +299,8 @@ export class Proxserve implements ProxserveInterface {
 	static destroy(proxy) {
 		let proxyNode;
 		try {
-			[, proxyNode] = proxy.$getProxserveNodes();
+			const nodes = proxy.$getProxserveNodes();
+			proxyNode = nodes.proxyNode;
 		} catch(error) {
 			return; // proxy variable isn't a proxy
 		}

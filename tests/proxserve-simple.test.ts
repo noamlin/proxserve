@@ -9,9 +9,8 @@
  */
 "use strict"
 
-const Proxserve = require('../dist/proxserve.js');
-
-const { isProxy, isRevoked, testObject, silentConsole, wakeConsole, cloneDeep } = require('./common.js');
+import { Proxserve } from '../dist/mjs/index';
+import { isProxy, isRevoked, testObject, silentConsole, wakeConsole, cloneDeep } from './common';
 
 test('1. Initiate a proxserve and check if original object stays intact', () => {
 	let origin = cloneDeep(testObject);
@@ -43,6 +42,11 @@ test('3. defineProperty should convert string/number properties to proxy', (done
 		configurable: true,
 		writable: true,
 		value: { this_is: { inner: 'some value' } }
+	} as {
+		enumerable: boolean;
+		configurable: boolean;
+		writable: boolean;
+		value: any;
 	};
 
 	Object.defineProperty(proxy, sym, cloneDeep(desc));
@@ -60,7 +64,7 @@ test('3. defineProperty should convert string/number properties to proxy', (done
 	expect(isProxy(proxy.obj)).toBe(true);
 	expect(isProxy(proxy.obj.this_is)).toBe(true);
 
-	let [dataNode, proxyNode] = proxy.obj.this_is.getProxserveNodes();
+	let { dataNode, proxyNode } = proxy.obj.this_is.getProxserveNodes();
 
 	desc.value = 5;
 	Object.defineProperty(proxy, 'obj', cloneDeep(desc)); //overwrite existing property 'obj'
