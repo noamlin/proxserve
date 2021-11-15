@@ -32,102 +32,11 @@ export enum proxyStatuses {
 };
 
 // event names that can be emitted
-export enum eventNames {
+export enum eventNamesObject {
 	create = 'create',
 	update = 'update',
 	delete = 'delete',
 	splice = 'splice',
 	shift = 'shift',
 	unshift = 'unshift',
-};
-
-export type SomeObject = {
-	[key: string | number | symbol]: any,
-};
-export type SomeArray = Array<any>;
-export type TargetVariable = SomeObject | SomeArray;
-
-export interface ProxserveInstance {
-	[ND]: ProxyNode[typeof ND];
-	[NID]: ProxyNode[typeof NID];
-	[property: string]: any;
-}
-
-export interface ProxserveInstanceMetadata {
-	/**
-	 * should destroy detached child-objects or deleted properties automatically
-	 */
-	strict: boolean;
-	/**
-	 * should splice, shift or unshift emit one event or all internal CRUD events
-	 */
-	emitMethods: boolean;
-	/**
-	 * delay before destroying a detached child-object
-	 */
-	destroyDelay: number;
-	dataTree: DataNode;
-	proxyTree: ProxyNode;
-}
-
-// theoretically can have any string possible as a type. but these are the most common and they help our TS autocomplete
-export type variableTypes = 'Object'|'Array'|'Number'|'String'|'Boolean'|'Null'|'Undefined'|'BigInt'|'Symbol'|'Date';
-
-export type ListenerData = {
-	type: eventNames[],
-	once: boolean,
-	func: Function,
-	id?: string | number;
-};
-
-export type DeferredEvent = {
-	dataNode: DataNode,
-	change: ChangeEvent,
-	shouldCapture: boolean,
-};
-
-export type ChangeEvent = {
-	path: string,
-	value: any,
-	oldValue: any,
-	type: eventNames,
-	args?: {
-		start?: number;
-		deleteCount?: number;
-		items?: any[];
-	},
-};
-
-export interface DataNode {
-	// Node Inherited Data
-	[NID]: {
-		status?: nodeStatuses;
-	};
-	// Node Data
-	[ND]: {
-		proxyNode: ProxyNode;
-		parentNode: DataNode;
-		listeners: {
-			shallow: ListenerData[];
-			deep: ListenerData[];
-		},
-		path: string;
-		propertyPath: string;
-		deferredEvents?: DeferredEvent[];
-		isTreePrototype?: boolean;
-	};
-};
-
-export interface ProxyNode {
-	[NID]: {
-		status?: proxyStatuses;
-	};
-	[ND]: {
-		target: TargetVariable;
-		dataNode: DataNode;
-		proxy?: ProxserveInstance;
-		revoke?: () => void;
-		isTreePrototype?: boolean;
-	};
-	[property: string]: ProxyNode;
 };

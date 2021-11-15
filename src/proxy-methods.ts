@@ -10,7 +10,8 @@
 // the actual "splice" function internally
 "use strict"
 
-import { nodeStatuses, eventNames, ND, NID, DataNode, ProxyNode } from './globals';
+import { nodeStatuses, eventNamesObject, ND, NID } from './globals';
+import { DataNode, ProxyNode } from './types';
 import { initFunctionEmitEvent } from './event-emitter';
 
 /**
@@ -47,7 +48,7 @@ export function splice(
 		dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
 
-	initFunctionEmitEvent(dataNode, eventNames.splice, args, oldValue, proxyNode[ND].target);
+	initFunctionEmitEvent(dataNode, eventNamesObject.splice, args, oldValue, proxyNode[ND].target);
 
 	return deleted;
 }
@@ -77,7 +78,7 @@ export function shift(dataNode: DataNode, proxyNode: ProxyNode): any {
 		dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
 
-	initFunctionEmitEvent(dataNode, eventNames.shift, {}, oldValue, proxyNode[ND].target);
+	initFunctionEmitEvent(dataNode, eventNamesObject.shift, {}, oldValue, proxyNode[ND].target);
 
 	return deleted;
 }
@@ -108,7 +109,7 @@ export function unshift(dataNode: DataNode, proxyNode: ProxyNode, ...items: any[
 		dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
 
-	initFunctionEmitEvent(dataNode, eventNames.unshift, args, oldValue, proxyNode[ND].target);
+	initFunctionEmitEvent(dataNode, eventNamesObject.unshift, args, oldValue, proxyNode[ND].target);
 
 	return newLength;
 }

@@ -7,7 +7,7 @@
  */
 "use strict"
 
-import { SomeObject, SomeArray, variableTypes } from './globals';
+import { SomeObject, SomeArray, variableTypes } from './types';
 
 /**
  * return a string representing the full type of the variable

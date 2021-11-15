@@ -7,7 +7,8 @@
  */
 "use strict"
 
-import { eventNames, nodeStatuses, proxyStatuses, ND, NID, DataNode, ChangeEvent, DeferredEvent, ListenerData } from './globals';
+import { eventNamesObject, nodeStatuses, proxyStatuses, ND, NID } from './globals';
+import { eventNames, DataNode, ChangeEvent, DeferredEvent, ListenerData } from './types';
 import { property2path } from './supporting-functions';
 import { splitPath } from './general-functions';
 
@@ -69,11 +70,11 @@ export function initEmitEvent(
 		return;
 	}
 
-	let changeType = eventNames.update;
+	let changeType = eventNamesObject.update;
 	if(value === undefined) {
-		changeType = eventNames.delete;
+		changeType = eventNamesObject.delete;
 	} else if(oldValue === undefined) {
-		changeType = eventNames.create;
+		changeType = eventNamesObject.create;
 	}
 
 	let deferredEvents: DeferredEvent[] | undefined;
@@ -154,11 +155,11 @@ function captureEmit(dataNode: DataNode, change: ChangeEvent): void {
 		let subValue = (typeof change.value === 'object' && change.value !== null) ? change.value[key] : undefined;
 		let subOldValue = (typeof change.oldValue === 'object' && change.oldValue !== null) ? change.oldValue[key] : undefined;
 		if(subValue !== subOldValue) { //if not both undefined or same primitive or the same object
-			let changeType = eventNames.update;
+			let changeType = eventNamesObject.update;
 			if(subValue === undefined) {
-				changeType = eventNames.delete;
+				changeType = eventNamesObject.delete;
 			} else if(subOldValue === undefined) {
-				changeType = eventNames.create;
+				changeType = eventNamesObject.create;
 			}
 
 			let subChange: ChangeEvent = {

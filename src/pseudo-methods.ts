@@ -11,106 +11,51 @@
 // (i.e. someProxserve.pseudoFunction will return the pseudoFunction)
 "use strict"
 
-import { eventNames, nodeStatuses, ND, NID, DataNode, ProxyNode, ListenerData, TargetVariable } from './globals';
+import { eventNamesObject, nodeStatuses, ND, NID } from './globals';
+import { ListenerData, StopFunction, BlockFunction, ActivateFunction, OnFunction, OnceFunction,
+	RemoveListenerFunction, RemoveAllListenersFunction, GetOriginalTargetFunction, GetProxserveNodesFunction,
+	PseudoThis, eventNames } from './types';
 import { createNodes } from './supporting-functions';
 import { splitPath } from './general-functions';
 
-/**
- * stop object and children from emitting change events
- * automatically filled param {Object} dataNode
- */
-export function stop(dataNode: DataNode): void {
-	dataNode[NID].status = nodeStatuses.STOPPED;
-}
+export const stop = function stop(this: PseudoThis) {
+	this.dataNode[NID].status = nodeStatuses.STOPPED;
+} as StopFunction;
 
-/**
- * block object and children from any changes.
- * user can't set nor delete any property
- * automatically filled param {Object} dataNode
- */
-export function block(dataNode: DataNode): void {
-	dataNode[NID].status = nodeStatuses.BLOCKED;
-}
+export const block = function block(this: PseudoThis) {
+	this.dataNode[NID].status = nodeStatuses.BLOCKED;
+} as BlockFunction;
 
-/**
- * resume default behavior of emitting change events, inherited from parent
- * automatically filled param {Object} dataNode
- * automatically filled param {Object} proxyNode
- * @param {Boolean} [force] - force being active regardless of parent
- */
-export function activate(dataNode: DataNode, proxyNode: ProxyNode, force=false): void {
-	if(force || dataNode === this.dataTree) { //force activation or we are on root proxy
-		dataNode[NID].status = nodeStatuses.ACTIVE;
+export const activate = function activate(this: PseudoThis, force = false): void {
+	if(force || this.dataNode === this.metadata.dataTree) { // force activation or we are on root proxy
+		this.dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
 	else {
-		delete dataNode[NID].status;
+		delete this.dataNode[NID].status;
 	}
-}
+} as ActivateFunction;
 
-interface OnOptions {
-	deep?: boolean;
-	id?: number | string;
-	once?: boolean;
-}
-/**
- * add event listener on a proxy or on a descending path
- * 
- * @remarks
- * automatically filled param {Object} dataNode
- * automatically filled param {Object} proxyNode
- * 
- * @param events
- * @param [path] - path selector
- * @param listener
- * @param [options]
- * 	@property [options.deep] - should listen for event emitted by sub-objects or not
- * 	@property [options.id] - identifier for removing this listener later
- * 	@property [options.once] - whether this listener will run only once or always
- */
-export function on(
-	dataNode: DataNode,
-	proxyNode: ProxyNode,
-	events: eventNames | eventNames[],
-	path: string,
-	listener: Function,
-	options?: OnOptions,
-): void {
-	let deep: boolean = options?.deep ?? false;
-	let id: number | string | undefined = options?.id ?? undefined;
-	let once: boolean = options?.once ?? false;
+export const on = function on(this: PseudoThis, args) {
+	const { path = '', listener, options = {} } = args;
+	let { events } = args;
+
+	options.deep = options.deep ?? false;
+	options.once = options.once ?? false;
 
 	if((events as string) === 'change') {
-		events = Object.keys(eventNames) as eventNames[]; // will listen to all events
+		events = Object.keys(eventNamesObject) as eventNames[]; // will listen to all events
 	} else if(!Array.isArray(events)) {
 		events = [events];
 	}
 
 	for(let event of events) {
-		if(!eventNames[event]) {
-			const names = Object.keys(eventNames);
+		if(!eventNamesObject[event]) {
+			const names = Object.keys(eventNamesObject);
 			throw new Error(`${event} is not a valid event. valid events are ${names.join(',')}`);
 		}
 	}
-
-	if(typeof path === 'function') { // if called without path
-		if(typeof listener === 'object') { // listener is options
-			const optionsFromListener = listener as OnOptions;
-			if(typeof optionsFromListener.deep === 'boolean') {
-				deep = optionsFromListener.deep;
-			}
-			if(optionsFromListener.id !== undefined) {
-				id = optionsFromListener.id;
-			}
-			if(typeof optionsFromListener.once === 'boolean') {
-				once = optionsFromListener.once;
-			}
-		}
-		listener = path as Function;
-		path = '';
-	} else if(typeof listener !== 'function') {
-		throw new Error(`invalid arguments were given. listener must be a function`);
-	}
 	
+	let dataNode = this.dataNode;
 	let segments = splitPath(path);
 	for(let property of segments) { // traverse down the tree
 		if(!dataNode[property]) {
@@ -122,39 +67,27 @@ export function on(
 	}
 
 	let listenersPool = dataNode[ND].listeners.shallow;
-	if(deep) {
+	if(options.deep) {
 		listenersPool = dataNode[ND].listeners.deep;
 	}
 
 	let listenerObj = {
 		type: events,
-		once: once,
+		once: options.once,
 		func: listener
 	} as ListenerData;
 
-	if(id !== undefined) {
-		listenerObj.id = id;
+	if(options.id !== undefined) {
+		listenerObj.id = options.id;
 	}
 	listenersPool.push(listenerObj);
-}
+} as OnFunction;
 
-/**
- * just like `on` but the listener will run only once
- * @see on() function
- */
-export function once(
-	dataNode: DataNode,
-	proxyNode: ProxyNode,
-	events: eventNames | eventNames[],
-	path: string,
-	listener: Function,
-	options?: OnOptions): void {
-	if(typeof options !== 'object') {
-		options = {};
-	}
+export const once = function once(this: PseudoThis, args) {
+	const { events, path, listener, options = {} } = args;
 	options.once = true;
-	on.call(this, dataNode, proxyNode, events, path, listener, options);
-}
+	on.call(this, { events, path, listener, options });
+} as OnceFunction;
 
 function removeById(listenersArr: ListenerData[], id: string | number | Function): void {
 	for(let i = listenersArr.length - 1; i >= 0; i--) {
@@ -165,25 +98,12 @@ function removeById(listenersArr: ListenerData[], id: string | number | Function
 	}
 }
 
-/**
- * removes a listener from a path by an identifier (can have multiple listeners with the same ID)
- * or by the listener function itself
- * 
- * @remarks
- * automatically filled param {Object} dataNode
- * automatically filled param {Object} proxyNode
- * 
- * @param [path] - path selector
- * @param id - the listener(s) identifier or listener-function
- */
-export function removeListener(dataNode: DataNode, proxyNode: ProxyNode, path: string, id: string | number | Function): void {
-	if(arguments.length === 3) { // if called without path
-		id = path as string | number | Function;
-		path = '';
-	}
+export const removeListener = function removeListener(this: PseudoThis, args) {
+	const { id, path = '' } = args;
+	const fullPath = `${this.dataNode[ND].path}${path}`;
+	let dataNode = this.dataNode;
+	const segments = splitPath(path);
 
-	let fullPath = `${dataNode[ND].path}${path}`;
-	let segments = splitPath(path);
 	// traverse down the tree
 	for(let property of segments) {
 		if(!dataNode[property]) {
@@ -195,20 +115,13 @@ export function removeListener(dataNode: DataNode, proxyNode: ProxyNode, path: s
 
 	removeById(dataNode[ND].listeners.shallow, id);
 	removeById(dataNode[ND].listeners.deep, id);
-}
+} as RemoveListenerFunction;
 
-/**
- * removing all listeners of a path
- * 
- * @remarks
- * automatically filled param {Object} dataNode
- * automatically filled param {Object} proxyNode
- * 
- * @param [path] - path selector
- */
-export function removeAllListeners(dataNode: DataNode, proxyNode: ProxyNode, path = ''): void {
-	let fullPath = `${dataNode[ND].path}${path}`;
-	let segments = splitPath(path);
+export const removeAllListeners = function removeAllListeners(this: PseudoThis, path = '') {
+	const fullPath = `${this.dataNode[ND].path}${path}`;
+	const segments = splitPath(path);
+	let dataNode = this.dataNode;
+
 	//traverse down the tree
 	for(let property of segments) {
 		if(!dataNode[property]) {
@@ -220,35 +133,12 @@ export function removeAllListeners(dataNode: DataNode, proxyNode: ProxyNode, pat
 
 	dataNode[ND].listeners.shallow = [] as ListenerData[];
 	dataNode[ND].listeners.deep = [] as ListenerData[];
-}
+} as RemoveAllListenersFunction;
 
-/**
- * the following functions (getOriginalTarget, getProxserveNodes) seem silly
- * because they could have been written directly on the handler's get() method but it's here as part of the convention of
- * exposing proxy-"inherited"-methods
- */
-/**
- * get original target that is behind the proxy
- * 
- * @remarks
- * automatically filled param {Object} dataNode
- * automatically filled param {Object} proxyNode
- */
-export function getOriginalTarget(dataNode: DataNode, proxyNode: ProxyNode): TargetVariable {
-	return proxyNode[ND].target;
-}
+export const getOriginalTarget = function getOriginalTarget(this: PseudoThis) {
+	return this.proxyNode[ND].target;
+} as GetOriginalTargetFunction;
 
-/**
- * get the data-node of a proxy (which holds all meta data)
- * and also get proxy-node of a proxy (which holds all related objects)
- * 
- * @remarks
- * automatically filled param {Object} dataNode
- * automatically filled param {Object} proxyNode
- */
-export function getProxserveNodes(dataNode: DataNode, proxyNode: ProxyNode): {
-	dataNode: DataNode;
-	proxyNode: ProxyNode;
-} {
-	return { dataNode, proxyNode };
-}
+export const getProxserveNodes = function getProxserveNodes(this: PseudoThis) {
+	return { dataNode: this.dataNode, proxyNode: this.proxyNode };
+} as GetProxserveNodesFunction;

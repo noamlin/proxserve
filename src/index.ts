@@ -7,9 +7,8 @@
  */
 "use strict"
 
-import { proxyTypes, nodeStatuses, proxyStatuses,
-	ND, NID, ProxserveInstance, DataNode, ProxyNode,
-	TargetVariable, SomeObject, ProxserveInstanceMetadata } from './globals';
+import { proxyTypes, nodeStatuses, proxyStatuses, ND, NID } from './globals';
+import { ProxserveInstance, DataNode, ProxyNode, TargetVariable, SomeObject, ProxserveInstanceMetadata } from './types';
 import { unproxify, createNodes } from './supporting-functions';
 import * as pseudoMethods from './pseudo-methods';
 import * as proxyMethods from './proxy-methods';
@@ -32,11 +31,11 @@ interface MakeOptions {
 	/**
 	 * should destroy detached child-objects or deleted properties automatically
 	 */
-	strict: boolean;
+	strict?: boolean;
 	/**
 	 * should splice, shift or unshift emit one event or all internal CRUD events
 	 */
-	emitMethods: boolean;
+	emitMethods?: boolean;
 	debug?: {
 		/**
 		 * delay before destroying a detached child-object
@@ -110,11 +109,11 @@ export class Proxserve {
 				get: (target: TargetVariable/*same as parent scope 'target'*/, property: string|symbol, proxy) => {
 					if(metadata.emitMethods && Object.prototype.hasOwnProperty.call(proxyMethods, property) && property in Object.getPrototypeOf(target)) {
 						// use a proxy method instead of the built-in method that is on the prototype chain
-						return proxyMethods[property].bind(metadata, dataNode, proxyNode);
+						return proxyMethods[property].bind({ metadata, dataNode, proxyNode });
 					}
 					else if(pseudoMethodsNames.includes(property as string) && typeof target[property] === 'undefined') {
 						// can access a pseudo function (or its synonym) if their keywords isn't used
-						return pseudoMethods[property].bind(metadata, dataNode, proxyNode);
+						return pseudoMethods[property].bind({ metadata, dataNode, proxyNode });
 					}
 					else if(!target.propertyIsEnumerable(property) || typeof property === 'symbol') {
 						return target[property]; // non-enumerable or non-path'able aren't proxied
@@ -325,10 +324,16 @@ export class Proxserve {
 		}
 	}
 
+	/**
+	 * splits a path to an array of properties
+	 */
 	static splitPath(path: string): Array<string|number> {
 		return splitPath(path);
 	}
 
+	/**
+	 * evaluate a long path and return the designated object and its referred property
+	 */
 	static evalPath(obj: SomeObject, path: string): {
 		object: SomeObject,
 		property: string|number,

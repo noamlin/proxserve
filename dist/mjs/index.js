@@ -29,15 +29,15 @@ var $cebd7357bd8525a2$export$89e04a1d3d3065f6;
     proxyStatuses["REVOKED"] = 'revoked';
 })($cebd7357bd8525a2$export$89e04a1d3d3065f6 || ($cebd7357bd8525a2$export$89e04a1d3d3065f6 = {
 }));
-var $cebd7357bd8525a2$export$4a2e650c134b86af;
-(function(eventNames) {
-    eventNames["create"] = "create";
-    eventNames["update"] = "update";
-    eventNames["delete"] = "delete";
-    eventNames["splice"] = "splice";
-    eventNames["shift"] = "shift";
-    eventNames["unshift"] = "unshift";
-})($cebd7357bd8525a2$export$4a2e650c134b86af || ($cebd7357bd8525a2$export$4a2e650c134b86af = {
+var $cebd7357bd8525a2$export$6b3dabbc9fa607b7;
+(function(eventNamesObject) {
+    eventNamesObject["create"] = "create";
+    eventNamesObject["update"] = "update";
+    eventNamesObject["delete"] = "delete";
+    eventNamesObject["splice"] = "splice";
+    eventNamesObject["shift"] = "shift";
+    eventNamesObject["unshift"] = "unshift";
+})($cebd7357bd8525a2$export$6b3dabbc9fa607b7 || ($cebd7357bd8525a2$export$6b3dabbc9fa607b7 = {
 }));
 
 
@@ -274,41 +274,33 @@ $parcel$export($f6f254486f25c78f$exports, "getProxserveNodes", function () { ret
 // calling it will return the method via the JS proxy's "get" handler.
 // (i.e. someProxserve.pseudoFunction will return the pseudoFunction)
 "use strict";
-function $f6f254486f25c78f$export$fa6813432f753b0d(dataNode) {
-    dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$eb0c55c6f2ee7170.STOPPED;
-}
-function $f6f254486f25c78f$export$837bd02682cd3db9(dataNode) {
-    dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$eb0c55c6f2ee7170.BLOCKED;
-}
-function $f6f254486f25c78f$export$234c45b355edd85b(dataNode, proxyNode, force = false) {
-    if (force || dataNode === this.dataTree) dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$eb0c55c6f2ee7170.ACTIVE;
-    else delete dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status;
-}
-function $f6f254486f25c78f$export$af631764ddc44097(dataNode, proxyNode, events, path, listener, options) {
-    var ref;
-    let deep = (ref = options === null || options === void 0 ? void 0 : options.deep) !== null && ref !== void 0 ? ref : false;
-    var ref1;
-    let id = (ref1 = options === null || options === void 0 ? void 0 : options.id) !== null && ref1 !== void 0 ? ref1 : undefined;
-    var ref2;
-    let once = (ref2 = options === null || options === void 0 ? void 0 : options.once) !== null && ref2 !== void 0 ? ref2 : false;
-    if (events === 'change') events = Object.keys($cebd7357bd8525a2$export$4a2e650c134b86af); // will listen to all events
+const $f6f254486f25c78f$export$fa6813432f753b0d = function stop() {
+    this.dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$eb0c55c6f2ee7170.STOPPED;
+};
+const $f6f254486f25c78f$export$837bd02682cd3db9 = function block() {
+    this.dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$eb0c55c6f2ee7170.BLOCKED;
+};
+const $f6f254486f25c78f$export$234c45b355edd85b = function activate(force = false) {
+    if (force || this.dataNode === this.metadata.dataTree) this.dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$eb0c55c6f2ee7170.ACTIVE;
+    else delete this.dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status;
+};
+const $f6f254486f25c78f$export$af631764ddc44097 = function on(args) {
+    const { path: path = '' , listener: listener , options: options = {
+    }  } = args;
+    let { events: events  } = args;
+    var _deep;
+    options.deep = (_deep = options.deep) !== null && _deep !== void 0 ? _deep : false;
+    var _once;
+    options.once = (_once = options.once) !== null && _once !== void 0 ? _once : false;
+    if (events === 'change') events = Object.keys($cebd7357bd8525a2$export$6b3dabbc9fa607b7); // will listen to all events
     else if (!Array.isArray(events)) events = [
         events
     ];
-    for (let event of events)if (!$cebd7357bd8525a2$export$4a2e650c134b86af[event]) {
-        const names = Object.keys($cebd7357bd8525a2$export$4a2e650c134b86af);
+    for (let event of events)if (!$cebd7357bd8525a2$export$6b3dabbc9fa607b7[event]) {
+        const names = Object.keys($cebd7357bd8525a2$export$6b3dabbc9fa607b7);
         throw new Error(`${event} is not a valid event. valid events are ${names.join(',')}`);
     }
-    if (typeof path === 'function') {
-        if (typeof listener === 'object') {
-            const optionsFromListener = listener;
-            if (typeof optionsFromListener.deep === 'boolean') deep = optionsFromListener.deep;
-            if (optionsFromListener.id !== undefined) id = optionsFromListener.id;
-            if (typeof optionsFromListener.once === 'boolean') once = optionsFromListener.once;
-        }
-        listener = path;
-        path = '';
-    } else if (typeof listener !== 'function') throw new Error(`invalid arguments were given. listener must be a function`);
+    let dataNode = this.dataNode;
     let segments = $c0486756bd3a8c4d$export$824c337f43f2b64d(path);
     for (let property of segments){
         if (!dataNode[property]) // create data-nodes if needed, but don't create/overwrite proxy-nodes
@@ -316,34 +308,37 @@ function $f6f254486f25c78f$export$af631764ddc44097(dataNode, proxyNode, events, 
         dataNode = dataNode[property];
     }
     let listenersPool = dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].listeners.shallow;
-    if (deep) listenersPool = dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].listeners.deep;
+    if (options.deep) listenersPool = dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].listeners.deep;
     let listenerObj = {
         type: events,
-        once: once,
+        once: options.once,
         func: listener
     };
-    if (id !== undefined) listenerObj.id = id;
+    if (options.id !== undefined) listenerObj.id = options.id;
     listenersPool.push(listenerObj);
-}
-function $f6f254486f25c78f$export$d2de3aaeafa91619(dataNode, proxyNode, events, path, listener, options) {
-    if (typeof options !== 'object') options = {
-    };
+};
+const $f6f254486f25c78f$export$d2de3aaeafa91619 = function once(args) {
+    const { events: events , path: path , listener: listener , options: options = {
+    }  } = args;
     options.once = true;
-    $f6f254486f25c78f$export$af631764ddc44097.call(this, dataNode, proxyNode, events, path, listener, options);
-}
+    $f6f254486f25c78f$export$af631764ddc44097.call(this, {
+        events: events,
+        path: path,
+        listener: listener,
+        options: options
+    });
+};
 function $f6f254486f25c78f$var$removeById(listenersArr, id) {
     for(let i = listenersArr.length - 1; i >= 0; i--){
         let listenerObj = listenersArr[i];
         if (id !== undefined && listenerObj.id === id || listenerObj.func === id) listenersArr.splice(i, 1);
     }
 }
-function $f6f254486f25c78f$export$b03e9483f936dccb(dataNode, proxyNode, path, id) {
-    if (arguments.length === 3) {
-        id = path;
-        path = '';
-    }
-    let fullPath = `${dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].path}${path}`;
-    let segments = $c0486756bd3a8c4d$export$824c337f43f2b64d(path);
+const $f6f254486f25c78f$export$b03e9483f936dccb = function removeListener(args) {
+    const { id: id , path: path = ''  } = args;
+    const fullPath = `${this.dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].path}${path}`;
+    let dataNode = this.dataNode;
+    const segments = $c0486756bd3a8c4d$export$824c337f43f2b64d(path);
     // traverse down the tree
     for (let property of segments){
         if (!dataNode[property]) {
@@ -354,10 +349,11 @@ function $f6f254486f25c78f$export$b03e9483f936dccb(dataNode, proxyNode, path, id
     }
     $f6f254486f25c78f$var$removeById(dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].listeners.shallow, id);
     $f6f254486f25c78f$var$removeById(dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].listeners.deep, id);
-}
-function $f6f254486f25c78f$export$6f2e3a6079f109b1(dataNode, proxyNode, path = '') {
-    let fullPath = `${dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].path}${path}`;
-    let segments = $c0486756bd3a8c4d$export$824c337f43f2b64d(path);
+};
+const $f6f254486f25c78f$export$6f2e3a6079f109b1 = function removeAllListeners(path = '') {
+    const fullPath = `${this.dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].path}${path}`;
+    const segments = $c0486756bd3a8c4d$export$824c337f43f2b64d(path);
+    let dataNode = this.dataNode;
     //traverse down the tree
     for (let property of segments){
         if (!dataNode[property]) {
@@ -368,16 +364,16 @@ function $f6f254486f25c78f$export$6f2e3a6079f109b1(dataNode, proxyNode, path = '
     }
     dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].listeners.shallow = [];
     dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].listeners.deep = [];
-}
-function $f6f254486f25c78f$export$35f261dd63190ac1(dataNode, proxyNode) {
-    return proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target;
-}
-function $f6f254486f25c78f$export$c3c6db5039118967(dataNode, proxyNode) {
+};
+const $f6f254486f25c78f$export$35f261dd63190ac1 = function getOriginalTarget() {
+    return this.proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target;
+};
+const $f6f254486f25c78f$export$c3c6db5039118967 = function getProxserveNodes() {
     return {
-        dataNode: dataNode,
-        proxyNode: proxyNode
+        dataNode: this.dataNode,
+        proxyNode: this.proxyNode
     };
-}
+};
 
 
 var $26afb3b451fe81b5$exports = {};
@@ -416,9 +412,9 @@ function $590092d9df4e6b38$export$febbc75e71f4ca1b(dataNode, property, oldValue,
      || !dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode) return;
     let proxyNode = dataNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxyNode;
     if (proxyNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status !== $cebd7357bd8525a2$export$89e04a1d3d3065f6.ALIVE) return;
-    let changeType = $cebd7357bd8525a2$export$4a2e650c134b86af.update;
-    if (value === undefined) changeType = $cebd7357bd8525a2$export$4a2e650c134b86af.delete;
-    else if (oldValue === undefined) changeType = $cebd7357bd8525a2$export$4a2e650c134b86af.create;
+    let changeType = $cebd7357bd8525a2$export$6b3dabbc9fa607b7.update;
+    if (value === undefined) changeType = $cebd7357bd8525a2$export$6b3dabbc9fa607b7.delete;
+    else if (oldValue === undefined) changeType = $cebd7357bd8525a2$export$6b3dabbc9fa607b7.create;
     let deferredEvents;
     // altering properties of an array that's in the middle of a splicing phase
     if (dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status === $cebd7357bd8525a2$export$eb0c55c6f2ee7170.SPLICING) {
@@ -478,9 +474,9 @@ function $590092d9df4e6b38$export$febbc75e71f4ca1b(dataNode, property, oldValue,
         let subValue = typeof change.value === 'object' && change.value !== null ? change.value[key] : undefined;
         let subOldValue = typeof change.oldValue === 'object' && change.oldValue !== null ? change.oldValue[key] : undefined;
         if (subValue !== subOldValue) {
-            let changeType = $cebd7357bd8525a2$export$4a2e650c134b86af.update;
-            if (subValue === undefined) changeType = $cebd7357bd8525a2$export$4a2e650c134b86af.delete;
-            else if (subOldValue === undefined) changeType = $cebd7357bd8525a2$export$4a2e650c134b86af.create;
+            let changeType = $cebd7357bd8525a2$export$6b3dabbc9fa607b7.update;
+            if (subValue === undefined) changeType = $cebd7357bd8525a2$export$6b3dabbc9fa607b7.delete;
+            else if (subOldValue === undefined) changeType = $cebd7357bd8525a2$export$6b3dabbc9fa607b7.create;
             let subChange = {
                 path: '',
                 oldValue: subOldValue,
@@ -562,7 +558,7 @@ function $26afb3b451fe81b5$export$869882364835d202(dataNode, proxyNode, start, d
     };
     if (isActiveByInheritance) delete dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status;
     else dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$eb0c55c6f2ee7170.ACTIVE;
-    $590092d9df4e6b38$export$29f2d3a310653bb4(dataNode, $cebd7357bd8525a2$export$4a2e650c134b86af.splice, args, oldValue, proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target);
+    $590092d9df4e6b38$export$29f2d3a310653bb4(dataNode, $cebd7357bd8525a2$export$6b3dabbc9fa607b7.splice, args, oldValue, proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target);
     return deleted;
 }
 function $26afb3b451fe81b5$export$fba63a578e423eb(dataNode, proxyNode) {
@@ -575,7 +571,7 @@ function $26afb3b451fe81b5$export$fba63a578e423eb(dataNode, proxyNode) {
     let deleted = Array.prototype.shift.call(proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy); // creates many side-effect events
     if (isActiveByInheritance) delete dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status;
     else dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$eb0c55c6f2ee7170.ACTIVE;
-    $590092d9df4e6b38$export$29f2d3a310653bb4(dataNode, $cebd7357bd8525a2$export$4a2e650c134b86af.shift, {
+    $590092d9df4e6b38$export$29f2d3a310653bb4(dataNode, $cebd7357bd8525a2$export$6b3dabbc9fa607b7.shift, {
     }, oldValue, proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target);
     return deleted;
 }
@@ -590,7 +586,7 @@ function $26afb3b451fe81b5$export$37cdb546b806ae87(dataNode, proxyNode, ...items
     };
     if (isActiveByInheritance) delete dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status;
     else dataNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$eb0c55c6f2ee7170.ACTIVE;
-    $590092d9df4e6b38$export$29f2d3a310653bb4(dataNode, $cebd7357bd8525a2$export$4a2e650c134b86af.unshift, args, oldValue, proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target);
+    $590092d9df4e6b38$export$29f2d3a310653bb4(dataNode, $cebd7357bd8525a2$export$6b3dabbc9fa607b7.unshift, args, oldValue, proxyNode[$cebd7357bd8525a2$export$f7e0aa381a5261fc].target);
     return newLength;
 }
 
@@ -668,9 +664,17 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
             let revocable = Proxy.revocable(target1, {
                 get: (target /*same as parent scope 'target'*/ , property, proxy)=>{
                     if (metadata.emitMethods && Object.prototype.hasOwnProperty.call($26afb3b451fe81b5$exports, property) && property in Object.getPrototypeOf(target)) // use a proxy method instead of the built-in method that is on the prototype chain
-                    return $26afb3b451fe81b5$exports[property].bind(metadata, dataNode, proxyNode);
+                    return $26afb3b451fe81b5$exports[property].bind({
+                        metadata: metadata,
+                        dataNode: dataNode,
+                        proxyNode: proxyNode
+                    });
                     else if ($643fcf18b2d2e76f$var$pseudoMethodsNames.includes(property) && typeof target[property] === 'undefined') // can access a pseudo function (or its synonym) if their keywords isn't used
-                    return $f6f254486f25c78f$exports[property].bind(metadata, dataNode, proxyNode);
+                    return $f6f254486f25c78f$exports[property].bind({
+                        metadata: metadata,
+                        dataNode: dataNode,
+                        proxyNode: proxyNode
+                    });
                     else if (!target.propertyIsEnumerable(property) || typeof property === 'symbol') return target[property]; // non-enumerable or non-path'able aren't proxied
                     else if (proxyNode[property] // there's a child node
                      && proxyNode[property][$cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy // it holds a proxy
@@ -820,10 +824,14 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
             proxyNode[$cebd7357bd8525a2$export$d1c20e4ad7d32581].status = $cebd7357bd8525a2$export$89e04a1d3d3065f6.REVOKED;
         } else console.warn(`Type of "${typeofproxy}" is not implemented`);
     }
-    static splitPath(path) {
+    /**
+	 * splits a path to an array of properties
+	 */ static splitPath(path) {
         return $c0486756bd3a8c4d$export$824c337f43f2b64d(path);
     }
-    static evalPath(obj, path1) {
+    /**
+	 * evaluate a long path and return the designated object and its referred property
+	 */ static evalPath(obj, path1) {
         return $c0486756bd3a8c4d$export$8ffa680996c65fde(obj, path1);
     }
 }

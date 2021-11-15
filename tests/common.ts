@@ -9,11 +9,11 @@
  */
 
 import util from 'util';
+import { ND, NID } from '../src/globals';
 
-export { cloneDeep } from 'lodash';
+export const cloneDeep = require('lodash').cloneDeep;
 export const isProxy = util.types.isProxy;
-export let ND = Symbol.for('proxserve_node_data');
-export let NID = Symbol.for('proxserve_node_inherited_data');
+export { ND, NID };
 
 // test if proxy's internal [[handler]] is revoked. according to https://www.ecma-international.org/ecma-262/#sec-proxycreate
 // currently (Jan 2021) not working

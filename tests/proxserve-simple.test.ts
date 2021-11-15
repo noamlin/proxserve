@@ -14,13 +14,13 @@ import { isProxy, isRevoked, testObject, silentConsole, wakeConsole, cloneDeep }
 
 test('1. Initiate a proxserve and check if original object stays intact', () => {
 	let origin = cloneDeep(testObject);
-	let proxy = new Proxserve(origin);
+	let proxy = Proxserve.make(origin);
 	expect(proxy).toEqual(testObject);
 	expect(proxy.getOriginalTarget() === origin).toBe(true);
 });
 
 test('2. Object, child-objects and added-child-objects should convert to proxies', () => {
-	let proxy = new Proxserve(cloneDeep(testObject));
+	let proxy = Proxserve.make(cloneDeep(testObject));
 	proxy.level1_3 = {
 		level2_2: [0,2,4,6]
 	};
@@ -34,7 +34,7 @@ test('2. Object, child-objects and added-child-objects should convert to proxies
 
 test('3. defineProperty should convert string/number properties to proxy', (done) => {
 	let origin = cloneDeep(testObject);
-	let proxy = new Proxserve(origin, { debug: { destroyDelay: 10 } });
+	let proxy = Proxserve.make(origin, { debug: { destroyDelay: 10 } });
 	let sym = Symbol.for('sym');
 
 	let desc = {
@@ -59,7 +59,7 @@ test('3. defineProperty should convert string/number properties to proxy', (done
 	Object.defineProperty(proxy, sym, cloneDeep(desc));
 	Object.defineProperty(proxy, 'obj', cloneDeep(desc));
 
-	expect(isProxy(proxy[sym])).toBe(false); //symbol isn't proxied anyway
+	expect(isProxy(proxy[sym])).toBe(false); // symbol isn't proxied anyway
 	expect(isProxy(proxy[sym].this_is)).toBe(false);
 	expect(isProxy(proxy.obj)).toBe(true);
 	expect(isProxy(proxy.obj.this_is)).toBe(true);
@@ -76,7 +76,7 @@ test('3. defineProperty should convert string/number properties to proxy', (done
 });
 
 test('4. Proxies should contain built-in functions', () => {
-	let proxy = new Proxserve(cloneDeep(testObject));
+	let proxy = Proxserve.make(cloneDeep(testObject));
 
 	expect(typeof proxy.on).toBe('function');
 	expect(typeof proxy.$on).toBe('function');
@@ -125,13 +125,13 @@ test('4. Proxies should contain built-in functions', () => {
 });
 
 test('5. Basic events of changes', () => {
-	let proxy = new Proxserve(cloneDeep(testObject));
-	proxy.on('create', '.new', function(change) {
+	let proxy = Proxserve.make(cloneDeep(testObject));
+	proxy.on({ events: 'create', path: '.new', listener: function(change) {
 		expect(change.oldValue).toBe(undefined);
 		expect(change.value).toBe(5);
 		expect(change.path).toBe('');
 		expect(change.type).toBe('create');
-	});
+	}});
 	proxy.new = 5;
 
 	proxy.removeAllListeners();
