@@ -1,5 +1,5 @@
 /**
- * Copyright 2021 Noam Lin <noamlin@gmail.com>
+ * 2022 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,105 +11,78 @@
 "use strict"
 
 import { nodeStatuses, eventNamesObject, ND, NID } from './globals';
-import { DataNode, ProxyNode } from './types';
+import { SpliceFunction, ShiftFunction, UnshiftFunction } from './types/proxy-methods';
 import { initFunctionEmitEvent } from './event-emitter';
 
-/**
- * a wrapper function for the 'splice' method
- * 
- * @remarks
- * automatically filled param {Object} dataNode
- * automatically filled param {Object} proxyNode
- * 
- * @param start 
- * @param deleteCount 
- * @param items - rest of arguments
- */
-export function splice(
-	dataNode: DataNode,
-	proxyNode: ProxyNode,
-	start: number,
-	deleteCount: number,
-	...items: any[]
-): any[] {
-	if(dataNode[NID].status !== nodeStatuses.ACTIVE) {
-		return Array.prototype.splice.call(proxyNode[ND].proxy, start, deleteCount, ...items);
+
+export const splice: SpliceFunction = function splice(
+	this,
+	start,
+	deleteCount,
+	...items
+) {
+	if(this.dataNode[NID].status !== nodeStatuses.ACTIVE) {
+		return Array.prototype.splice.call(this.proxyNode[ND].proxy, start, deleteCount, ...items);
 	}
 
-	let isActiveByInheritance = !dataNode[NID].hasOwnProperty('status');
-	dataNode[NID].status = nodeStatuses.SPLICING;
-	let oldValue = proxyNode[ND].target.slice(0);
-	let deleted = Array.prototype.splice.call(proxyNode[ND].proxy, start, deleteCount, ...items); // creates many side-effect events
+	let isActiveByInheritance = !this.dataNode[NID].hasOwnProperty('status');
+	this.dataNode[NID].status = nodeStatuses.SPLICING;
+	let oldValue = this.proxyNode[ND].target.slice(0);
+	let deleted = Array.prototype.splice.call(this.proxyNode[ND].proxy, start, deleteCount, ...items); // creates many side-effect events
 	let args = { start, deleteCount, items };
 	
 	if(isActiveByInheritance) {
-		delete dataNode[NID].status;
+		delete this.dataNode[NID].status;
 	} else {
-		dataNode[NID].status = nodeStatuses.ACTIVE;
+		this.dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
 
-	initFunctionEmitEvent(dataNode, eventNamesObject.splice, args, oldValue, proxyNode[ND].target);
+	initFunctionEmitEvent(this.dataNode, eventNamesObject.splice, args, oldValue, this.proxyNode[ND].target);
 
 	return deleted;
 }
 
-/**
- * a wrapper function for the 'shift' method
- * 
- * @remarks
- * automatically filled param {Object} dataNode
- * automatically filled param {Object} proxyNode
- */
-export function shift(dataNode: DataNode, proxyNode: ProxyNode): any {
-	if(dataNode[NID].status !== nodeStatuses.ACTIVE) {
+export const shift: ShiftFunction = function shift(this) {
+	if(this.dataNode[NID].status !== nodeStatuses.ACTIVE) {
 		// if not active then run regular `shift`
 		// which will reach the `set` of the ProxyHandler and will be blocked or events stopped, etc.
-		return Array.prototype.shift.call(proxyNode[ND].proxy);
+		return Array.prototype.shift.call(this.proxyNode[ND].proxy);
 	}
 
-	let isActiveByInheritance = !dataNode[NID].hasOwnProperty('status');
-	dataNode[NID].status = nodeStatuses.SPLICING;
-	let oldValue = proxyNode[ND].target.slice(0);
-	let deleted = Array.prototype.shift.call(proxyNode[ND].proxy); // creates many side-effect events
+	let isActiveByInheritance = !this.dataNode[NID].hasOwnProperty('status');
+	this.dataNode[NID].status = nodeStatuses.SPLICING;
+	let oldValue = this.proxyNode[ND].target.slice(0);
+	let deleted = Array.prototype.shift.call(this.proxyNode[ND].proxy); // creates many side-effect events
 	
 	if(isActiveByInheritance) {
-		delete dataNode[NID].status;
+		delete this.dataNode[NID].status;
 	} else {
-		dataNode[NID].status = nodeStatuses.ACTIVE;
+		this.dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
 
-	initFunctionEmitEvent(dataNode, eventNamesObject.shift, {}, oldValue, proxyNode[ND].target);
+	initFunctionEmitEvent(this.dataNode, eventNamesObject.shift, {}, oldValue, this.proxyNode[ND].target);
 
 	return deleted;
 }
 
-/**
- * a wrapper function for the 'unshift' method
- * 
- * @remarks
- * automatically filled param {Object} dataNode
- * automatically filled param {Object} proxyNode
- * 
- * @param items 
- */
-export function unshift(dataNode: DataNode, proxyNode: ProxyNode, ...items: any[]): number {
-	if(dataNode[NID].status !== nodeStatuses.ACTIVE) {
-		return Array.prototype.shift.call(proxyNode[ND].proxy) as number;
+export const unshift: UnshiftFunction = function unshift(this, ...items) {
+	if(this.dataNode[NID].status !== nodeStatuses.ACTIVE) {
+		return Array.prototype.shift.call(this.proxyNode[ND].proxy) as number;
 	}
 
-	let isActiveByInheritance = !dataNode[NID].hasOwnProperty('status');
-	dataNode[NID].status = nodeStatuses.SPLICING;
-	let oldValue = proxyNode[ND].target.slice(0);
-	let newLength: number = Array.prototype.unshift.call(proxyNode[ND].proxy, ...items); // creates many side-effect events
+	let isActiveByInheritance = !this.dataNode[NID].hasOwnProperty('status');
+	this.dataNode[NID].status = nodeStatuses.SPLICING;
+	let oldValue = this.proxyNode[ND].target.slice(0);
+	let newLength: number = Array.prototype.unshift.call(this.proxyNode[ND].proxy, ...items); // creates many side-effect events
 	let args = { items };
 	
 	if(isActiveByInheritance) {
-		delete dataNode[NID].status;
+		delete this.dataNode[NID].status;
 	} else {
-		dataNode[NID].status = nodeStatuses.ACTIVE;
+		this.dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
 
-	initFunctionEmitEvent(dataNode, eventNamesObject.unshift, args, oldValue, proxyNode[ND].target);
+	initFunctionEmitEvent(this.dataNode, eventNamesObject.unshift, args, oldValue, this.proxyNode[ND].target);
 
 	return newLength;
 }

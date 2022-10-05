@@ -1,5 +1,5 @@
 /**
- * Copyright 2021 Noam Lin <noamlin@gmail.com>
+ * 2022 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -9,14 +9,14 @@
  */
 
 import util from 'util';
+import { ProxyNode, ND as NDtype, NID as NIDtype } from '../dist/commonjs';
 import { ND, NID } from '../src/globals';
 
 export const cloneDeep = require('lodash').cloneDeep;
 export const isProxy = util.types.isProxy;
-export { ND, NID };
 
 // test if proxy's internal [[handler]] is revoked. according to https://www.ecma-international.org/ecma-262/#sec-proxycreate
-// currently (Jan 2021) not working
+// not working as of Jan 2021
 /*function isRevoked(value) {
 	try {
 		new Proxy(value, value); //instantiating with revoked-proxy throws an error
@@ -29,14 +29,14 @@ export { ND, NID };
  * 
  * @param {Object} proxyNode - the objects related to proxy
  */
-export const isRevoked = function isRevoked(proxyNode) {
-	if(!util.types.isProxy(proxyNode[ND].proxy)) {
+export const isRevoked = function isRevoked(proxyNode: ProxyNode): boolean {
+	if(!util.types.isProxy(proxyNode[ND as unknown as typeof NDtype].proxy)) {
 		return false; // not even a proxy so can't be revoked
 	}
 
-	if(proxyNode[NID].status === 'revoked') {
+	if(proxyNode[NID as unknown as typeof NIDtype].status === 'revoked') {
 		try {
-			proxyNode[ND].proxy.getSomeProperty; //get on revoked proxy should throw
+			proxyNode[ND as unknown as typeof NDtype].proxy!.getSomeProperty; //get on revoked proxy should throw
 		} catch(err) {
 			return true;
 		}

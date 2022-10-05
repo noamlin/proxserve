@@ -1,5 +1,5 @@
 /**
- * Copyright 2021 Noam Lin <noamlin@gmail.com>
+ * 2022 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,7 +8,8 @@
 "use strict"
 
 import { eventNamesObject, nodeStatuses, proxyStatuses, ND, NID } from './globals';
-import { eventNames, DataNode, ChangeEvent, DeferredEvent, ListenerData } from './types';
+import { eventNames, ChangeEvent, DeferredEvent, ListenerData } from './types/globals';
+import { DataNode } from './types/proxserve-class';
 import { property2path } from './supporting-functions';
 import { splitPath } from './general-functions';
 

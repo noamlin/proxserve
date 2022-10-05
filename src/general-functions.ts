@@ -1,5 +1,5 @@
 /**
- * Copyright 2021 Noam Lin <noamlin@gmail.com>
+ * 2022 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -7,14 +7,14 @@
  */
 "use strict"
 
-import { SomeObject, SomeArray, variableTypes } from './types';
+import { SomeObject, SomeArray, VariableTypes } from './types/globals';
 
 /**
  * return a string representing the full type of the variable
  */
-export function realtypeof(variable: any): variableTypes {
+export function realtypeof(variable: any): VariableTypes {
 	let rawType = Object.prototype.toString.call(variable); //[object Object], [object Array], [object Number]...
-	return rawType.substring(8, rawType.length - 1) as variableTypes;
+	return rawType.substring(8, rawType.length - 1) as VariableTypes;
 }
 
 /**
@@ -150,7 +150,7 @@ export function splitPath(path: string): Array<string|number> {
  */
 export function evalPath(obj: SomeObject, path: string): {
 	object: SomeObject,
-	property: string|number,
+	property: string | number,
 	value: any,
 } {
 	if(path === '') {

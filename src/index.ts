@@ -1,5 +1,5 @@
 /**
- * Copyright 2021 Noam Lin <noamlin@gmail.com>
+ * 2022 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,7 +8,8 @@
 "use strict"
 
 import { proxyTypes, nodeStatuses, proxyStatuses, ND, NID } from './globals';
-import { ProxserveInstance, DataNode, ProxyNode, TargetVariable, SomeObject, ProxserveInstanceMetadata } from './types';
+import { TargetVariable, SomeObject } from './types/globals';
+import { ProxserveInstance, DataNode, ProxyNode, ProxserveInstanceMetadata } from './types/proxserve-class';
 import { unproxify, createNodes } from './supporting-functions';
 import * as pseudoMethods from './pseudo-methods';
 import * as proxyMethods from './proxy-methods';
@@ -22,7 +23,7 @@ import { initEmitEvent } from './event-emitter';
 let pseudoMethodsNames = Object.keys(pseudoMethods);
 for(let i = pseudoMethodsNames.length - 1; i >= 0; i--) {
 	let name = pseudoMethodsNames[i];
-	let synonym = '$'+name;
+	let synonym = pseudoMethods.alternativeNamingPrefix + name;
 	pseudoMethods[synonym] = pseudoMethods[name];
 	pseudoMethodsNames.push(synonym);
 }
@@ -82,7 +83,8 @@ export class Proxserve {
 	 */
 	static createProxy(metadata: ProxserveInstanceMetadata, parentDataNode: DataNode, targetProperty?: string): ProxserveInstance {
 		let parentProxyNode = parentDataNode[ND].proxyNode
-		let dataNode: DataNode, proxyNode: ProxyNode;
+		let dataNode: DataNode;
+		let proxyNode: ProxyNode;
 
 		if(targetProperty === undefined) { //refering to own node and not a child property (meaning root object)
 			dataNode = parentDataNode;

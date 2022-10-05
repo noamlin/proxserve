@@ -1,5 +1,5 @@
 /**
- * Copyright 2021 Noam Lin <noamlin@gmail.com>
+ * 2022 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,7 +8,8 @@
 "use strict"
 
 import { proxyTypes, ND, NID } from './globals';
-import { DataNode, ProxyNode, TargetVariable, ListenerData } from './types';
+import { TargetVariable, ListenerData } from './types/globals';
+import { DataNode, ProxyNode } from './types/proxserve-class';
 import { realtypeof } from './general-functions';
 
 /**

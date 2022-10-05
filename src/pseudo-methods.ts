@@ -1,5 +1,5 @@
 /**
- * Copyright 2021 Noam Lin <noamlin@gmail.com>
+ * 2022 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,37 +12,48 @@
 "use strict"
 
 import { eventNamesObject, nodeStatuses, ND, NID } from './globals';
-import { ListenerData, StopFunction, BlockFunction, ActivateFunction, OnFunction, OnceFunction,
-	RemoveListenerFunction, RemoveAllListenersFunction, GetOriginalTargetFunction, GetProxserveNodesFunction,
-	PseudoThis, eventNames } from './types';
+import { ListenerData, eventNames } from './types/globals';
+import {
+	StopFunction, BlockFunction, ActivateFunction,
+	OnFunction, OnceFunction,
+	RemoveListenerFunction, RemoveAllListenersFunction,
+	GetOriginalTargetFunction, GetProxserveNodesFunction,
+} from './types/pseudo-methods';
 import { createNodes } from './supporting-functions';
 import { splitPath } from './general-functions';
 
-export const stop = function stop(this: PseudoThis) {
+export const alternativeNamingPrefix = '$';
+
+export const stop: StopFunction = function stop(this) {
 	this.dataNode[NID].status = nodeStatuses.STOPPED;
-} as StopFunction;
+};
 
-export const block = function block(this: PseudoThis) {
+export const block: BlockFunction = function block(this) {
 	this.dataNode[NID].status = nodeStatuses.BLOCKED;
-} as BlockFunction;
+};
 
-export const activate = function activate(this: PseudoThis, force = false): void {
+export const activate: ActivateFunction = function activate(this, force = false): void {
 	if(force || this.dataNode === this.metadata.dataTree) { // force activation or we are on root proxy
 		this.dataNode[NID].status = nodeStatuses.ACTIVE;
 	}
 	else {
 		delete this.dataNode[NID].status;
 	}
-} as ActivateFunction;
+};
 
-export const on = function on(this: PseudoThis, args) {
-	const { path = '', listener, options = {} } = args;
-	let { events } = args;
+export const on: OnFunction = function on(this, args) {
+	const {
+		path = '',
+		listener,
+		id,
+		deep = false,
+		once = false,
+	} = args;
+	// its nicer to expose `event` to the user,
+	// but since it is semi-reserved word, we internally rename it to `events`
+	let { event: events } = args;
 
-	options.deep = options.deep ?? false;
-	options.once = options.once ?? false;
-
-	if((events as string) === 'change') {
+	if(events === 'change') {
 		events = Object.keys(eventNamesObject) as eventNames[]; // will listen to all events
 	} else if(!Array.isArray(events)) {
 		events = [events];
@@ -67,27 +78,26 @@ export const on = function on(this: PseudoThis, args) {
 	}
 
 	let listenersPool = dataNode[ND].listeners.shallow;
-	if(options.deep) {
+	if(deep) {
 		listenersPool = dataNode[ND].listeners.deep;
 	}
 
 	let listenerObj = {
 		type: events,
-		once: options.once,
+		once,
 		func: listener
 	} as ListenerData;
 
-	if(options.id !== undefined) {
-		listenerObj.id = options.id;
+	if(id !== undefined) {
+		listenerObj.id = id;
 	}
 	listenersPool.push(listenerObj);
-} as OnFunction;
+};
 
-export const once = function once(this: PseudoThis, args) {
-	const { events, path, listener, options = {} } = args;
-	options.once = true;
-	on.call(this, { events, path, listener, options });
-} as OnceFunction;
+export const once: OnceFunction = function once(this, args) {
+	args.once = true;
+	on.call(this, args);
+};
 
 function removeById(listenersArr: ListenerData[], id: string | number | Function): void {
 	for(let i = listenersArr.length - 1; i >= 0; i--) {
@@ -98,7 +108,7 @@ function removeById(listenersArr: ListenerData[], id: string | number | Function
 	}
 }
 
-export const removeListener = function removeListener(this: PseudoThis, args) {
+export const removeListener: RemoveListenerFunction = function removeListener(this, args) {
 	const { id, path = '' } = args;
 	const fullPath = `${this.dataNode[ND].path}${path}`;
 	let dataNode = this.dataNode;
@@ -115,9 +125,9 @@ export const removeListener = function removeListener(this: PseudoThis, args) {
 
 	removeById(dataNode[ND].listeners.shallow, id);
 	removeById(dataNode[ND].listeners.deep, id);
-} as RemoveListenerFunction;
+};
 
-export const removeAllListeners = function removeAllListeners(this: PseudoThis, path = '') {
+export const removeAllListeners: RemoveAllListenersFunction = function removeAllListeners(this, path = '') {
 	const fullPath = `${this.dataNode[ND].path}${path}`;
 	const segments = splitPath(path);
 	let dataNode = this.dataNode;
@@ -133,12 +143,12 @@ export const removeAllListeners = function removeAllListeners(this: PseudoThis, 
 
 	dataNode[ND].listeners.shallow = [] as ListenerData[];
 	dataNode[ND].listeners.deep = [] as ListenerData[];
-} as RemoveAllListenersFunction;
+};
 
-export const getOriginalTarget = function getOriginalTarget(this: PseudoThis) {
+export const getOriginalTarget: GetOriginalTargetFunction = function getOriginalTarget(this) {
 	return this.proxyNode[ND].target;
-} as GetOriginalTargetFunction;
+};
 
-export const getProxserveNodes = function getProxserveNodes(this: PseudoThis) {
+export const getProxserveNodes: GetProxserveNodesFunction = function getProxserveNodes(this) {
 	return { dataNode: this.dataNode, proxyNode: this.proxyNode };
-} as GetProxserveNodesFunction;
+};
