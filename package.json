@@ -75,5 +75,8 @@
 	"babel": {},
 	"browserslist": [
 		"last 1 Chrome version"
+	],
+	"files": [
+		"package.json", "readme.md", "LICENSE", "dist"
 	]
 }
