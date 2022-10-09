@@ -49,7 +49,7 @@ export class Proxserve {
 	/**
 	 * make a new proxserve instance
 	 */
-	static make(target: TargetVariable, options = {} as MakeOptions): ProxserveInstance {
+	static make<T>(target: TargetVariable, options = {} as MakeOptions): ProxserveInstance & T {
 		const {
 			strict = true,
 			emitMethods = true,
@@ -75,13 +75,17 @@ export class Proxserve {
 			proxyTree: newNodes.proxyNode,
 		} as ProxserveInstanceMetadata;
 
-		return Proxserve.createProxy(metadata, metadata.dataTree);
+		return Proxserve.createProxy<T>(metadata, metadata.dataTree);
 	}
 
 	/**
 	 * create a new proxy and a new node for a property of the parent's target-object
 	 */
-	static createProxy(metadata: ProxserveInstanceMetadata, parentDataNode: DataNode, targetProperty?: string): ProxserveInstance {
+	static createProxy<T>(
+		metadata: ProxserveInstanceMetadata,
+		parentDataNode: DataNode,
+		targetProperty?: string,
+	): ProxserveInstance & T {
 		let parentProxyNode = parentDataNode[ND].proxyNode
 		let dataNode: DataNode;
 		let proxyNode: ProxyNode;
@@ -258,7 +262,7 @@ export class Proxserve {
 						return true; //do nothing because there's nothing to delete
 					}
 				}
-			} as ProxyHandler<TargetVariable>) as { proxy: ProxserveInstance, revoke: ()=>void };
+			} as ProxyHandler<TargetVariable>) as { proxy: ProxserveInstance & T, revoke: () => void };
 
 			proxyNode[ND].proxy = revocable.proxy;
 			proxyNode[ND].revoke = revocable.revoke;

@@ -205,11 +205,11 @@ export class Proxserve {
     /**
      * make a new proxserve instance
      */
-    static make(target: TargetVariable, options?: MakeOptions): ProxserveInstance;
+    static make<T>(target: TargetVariable, options?: MakeOptions): ProxserveInstance & T;
     /**
      * create a new proxy and a new node for a property of the parent's target-object
      */
-    static createProxy(metadata: ProxserveInstanceMetadata, parentDataNode: DataNode, targetProperty?: string): ProxserveInstance;
+    static createProxy<T>(metadata: ProxserveInstanceMetadata, parentDataNode: DataNode, targetProperty?: string): ProxserveInstance & T;
     /**
      * Recursively revoke proxies, allowing them to be garbage collected.
      * this functions delays 1000 milliseconds to let time for all events to finish
