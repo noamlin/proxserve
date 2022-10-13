@@ -1,4 +1,4 @@
-import { eventNames, ChangeEvent, TargetVariable } from './globals';
+import { EVENT_NAMES, ChangeEvent, TargetVariable } from './globals';
 import { ProxserveInstance, PseudoThis, DataNode, ProxyNode } from './proxserve-class';
 
 /**
@@ -31,7 +31,7 @@ import { ProxserveInstance, PseudoThis, DataNode, ProxyNode } from './proxserve-
  export type OnFunction = (
 	 this: PseudoThis,
 	 args: {
-		 event: eventNames | eventNames[] | 'change',
+		 event: EVENT_NAMES | EVENT_NAMES[] | 'change',
 		 path?: string,
 		 listener: (this: ProxserveInstance, change: ChangeEvent) => void,
 		 deep?: boolean;

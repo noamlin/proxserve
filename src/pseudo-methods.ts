@@ -11,8 +11,8 @@
 // (i.e. someProxserve.pseudoFunction will return the pseudoFunction)
 "use strict"
 
-import { eventNamesObject, nodeStatuses, ND, NID } from './globals';
-import { ListenerData, eventNames } from './types/globals';
+import { EVENTS, NODE_STATUSES, ND, NID } from './globals';
+import { ListenerData, EVENT_NAMES } from './types/globals';
 import {
 	StopFunction, BlockFunction, ActivateFunction,
 	OnFunction, OnceFunction,
@@ -25,16 +25,16 @@ import { splitPath } from './general-functions';
 export const alternativeNamingPrefix = '$';
 
 export const stop: StopFunction = function stop(this) {
-	this.dataNode[NID].status = nodeStatuses.STOPPED;
+	this.dataNode[NID].status = NODE_STATUSES.stopped;
 };
 
 export const block: BlockFunction = function block(this) {
-	this.dataNode[NID].status = nodeStatuses.BLOCKED;
+	this.dataNode[NID].status = NODE_STATUSES.blocked;
 };
 
 export const activate: ActivateFunction = function activate(this, force = false): void {
 	if(force || this.dataNode === this.metadata.dataTree) { // force activation or we are on root proxy
-		this.dataNode[NID].status = nodeStatuses.ACTIVE;
+		this.dataNode[NID].status = NODE_STATUSES.active;
 	}
 	else {
 		delete this.dataNode[NID].status;
@@ -54,14 +54,14 @@ export const on: OnFunction = function on(this, args) {
 	let { event: events } = args;
 
 	if(events === 'change') {
-		events = Object.keys(eventNamesObject) as eventNames[]; // will listen to all events
+		events = Object.keys(EVENTS) as EVENT_NAMES[]; // will listen to all events
 	} else if(!Array.isArray(events)) {
 		events = [events];
 	}
 
 	for(let event of events) {
-		if(!eventNamesObject[event]) {
-			const names = Object.keys(eventNamesObject);
+		if(!EVENTS[event]) {
+			const names = Object.keys(EVENTS);
 			throw new Error(`${event} is not a valid event. valid events are ${names.join(',')}`);
 		}
 	}

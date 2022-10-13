@@ -1,15 +1,23 @@
 declare const ND: unique symbol;
 declare const NID: unique symbol;
-enum nodeStatuses {
-    ACTIVE = "active",
-    STOPPED = "stopped",
-    BLOCKED = "blocked",
-    SPLICING = "splicing"
+enum NODE_STATUSES {
+    active = "active",
+    stopped = "stopped",
+    blocked = "blocked",
+    splicing = "splicing"
 }
-enum proxyStatuses {
-    ALIVE = "alive",
-    DELETED = "deleted",
-    REVOKED = "revoked"
+enum PROXY_STATUSES {
+    alive = "alive",
+    deleted = "deleted",
+    revoked = "revoked"
+}
+enum EVENTS {
+    create = "create",
+    update = "update",
+    delete = "delete",
+    splice = "splice",
+    shift = "shift",
+    unshift = "unshift"
 }
 /**
  * stop object and children from emitting change events
@@ -36,7 +44,7 @@ type ActivateFunction = (this: PseudoThis, force?: boolean) => void;
  * @param args.options.once - whether this listener will run only once or always
  */
 type OnFunction = (this: PseudoThis, args: {
-    event: eventNames | eventNames[] | 'change';
+    event: EVENT_NAMES | EVENT_NAMES[] | 'change';
     path?: string;
     listener: (this: ProxserveInstance, change: ChangeEvent) => void;
     deep?: boolean;
@@ -79,7 +87,7 @@ type GetProxserveNodesFunction = (this: PseudoThis) => {
 };
 interface DataNode {
     [NID]: {
-        status?: nodeStatuses;
+        status?: NODE_STATUSES;
     };
     [ND]: {
         proxyNode: ProxyNode;
@@ -96,7 +104,7 @@ interface DataNode {
 }
 interface ProxyNode {
     [NID]: {
-        status?: proxyStatuses;
+        status?: PROXY_STATUSES;
     };
     [ND]: {
         target: TargetVariable;
@@ -157,14 +165,14 @@ type ProxserveInstance = PseudoThis & {
     $getProxserveNodes: GetProxserveNodesFunction;
     [property: string | number | symbol]: any;
 };
-type eventNames = 'create' | 'update' | 'delete' | 'splice' | 'shift' | 'unshift';
+type EVENT_NAMES = keyof typeof EVENTS;
 type SomeObject = {
     [key: string | number | symbol]: any;
 };
 type SomeArray = Array<any>;
 type TargetVariable = SomeObject | SomeArray;
 type ListenerData = {
-    type: eventNames[];
+    type: EVENT_NAMES[];
     once: boolean;
     func: Function;
     id?: string | number;
@@ -178,7 +186,7 @@ type ChangeEvent = {
     path: string;
     value: any;
     oldValue: any;
-    type: eventNames;
+    type: EVENT_NAMES;
     args?: {
         start?: number;
         deleteCount?: number;

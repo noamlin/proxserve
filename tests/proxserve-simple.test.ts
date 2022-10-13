@@ -9,7 +9,7 @@
  */
 "use strict"
 
-import { Proxserve } from '../';
+import { Proxserve } from '../src/index';
 import { isProxy, isRevoked, testObject, silentConsole, wakeConsole, cloneDeep } from './common';
 
 test('1. Initiate a proxserve and check if original object stays intact', () => {

@@ -9,10 +9,10 @@
  */
 
 import util from 'util';
-import { ProxyNode, ND as NDtype, NID as NIDtype } from '../dist/commonjs';
 import { ND, NID } from '../src/globals';
+import type { ProxyNode } from '../src/types/proxserve-class';
 
-export const cloneDeep = require('lodash').cloneDeep;
+export { cloneDeep } from 'lodash';
 export const isProxy = util.types.isProxy;
 
 // test if proxy's internal [[handler]] is revoked. according to https://www.ecma-international.org/ecma-262/#sec-proxycreate
@@ -30,13 +30,13 @@ export const isProxy = util.types.isProxy;
  * @param {Object} proxyNode - the objects related to proxy
  */
 export const isRevoked = function isRevoked(proxyNode: ProxyNode): boolean {
-	if(!util.types.isProxy(proxyNode[ND as unknown as typeof NDtype].proxy)) {
+	if(!util.types.isProxy(proxyNode[ND].proxy)) {
 		return false; // not even a proxy so can't be revoked
 	}
 
-	if(proxyNode[NID as unknown as typeof NIDtype].status === 'revoked') {
+	if(proxyNode[NID].status === 'revoked') {
 		try {
-			proxyNode[ND as unknown as typeof NDtype].proxy!.getSomeProperty; //get on revoked proxy should throw
+			proxyNode[ND].proxy!.getSomeProperty; //get on revoked proxy should throw
 		} catch(err) {
 			return true;
 		}

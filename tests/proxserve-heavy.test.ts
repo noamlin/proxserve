@@ -9,7 +9,8 @@
  */
 "use strict"
 
-import { Proxserve, ProxserveInstance } from '../';
+import { Proxserve } from '../src/index';
+import type { ProxserveInstance } from '../src/types/proxserve-class';
 import { isProxy, isRevoked, testObject, cloneDeep, deepCountObjects } from './common';
 import { ND } from '../src/globals';
 

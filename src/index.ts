@@ -7,9 +7,9 @@
  */
 "use strict"
 
-import { proxyTypes, nodeStatuses, proxyStatuses, ND, NID } from './globals';
-import { TargetVariable, SomeObject } from './types/globals';
-import { ProxserveInstance, DataNode, ProxyNode, ProxserveInstanceMetadata } from './types/proxserve-class';
+import { proxyTypes, NODE_STATUSES, PROXY_STATUSES, ND, NID } from './globals';
+import type { TargetVariable, SomeObject } from './types/globals';
+import type { ProxserveInstance, DataNode, ProxyNode, ProxserveInstanceMetadata } from './types/proxserve-class';
 import { unproxify, createNodes } from './supporting-functions';
 import * as pseudoMethods from './pseudo-methods';
 import * as proxyMethods from './proxy-methods';
@@ -57,11 +57,11 @@ export class Proxserve {
 		} = options;
 
 		let dataTreePrototype: DataNode = {
-			[NID]: { status: nodeStatuses.ACTIVE },
+			[NID]: { status: NODE_STATUSES.active },
 			[ND]: { isTreePrototype: true } as DataNode[typeof ND],
 		};
 		let proxyTreePrototype: ProxyNode = {
-			[NID]: { status: proxyStatuses.ALIVE },
+			[NID]: { status: PROXY_STATUSES.alive },
 			[ND]: { isTreePrototype: true } as ProxyNode[typeof ND],
 		};
 
@@ -126,7 +126,7 @@ export class Proxserve {
 					}
 					else if(proxyNode[property] // there's a child node
 							&& proxyNode[property][ND].proxy // it holds a proxy
-							&& proxyNode[property][NID].status === proxyStatuses.ALIVE) {
+							&& proxyNode[property][NID].status === PROXY_STATUSES.alive) {
 						return proxyNode[property][ND].proxy;
 					} else {
 						return target[property];
@@ -143,7 +143,7 @@ export class Proxserve {
 					 *    except for: length
 					 * TODO - make a list of all possible properties exceptions (maybe function 'name'?)
 					 */
-					if(dataNode[NID].status === nodeStatuses.BLOCKED) { //blocked from changing values
+					if(dataNode[NID].status === NODE_STATUSES.blocked) { //blocked from changing values
 						console.error('object is blocked. can\'t change value of property:', property);
 						return true;
 					}
@@ -164,7 +164,7 @@ export class Proxserve {
 					let isOldValueProxy = false;
 					if(proxyNode[property] !== undefined && proxyNode[property][ND].proxy !== undefined) {
 						// about to overwrite an existing property which is a proxy (about to detach a proxy)
-						proxyNode[property][NID].status = proxyStatuses.DELETED;
+						proxyNode[property][NID].status = PROXY_STATUSES.deleted;
 						delete dataNode[property][ND].proxyNode; // detach reference from data-node to proxy-node
 						isOldValueProxy = true;
 						if(metadata.strict) {
@@ -201,7 +201,7 @@ export class Proxserve {
 					let isOldValueProxy = false;
 					if(proxyNode[property] !== undefined && proxyNode[property][ND].proxy !== undefined) {
 						//about to overwrite an existing property which is a proxy (about to detach a proxy)
-						proxyNode[property][NID].status = proxyStatuses.DELETED;
+						proxyNode[property][NID].status = PROXY_STATUSES.deleted;
 						delete dataNode[property][ND].proxyNode; //detach reference from data-node to proxy-node
 						isOldValueProxy = true;
 						if(metadata.strict) {
@@ -233,7 +233,7 @@ export class Proxserve {
 						return true;
 					}
 
-					if(dataNode[NID].status === nodeStatuses.BLOCKED) { //blocked from changing values
+					if(dataNode[NID].status === NODE_STATUSES.blocked) { //blocked from changing values
 						console.error(`can't delete property '${property}'. object is blocked.`);
 						return true;
 					}
@@ -243,7 +243,7 @@ export class Proxserve {
 						let isOldValueProxy = false;
 						if(proxyNode[property] !== undefined && proxyNode[property][ND].proxy !== undefined) {
 							//about to overwrite an existing property which is a proxy (about to detach a proxy)
-							proxyNode[property][NID].status = proxyStatuses.DELETED;
+							proxyNode[property][NID].status = PROXY_STATUSES.deleted;
 							delete dataNode[property][ND].proxyNode; //detach reference from data-node to proxy-node
 							isOldValueProxy = true;
 							if(metadata.strict) {
@@ -301,8 +301,8 @@ export class Proxserve {
 			return; // proxy variable isn't a proxy
 		}
 
-		if(proxyNode[NID].status === proxyStatuses.ALIVE) {
-			proxyNode[NID].status = proxyStatuses.DELETED;
+		if(proxyNode[NID].status === PROXY_STATUSES.alive) {
+			proxyNode[NID].status = PROXY_STATUSES.deleted;
 		}
 
 		let typeofproxy = realtypeof(proxy);
@@ -323,7 +323,7 @@ export class Proxserve {
 
 			proxyNode[ND].revoke();
 			//proxyNode[ND].proxy = undefined;
-			proxyNode[NID].status = proxyStatuses.REVOKED;
+			proxyNode[NID].status = PROXY_STATUSES.revoked;
 		}
 		else {
 			console.warn(`Type of "${typeofproxy}" is not implemented`);

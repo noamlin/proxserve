@@ -6,8 +6,9 @@
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */
 import { DataNode } from './proxserve-class';
+import { EVENTS } from '../globals';
 
-export type eventNames = 'create'|'update'|'delete'|'splice'|'shift'|'unshift';
+export type EVENT_NAMES = keyof typeof EVENTS;
 
 export type SomeObject = {
 	[key: string | number | symbol]: any,
@@ -19,7 +20,7 @@ export type TargetVariable = SomeObject | SomeArray;
 export type VariableTypes = 'Object'|'Array'|'Number'|'String'|'Boolean'|'Null'|'Undefined'|'BigInt'|'Symbol'|'Date';
 
 export type ListenerData = {
-	type: eventNames[],
+	type: EVENT_NAMES[],
 	once: boolean,
 	func: Function,
 	id?: string | number;
@@ -35,7 +36,7 @@ export type ChangeEvent = {
 	path: string,
 	value: any,
 	oldValue: any,
-	type: eventNames,
+	type: EVENT_NAMES,
 	args?: {
 		start?: number;
 		deleteCount?: number;

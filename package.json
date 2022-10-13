@@ -9,7 +9,6 @@
 	"moduleMinified": "dist/esmodule/index.min.js",
 	"types": "dist/commonjs/index.d.ts",
 	"scripts": {
-		"start": "node index.js",
 		"test": "jest",
 		"typecheck": "tsc src/*.ts --noEmit",
 		"build": "parcel build && cp -f -t ./dist/esmodule ./dist/commonjs/index.d.ts ./dist/commonjs/index.d.ts.map",
@@ -49,6 +48,7 @@
 		"@parcel/transformer-typescript-types": "^2.7.0",
 		"@tsconfig/recommended": "^1.0.1",
 		"@types/jest": "^27.5.2",
+		"@types/lodash": "^4.14.186",
 		"jest": "^27.5.1",
 		"lodash": "^4.17.21",
 		"parcel": "^2.7.0",
@@ -77,6 +77,9 @@
 		"last 1 Chrome version"
 	],
 	"files": [
-		"package.json", "readme.md", "LICENSE", "dist"
+		"package.json",
+		"readme.md",
+		"LICENSE",
+		"dist"
 	]
 }

@@ -1,4 +1,4 @@
-import { ND, NID, nodeStatuses, proxyStatuses } from '../globals';
+import { ND, NID, NODE_STATUSES, PROXY_STATUSES } from '../globals';
 import { TargetVariable, ListenerData, DeferredEvent } from './globals';
 import {
 	StopFunction, BlockFunction, ActivateFunction,
@@ -10,7 +10,7 @@ import {
 export interface DataNode {
 	// Node Inherited Data
 	[NID]: {
-		status?: nodeStatuses;
+		status?: NODE_STATUSES;
 	};
 	// Node Data
 	[ND]: {
@@ -29,7 +29,7 @@ export interface DataNode {
 
 export interface ProxyNode {
 	[NID]: {
-		status?: proxyStatuses;
+		status?: PROXY_STATUSES;
 	};
 	[ND]: {
 		target: TargetVariable;

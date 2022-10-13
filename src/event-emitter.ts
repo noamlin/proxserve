@@ -7,9 +7,9 @@
  */
 "use strict"
 
-import { eventNamesObject, nodeStatuses, proxyStatuses, ND, NID } from './globals';
-import { eventNames, ChangeEvent, DeferredEvent, ListenerData } from './types/globals';
-import { DataNode } from './types/proxserve-class';
+import { EVENTS, NODE_STATUSES, PROXY_STATUSES, ND, NID } from './globals';
+import type { EVENT_NAMES, ChangeEvent, DeferredEvent, ListenerData } from './types/globals';
+import type { DataNode } from './types/proxserve-class';
 import { property2path } from './supporting-functions';
 import { splitPath } from './general-functions';
 
@@ -19,7 +19,7 @@ import { splitPath } from './general-functions';
  * @param [property] - the property as the dataNode is assigned on its parent
  */
 function getProxyValue(dataNode: DataNode, property?: string): any {
-	if(dataNode[ND].proxyNode && dataNode[ND].proxyNode[NID].status === proxyStatuses.ALIVE) {
+	if(dataNode[ND].proxyNode && dataNode[ND].proxyNode[NID].status === PROXY_STATUSES.alive) {
 		return dataNode[ND].proxyNode[ND].proxy; // actual proxy of child node
 	}
 	else {
@@ -30,7 +30,7 @@ function getProxyValue(dataNode: DataNode, property?: string): any {
 
 		let parentNode = dataNode[ND].parentNode;
 
-		if(parentNode[ND].proxyNode && parentNode[ND].proxyNode[NID].status === proxyStatuses.ALIVE) {
+		if(parentNode[ND].proxyNode && parentNode[ND].proxyNode[NID].status === PROXY_STATUSES.alive) {
 			return parentNode[ND].proxyNode[ND].proxy?.[property]; // proxy or primitive via parent's proxy object
 		}
 		else {
@@ -67,20 +67,20 @@ export function initEmitEvent(
 	}
 
 	let proxyNode = dataNode[ND].proxyNode;
-	if(proxyNode[NID].status !== proxyStatuses.ALIVE) { // altered a deleted proxy
+	if(proxyNode[NID].status !== PROXY_STATUSES.alive) { // altered a deleted proxy
 		return;
 	}
 
-	let changeType = eventNamesObject.update;
+	let changeType = EVENTS.update;
 	if(value === undefined) {
-		changeType = eventNamesObject.delete;
+		changeType = EVENTS.delete;
 	} else if(oldValue === undefined) {
-		changeType = eventNamesObject.create;
+		changeType = EVENTS.create;
 	}
 
 	let deferredEvents: DeferredEvent[] | undefined;
 	// altering properties of an array that's in the middle of a splicing phase
-	if(dataNode[NID].status === nodeStatuses.SPLICING) {
+	if(dataNode[NID].status === NODE_STATUSES.splicing) {
 		// initiate (if needed) an object to hold side effect events
 		if(!dataNode[ND].deferredEvents) {
 			dataNode[ND].deferredEvents = [];
@@ -120,7 +120,7 @@ export function initEmitEvent(
  * @param [property] - property name of the data-node (i.e. as the data-node is assigned to its parent)
  */
 function bubbleEmit(dataNode: DataNode, change: ChangeEvent, property?: string): void {
-	if(dataNode[NID].status === nodeStatuses.STOPPED) {
+	if(dataNode[NID].status === NODE_STATUSES.stopped) {
 		return; // not allowed to emit
 	}
 
@@ -156,11 +156,11 @@ function captureEmit(dataNode: DataNode, change: ChangeEvent): void {
 		let subValue = (typeof change.value === 'object' && change.value !== null) ? change.value[key] : undefined;
 		let subOldValue = (typeof change.oldValue === 'object' && change.oldValue !== null) ? change.oldValue[key] : undefined;
 		if(subValue !== subOldValue) { //if not both undefined or same primitive or the same object
-			let changeType = eventNamesObject.update;
+			let changeType = EVENTS.update;
 			if(subValue === undefined) {
-				changeType = eventNamesObject.delete;
+				changeType = EVENTS.delete;
 			} else if(subOldValue === undefined) {
-				changeType = eventNamesObject.create;
+				changeType = EVENTS.create;
 			}
 
 			let subChange: ChangeEvent = {
@@ -172,7 +172,7 @@ function captureEmit(dataNode: DataNode, change: ChangeEvent): void {
 
 			// failing the status check will not emit for current property (but sub-properties might still be forcibly active)
 			let childNode = dataNode[key];
-			if(childNode[NID].status !== nodeStatuses.STOPPED) {
+			if(childNode[NID].status !== NODE_STATUSES.stopped) {
 				let thisValue = getProxyValue(childNode, key);
 				iterateAndEmit(childNode[ND].listeners.shallow, thisValue, subChange);
 			}
@@ -210,7 +210,7 @@ function iterateAndEmit(listenersArr: ListenerData[], thisValue: any, change: Ch
  */
 export function initFunctionEmitEvent(
 	dataNode: DataNode,
-	funcName: eventNames,
+	funcName: EVENT_NAMES,
 	funcArgs: ChangeEvent['args'],
 	oldValue: any,
 	value: any,

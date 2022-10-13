@@ -17,22 +17,22 @@ export const proxyTypes = {
 };
 
 // statuses of data-nodes
-export enum nodeStatuses {
-	ACTIVE = 'active',
-	STOPPED = 'stopped',
-	BLOCKED = 'blocked',
-	SPLICING = 'splicing',
+export enum NODE_STATUSES {
+	active = 'active',
+	stopped = 'stopped',
+	blocked = 'blocked',
+	splicing = 'splicing',
 };
 
 // statuses of proxies
-export enum proxyStatuses {
-	ALIVE = 'alive',
-	DELETED = 'deleted',
-	REVOKED = 'revoked',
+export enum PROXY_STATUSES {
+	alive = 'alive',
+	deleted = 'deleted',
+	revoked = 'revoked',
 };
 
 // event names that can be emitted
-export enum eventNamesObject {
+export enum EVENTS {
 	create = 'create',
 	update = 'update',
 	delete = 'delete',
