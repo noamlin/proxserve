@@ -422,7 +422,7 @@ test('8. Destroy 50,000 proxserves in less than 1 seconds', () => {
 });
 
 test('9. Comprehensive events of changes', () => {
-	let proxy = Proxserve.make(cloneDeep(testObject), { emitMethods: false, debug: { destroyDelay: 10 } });
+	let proxy = Proxserve.make(cloneDeep(testObject), { methodsEmitRaw: true, debug: { destroyDelay: 10 } });
 	proxy.on({
 		event: 'create',
 		listener: function(change) {

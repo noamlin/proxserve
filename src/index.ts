@@ -16,6 +16,8 @@ import * as proxyMethods from './proxy-methods';
 import { realtypeof, splitPath, evalPath } from './general-functions';
 import { initEmitEvent } from './event-emitter';
 
+const pseudoMethodsAlternativeNamingPrefix = '$';
+
 /**
  * save an array of all reserved function names
  * and also add synonyms to these functions
@@ -23,25 +25,18 @@ import { initEmitEvent } from './event-emitter';
 let pseudoMethodsNames = Object.keys(pseudoMethods);
 for(let i = pseudoMethodsNames.length - 1; i >= 0; i--) {
 	let name = pseudoMethodsNames[i];
-	let synonym = pseudoMethods.alternativeNamingPrefix + name;
+	let synonym = pseudoMethodsAlternativeNamingPrefix + name;
 	pseudoMethods[synonym] = pseudoMethods[name];
 	pseudoMethodsNames.push(synonym);
 }
 
 interface MakeOptions {
-	/**
-	 * should destroy detached child-objects or deleted properties automatically
-	 */
-	strict?: boolean;
-	/**
-	 * should splice, shift or unshift emit one event or all internal CRUD events
-	 */
-	emitMethods?: boolean;
+	strict?: ProxserveInstanceMetadata['strict'];
+	methodsEmitRaw?: ProxserveInstanceMetadata['methodsEmitRaw'];
+	/** internal name of the instance */
+	name?: string;
 	debug?: {
-		/**
-		 * delay before destroying a detached child-object
-		 */
-		destroyDelay: number;
+		destroyDelay: ProxserveInstanceMetadata['destroyDelay'];
 	};
 }
 
@@ -52,7 +47,8 @@ export class Proxserve {
 	static make<T>(target: TargetVariable, options = {} as MakeOptions): ProxserveInstance & T {
 		const {
 			strict = true,
-			emitMethods = true,
+			methodsEmitRaw = false,
+			name: instanceName,
 			debug = { destroyDelay: 1000 },
 		} = options;
 
@@ -69,7 +65,7 @@ export class Proxserve {
 
 		const metadata = {
 			strict,
-			emitMethods,
+			methodsEmitRaw,
 			destroyDelay: debug.destroyDelay,
 			dataTree: newNodes.dataNode,
 			proxyTree: newNodes.proxyNode,
@@ -95,7 +91,7 @@ export class Proxserve {
 			proxyNode = parentProxyNode;
 		}
 		else {
-			//creates new or reset an existing data-node and then creates a new proxy-node
+			//create new or reset an existing data-node and then creates a new proxy-node
 			const newNodes = createNodes(
 				parentDataNode,
 				targetProperty,
@@ -113,7 +109,7 @@ export class Proxserve {
 		if(proxyTypes[typeoftarget]) {
 			let revocable = Proxy.revocable<TargetVariable>(target, {
 				get: (target: TargetVariable/*same as parent scope 'target'*/, property: string|symbol, proxy) => {
-					if(metadata.emitMethods && Object.prototype.hasOwnProperty.call(proxyMethods, property) && property in Object.getPrototypeOf(target)) {
+					if(metadata.methodsEmitRaw === false && Object.prototype.hasOwnProperty.call(proxyMethods, property) && property in Object.getPrototypeOf(target)) {
 						// use a proxy method instead of the built-in method that is on the prototype chain
 						return proxyMethods[property].bind({ metadata, dataNode, proxyNode });
 					}
@@ -293,7 +289,7 @@ export class Proxserve {
 	 * this functions delays 1000 milliseconds to let time for all events to finish
 	 */
 	static destroy(proxy: ProxserveInstance) {
-		let proxyNode;
+		let proxyNode: ProxyNode;
 		try {
 			const nodes = proxy.$getProxserveNodes();
 			proxyNode = nodes.proxyNode;
@@ -314,14 +310,14 @@ export class Proxserve {
 					let typeofproperty = realtypeof(proxy[key]);
 					if(proxyTypes[typeofproperty]) {
 						// going to proxy[key], which is deleted, will return the original target so we will bypass it
-						Proxserve.destroy(proxyNode[key][ND].proxy);
+						Proxserve.destroy(proxyNode[key][ND].proxy!);
 					}
 				} catch(error) {
 					console.error(error); // don't throw and kill the whole process just if this iteration fails
 				}
 			}
 
-			proxyNode[ND].revoke();
+			proxyNode[ND].revoke?.();
 			//proxyNode[ND].proxy = undefined;
 			proxyNode[NID].status = PROXY_STATUSES.revoked;
 		}

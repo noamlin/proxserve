@@ -247,7 +247,6 @@ function $d613cdccf4e92ac6$export$953dd193a01bd6ec(parentDataNode, property, par
 
 var $62e27656781218cb$exports = {};
 
-$parcel$export($62e27656781218cb$exports, "alternativeNamingPrefix", () => $62e27656781218cb$export$f8c737731570df1);
 $parcel$export($62e27656781218cb$exports, "stop", () => $62e27656781218cb$export$fa6813432f753b0d);
 $parcel$export($62e27656781218cb$exports, "block", () => $62e27656781218cb$export$837bd02682cd3db9);
 $parcel$export($62e27656781218cb$exports, "activate", () => $62e27656781218cb$export$234c45b355edd85b);
@@ -271,7 +270,6 @@ $parcel$export($62e27656781218cb$exports, "getProxserveNodes", () => $62e2765678
 // calling it will return the method via the JS proxy's "get" handler.
 // (i.e. someProxserve.pseudoFunction will return the pseudoFunction)
 "use strict";
-const $62e27656781218cb$export$f8c737731570df1 = "$";
 const $62e27656781218cb$export$fa6813432f753b0d = function stop() {
     this.dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status = (0, $518557bad313f8f1$export$ee1d4171033e00ef).stopped;
 };
@@ -298,7 +296,7 @@ const $62e27656781218cb$export$af631764ddc44097 = function on(args) {
     let dataNode = this.dataNode;
     let segments = (0, $e3f4344113dd8ef0$export$824c337f43f2b64d)(path);
     for (let property of segments){
-        if (!dataNode[property]) // create data-nodes if needed, but don't create/overwrite proxy-nodes
+        if (!dataNode[property]) // create data-nodes if needed (in dataNode[property]), but don't create/overwrite proxy-nodes
         (0, $d613cdccf4e92ac6$export$953dd193a01bd6ec)(dataNode, property);
         dataNode = dataNode[property];
     }
@@ -587,13 +585,14 @@ const $ac07f5587380cee0$export$37cdb546b806ae87 = function unshift(...items) {
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */ "use strict";
+const $758ea81f4f7b53ee$var$pseudoMethodsAlternativeNamingPrefix = "$";
 /**
  * save an array of all reserved function names
  * and also add synonyms to these functions
  */ let $758ea81f4f7b53ee$var$pseudoMethodsNames = Object.keys($62e27656781218cb$exports);
 for(let i = $758ea81f4f7b53ee$var$pseudoMethodsNames.length - 1; i >= 0; i--){
     let name = $758ea81f4f7b53ee$var$pseudoMethodsNames[i];
-    let synonym = $62e27656781218cb$exports.alternativeNamingPrefix + name;
+    let synonym = $758ea81f4f7b53ee$var$pseudoMethodsAlternativeNamingPrefix + name;
     $62e27656781218cb$exports[synonym] = $62e27656781218cb$exports[name];
     $758ea81f4f7b53ee$var$pseudoMethodsNames.push(synonym);
 }
@@ -601,7 +600,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
     /**
 	 * make a new proxserve instance
 	 */ static make(target, options = {}) {
-        const { strict: strict = true , emitMethods: emitMethods = true , debug: debug = {
+        const { strict: strict = true , methodsEmitRaw: methodsEmitRaw = false , name: instanceName , debug: debug = {
             destroyDelay: 1000
         } ,  } = options;
         let dataTreePrototype = {
@@ -623,7 +622,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
         const newNodes = (0, $d613cdccf4e92ac6$export$953dd193a01bd6ec)(dataTreePrototype, "", proxyTreePrototype, target);
         const metadata = {
             strict: strict,
-            emitMethods: emitMethods,
+            methodsEmitRaw: methodsEmitRaw,
             destroyDelay: debug.destroyDelay,
             dataTree: newNodes.dataNode,
             proxyTree: newNodes.proxyNode
@@ -640,7 +639,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
             dataNode = parentDataNode;
             proxyNode = parentProxyNode;
         } else {
-            //creates new or reset an existing data-node and then creates a new proxy-node
+            //create new or reset an existing data-node and then creates a new proxy-node
             const newNodes = (0, $d613cdccf4e92ac6$export$953dd193a01bd6ec)(parentDataNode, targetProperty, parentProxyNode, parentProxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].target[targetProperty]);
             dataNode = newNodes.dataNode;
             proxyNode = newNodes.proxyNode;
@@ -650,7 +649,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
         if ((0, $518557bad313f8f1$export$94b8be4ec3303efd)[typeoftarget]) {
             let revocable = Proxy.revocable(target, {
                 get: (target /*same as parent scope 'target'*/ , property, proxy)=>{
-                    if (metadata.emitMethods && Object.prototype.hasOwnProperty.call($ac07f5587380cee0$exports, property) && property in Object.getPrototypeOf(target)) // use a proxy method instead of the built-in method that is on the prototype chain
+                    if (metadata.methodsEmitRaw === false && Object.prototype.hasOwnProperty.call($ac07f5587380cee0$exports, property) && property in Object.getPrototypeOf(target)) // use a proxy method instead of the built-in method that is on the prototype chain
                     return $ac07f5587380cee0$exports[property].bind({
                         metadata: metadata,
                         dataNode: dataNode,
@@ -798,6 +797,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
         if (proxyNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status === (0, $518557bad313f8f1$export$3f0ec6107d502ceb).alive) proxyNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status = (0, $518557bad313f8f1$export$3f0ec6107d502ceb).deleted;
         let typeofproxy = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(proxy);
         if ((0, $518557bad313f8f1$export$94b8be4ec3303efd)[typeofproxy]) {
+            var _ND, ref;
             let keys = Object.keys(proxy); // handles both Objects and Arrays
             for (let key of keys)try {
                 let typeofproperty = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(proxy[key]);
@@ -806,7 +806,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
             } catch (error1) {
                 console.error(error1); // don't throw and kill the whole process just if this iteration fails
             }
-            proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].revoke();
+            (ref = (_ND = proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc]).revoke) === null || ref === void 0 ? void 0 : ref.call(_ND);
             //proxyNode[ND].proxy = undefined;
             proxyNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status = (0, $518557bad313f8f1$export$3f0ec6107d502ceb).revoked;
         } else console.warn(`Type of "${typeofproxy}" is not implemented`);

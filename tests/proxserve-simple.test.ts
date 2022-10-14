@@ -587,8 +587,8 @@ test('13. Listen for delete event of sub-properties when parent is deleted', (do
 	};
 });
 
-test('14. turn off emitMethods option', () => {
-	let proxy = Proxserve.make([0,1], { emitMethods: false });
+test('14. turn off methodsEmitRaw option', () => {
+	let proxy = Proxserve.make([0,1], { methodsEmitRaw: true });
 
 	let counter = 0;
 	proxy.on({ event: 'change', deep: true, listener: function(change) {

@@ -7,6 +7,7 @@ import {
 	GetOriginalTargetFunction, GetProxserveNodesFunction,
 } from './pseudo-methods';
 
+/** a permanent node that holds data about the "location" in the tree */
 export interface DataNode {
 	// Node Inherited Data
 	[NID]: {
@@ -27,6 +28,10 @@ export interface DataNode {
 	};
 };
 
+/**
+ * a node that holds data about the proxy-object
+ * and lives and dies with the specific proxy-object.
+ */
 export interface ProxyNode {
 	[NID]: {
 		status?: PROXY_STATUSES;
@@ -34,25 +39,24 @@ export interface ProxyNode {
 	[ND]: {
 		target: TargetVariable;
 		dataNode: DataNode;
+		isTreePrototype?: boolean;
+		// the following is optional because "on()" may create dataNodes for paths that
+		// don't exist yet and have no ProxserveInstance assigned to them currently.
 		proxy?: ProxserveInstance;
 		revoke?: () => void;
-		isTreePrototype?: boolean;
 	};
 	[property: string]: ProxyNode;
 };
 
 export interface ProxserveInstanceMetadata {
-	/**
-	 * should destroy detached child-objects or deleted properties automatically
-	 */
+	/** should destroy detached child-objects or deleted properties automatically */
 	strict: boolean;
 	/**
-	 * should emit one event for splice, shift and unshift or else emit all internal CRUD events
+	 * should splice, shift or unshift emit raw events of all internal CRUD events
+	 * or emit one signle event named after the method.
 	 */
-	emitMethods: boolean;
-	/**
-	 * delay before destroying a detached child-object
-	 */
+	methodsEmitRaw: boolean;
+	/** delay before destroying a detached child-object */
 	destroyDelay: number;
 	dataTree: DataNode;
 	proxyTree: ProxyNode;
@@ -67,13 +71,9 @@ export type PseudoThis = {
 // extending `PseudoThis` is a hack to let typescript compile and interpret correctly even though
 // the methods have a completely different `this` than of the properties and methods of the `ProxserveInstance`
 export type ProxserveInstance = PseudoThis & {
-	/**
-	 * for internal use - the node's data
-	 */
+	/** for internal use - the node's data */
 	[ND]: ProxyNode[typeof ND];
-	/**
-	 * for internal use - the node's inherited data
-	 */
+	/** for internal use - the node's inherited data */
 	[NID]: ProxyNode[typeof NID];
 
 	stop: StopFunction; $stop: StopFunction;

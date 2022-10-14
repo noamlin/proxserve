@@ -85,6 +85,7 @@ type GetProxserveNodesFunction = (this: PseudoThis) => {
     dataNode: DataNode;
     proxyNode: ProxyNode;
 };
+/** a permanent node that holds data about the "location" in the tree */
 interface DataNode {
     [NID]: {
         status?: NODE_STATUSES;
@@ -102,6 +103,10 @@ interface DataNode {
         isTreePrototype?: boolean;
     };
 }
+/**
+ * a node that holds data about the proxy-object
+ * and lives and dies with the specific proxy-object.
+ */
 interface ProxyNode {
     [NID]: {
         status?: PROXY_STATUSES;
@@ -109,24 +114,21 @@ interface ProxyNode {
     [ND]: {
         target: TargetVariable;
         dataNode: DataNode;
+        isTreePrototype?: boolean;
         proxy?: ProxserveInstance;
         revoke?: () => void;
-        isTreePrototype?: boolean;
     };
     [property: string]: ProxyNode;
 }
 interface ProxserveInstanceMetadata {
-    /**
-     * should destroy detached child-objects or deleted properties automatically
-     */
+    /** should destroy detached child-objects or deleted properties automatically */
     strict: boolean;
     /**
-     * should emit one event for splice, shift and unshift or else emit all internal CRUD events
+     * should splice, shift or unshift emit raw events of all internal CRUD events
+     * or emit one signle event named after the method.
      */
-    emitMethods: boolean;
-    /**
-     * delay before destroying a detached child-object
-     */
+    methodsEmitRaw: boolean;
+    /** delay before destroying a detached child-object */
     destroyDelay: number;
     dataTree: DataNode;
     proxyTree: ProxyNode;
@@ -137,13 +139,9 @@ type PseudoThis = {
     proxyNode: ProxyNode;
 };
 type ProxserveInstance = PseudoThis & {
-    /**
-     * for internal use - the node's data
-     */
+    /** for internal use - the node's data */
     [ND]: ProxyNode[typeof ND];
-    /**
-     * for internal use - the node's inherited data
-     */
+    /** for internal use - the node's inherited data */
     [NID]: ProxyNode[typeof NID];
     stop: StopFunction;
     $stop: StopFunction;
@@ -194,19 +192,12 @@ type ChangeEvent = {
     };
 };
 interface MakeOptions {
-    /**
-     * should destroy detached child-objects or deleted properties automatically
-     */
-    strict?: boolean;
-    /**
-     * should splice, shift or unshift emit one event or all internal CRUD events
-     */
-    emitMethods?: boolean;
+    strict?: ProxserveInstanceMetadata['strict'];
+    methodsEmitRaw?: ProxserveInstanceMetadata['methodsEmitRaw'];
+    /** internal name of the instance */
+    name?: string;
     debug?: {
-        /**
-         * delay before destroying a detached child-object
-         */
-        destroyDelay: number;
+        destroyDelay: ProxserveInstanceMetadata['destroyDelay'];
     };
 }
 export class Proxserve {

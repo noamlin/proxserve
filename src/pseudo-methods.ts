@@ -22,8 +22,6 @@ import {
 import { createNodes } from './supporting-functions';
 import { splitPath } from './general-functions';
 
-export const alternativeNamingPrefix = '$';
-
 export const stop: StopFunction = function stop(this) {
 	this.dataNode[NID].status = NODE_STATUSES.stopped;
 };
@@ -70,7 +68,7 @@ export const on: OnFunction = function on(this, args) {
 	let segments = splitPath(path);
 	for(let property of segments) { // traverse down the tree
 		if(!dataNode[property]) {
-			// create data-nodes if needed, but don't create/overwrite proxy-nodes
+			// create data-nodes if needed (in dataNode[property]), but don't create/overwrite proxy-nodes
 			createNodes(dataNode, property);
 		}
 
