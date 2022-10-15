@@ -48,12 +48,15 @@ export class Proxserve {
 		const {
 			strict = true,
 			methodsEmitRaw = false,
-			name: instanceName,
+			name: rootName = '',
 			debug = { destroyDelay: 1000 },
 		} = options;
 
 		let dataTreePrototype: DataNode = {
-			[NID]: { status: NODE_STATUSES.active },
+			[NID]: {
+				status: NODE_STATUSES.active,
+				name: rootName,
+			},
 			[ND]: { isTreePrototype: true } as DataNode[typeof ND],
 		};
 		let proxyTreePrototype: ProxyNode = {

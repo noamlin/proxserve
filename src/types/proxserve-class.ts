@@ -4,7 +4,7 @@ import {
 	StopFunction, BlockFunction, ActivateFunction,
 	OnFunction, OnceFunction,
 	RemoveListenerFunction, RemoveAllListenersFunction,
-	GetOriginalTargetFunction, GetProxserveNodesFunction,
+	GetOriginalTargetFunction, GetProxserveNodesFunction, GetProxserveNameFunction, WhoAMI,
 } from './pseudo-methods';
 
 /** a permanent node that holds data about the "location" in the tree */
@@ -12,6 +12,7 @@ export interface DataNode {
 	// Node Inherited Data
 	[NID]: {
 		status?: NODE_STATUSES;
+		name: string;
 	};
 	// Node Data
 	[ND]: {
@@ -40,8 +41,8 @@ export interface ProxyNode {
 		target: TargetVariable;
 		dataNode: DataNode;
 		isTreePrototype?: boolean;
-		// the following is optional because "on()" may create dataNodes for paths that
-		// don't exist yet and have no ProxserveInstance assigned to them currently.
+		// the following is optional because `on()` may create dataNodes for paths that
+		// don't exist yet and have no ProxserveInstance assigned to them yet.
 		proxy?: ProxserveInstance;
 		revoke?: () => void;
 	};
@@ -84,6 +85,8 @@ export type ProxserveInstance = PseudoThis & {
 	removeListener: RemoveListenerFunction; $removeListener: RemoveListenerFunction;
 	removeAllListeners: RemoveAllListenersFunction; $removeAllListeners: RemoveAllListenersFunction;
 	getOriginalTarget: GetOriginalTargetFunction; $getOriginalTarget: GetOriginalTargetFunction;
+	getProxserveName: GetProxserveNameFunction; $getProxserveName: GetProxserveNameFunction;
+	whoami: WhoAMI; $whoami: WhoAMI;
 	getProxserveNodes: GetProxserveNodesFunction; $getProxserveNodes: GetProxserveNodesFunction;
 
 	[property: string | number | symbol]: any;

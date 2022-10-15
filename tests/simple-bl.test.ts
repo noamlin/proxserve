@@ -391,90 +391,7 @@ test('8. get/set/delete properties after defineProperty', () => {
 	expect(proxy.obj).toBe(undefined);
 });
 
-test('9. splitPath - split path to segments', () => {
-	let path = Proxserve.splitPath('.level2_1.level3_1');
-	let path2 = Proxserve.splitPath('level2_1.level3_1');
-	expect(path).toEqual(path2);
-	expect(path).toEqual(['level2_1','level3_1']);
-
-	path = Proxserve.splitPath('[2][2].new');
-	expect(path).toEqual([2,2,'new']);
-
-	path = Proxserve.splitPath('.new[0]');
-	expect(path).toEqual(['new',0]);
-
-	path = Proxserve.splitPath('.a');
-	path2 = Proxserve.splitPath('a');
-	expect(path).toEqual(path2);
-	expect(path).toEqual(['a']);
-
-	path = Proxserve.splitPath('.level2_1.level3_1.arr2[2][2].new[0]');
-	expect(path).toEqual(['level2_1','level3_1','arr2',2,2,'new',0]);
-
-	path = Proxserve.splitPath('New[0]new');
-	expect(path).toEqual(['New',0,'new']);
-
-	path = Proxserve.splitPath('[1][0][new]');
-	expect(path).toEqual([1,0,'new']);
-
-	path = Proxserve.splitPath('.new[0][1.0][1a][keyWith1][9876543210]');
-	expect(path).toEqual(['new',0,'1.0','1a','keyWith1',9876543210]);
-});
-
-test('10. evalPath - get target property of object and path', () => {
-	let proxy = Proxserve.make(cloneDeep(testObject));
-	proxy.on({ event: 'change', listener: function(changes) {
-		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
-		expect(object === proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep).toBe(true);
-		expect(property).toEqual('deeper');
-		expect(value).toBe('xyz');
-	}});
-	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.deeper = 'xyz';
-	proxy.removeAllListeners();
-
-	proxy.level1_2.on({ event: 'change', listener: function(changes) {
-		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
-		expect(object === proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep).toBe(true);
-		expect(property).toEqual('another');
-		expect(value).toBe('asdf');
-	}});
-	proxy.level1_2.level2_1.level3_1.arr2[2][2][1].deep.another = 'asdf';
-	proxy.level1_2.removeAllListeners();
-
-	proxy.level1_2.level2_1.on({ event: 'change', listener: function(changes) {
-		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
-		expect(object === proxy.level1_2.level2_1.level3_1.arr2[2]).toBe(true);
-		expect(property).toEqual(2);
-		expect(value).toEqual([0, {a: 'a'}]);
-	}});
-	proxy.level1_2.level2_1.level3_1.arr2[2][2] = [0, {a: 'a'}];
-	proxy.level1_2.level2_1.removeAllListeners();
-
-	proxy.on({ event: 'change', listener: function(changes) {
-		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
-		expect(object === proxy).toBe(true);
-		expect(property).toEqual('a');
-		expect(value).toEqual({});
-	}});
-	proxy.a = {};
-	proxy.removeAllListeners();
-
-	proxy.on({ event: 'change', listener: function(changes) {
-		let { object, property, value } = Proxserve.evalPath(this, changes[0].path);
-		expect(object === proxy.a).toBe(true);
-		expect(property).toEqual('a');
-		expect(value).toEqual('a');
-	}});
-	proxy.a.a = 'a';
-	proxy.removeAllListeners();
-
-	let { object, property, value } = Proxserve.evalPath(proxy, '');
-	expect(object === proxy).toBe(true);
-	expect(property).toEqual('');
-	expect(value).toEqual(proxy);
-});
-
-test('11. On-change listener that makes its own changes', () => {
+test('9. On-change listener that makes its own changes', () => {
 	let proxy = Proxserve.make(cloneDeep(testObject));
 	let counter = 0;
 	proxy.level1_1.arr1.on({ event: 'change', deep: true, listener: function(change) {
@@ -496,7 +413,7 @@ test('11. On-change listener that makes its own changes', () => {
 	proxy.level1_1.arr1[2] = 19;
 });
 
-test('12. on/once/removeListener/removeAllListeners', () => {
+test('10. on/once/removeListener/removeAllListeners', () => {
 	let proxy = Proxserve.make(cloneDeep(testObject));
 	let counter = 0;
 	let countFunction = function(changes) {
@@ -543,7 +460,7 @@ test('12. on/once/removeListener/removeAllListeners', () => {
 	expect(counter).toBe(9);
 });
 
-test('13. Listen for delete event of sub-properties when parent is deleted', (done) => {
+test('11. Listen for delete event of sub-properties when parent is deleted', (done) => {
 	let proxy = Proxserve.make({});
 	let counter = 0;
 	proxy.on({ event: 'change', path: '.obj.arr[0][0][0]', listener: function(change) {
@@ -587,7 +504,7 @@ test('13. Listen for delete event of sub-properties when parent is deleted', (do
 	};
 });
 
-test('14. turn off methodsEmitRaw option', () => {
+test('12. turn off methodsEmitRaw option', () => {
 	let proxy = Proxserve.make([0,1], { methodsEmitRaw: true });
 
 	let counter = 0;

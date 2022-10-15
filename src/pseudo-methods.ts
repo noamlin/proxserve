@@ -17,6 +17,7 @@ import {
 	StopFunction, BlockFunction, ActivateFunction,
 	OnFunction, OnceFunction,
 	RemoveListenerFunction, RemoveAllListenersFunction,
+	GetProxserveNameFunction, WhoAMI,
 	GetOriginalTargetFunction, GetProxserveNodesFunction,
 } from './types/pseudo-methods';
 import { createNodes } from './supporting-functions';
@@ -145,6 +146,14 @@ export const removeAllListeners: RemoveAllListenersFunction = function removeAll
 
 export const getOriginalTarget: GetOriginalTargetFunction = function getOriginalTarget(this) {
 	return this.proxyNode[ND].target;
+};
+
+export const getProxserveName: GetProxserveNameFunction = function getProxserveName(this) {
+	return this.dataNode[NID].name;
+};
+
+export const whoami: WhoAMI = function whoami(this) {
+	return this.dataNode[NID].name + this.dataNode[ND].path;
 };
 
 export const getProxserveNodes: GetProxserveNodesFunction = function getProxserveNodes(this) {

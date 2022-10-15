@@ -78,6 +78,14 @@ type RemoveAllListenersFunction = (this: PseudoThis, path?: string) => void;
  */
 type GetOriginalTargetFunction = (this: PseudoThis) => TargetVariable;
 /**
+ * get the root name (if given) of the current proxserve
+ */
+type GetProxserveNameFunction = (this: PseudoThis) => string;
+/**
+ * get the full name and path of current sub-object
+ */
+type WhoAMI = (this: PseudoThis) => string;
+/**
  * get the data-node of a proxy (which holds all meta data)
  * and also get proxy-node of a proxy (which holds all related objects)
  */
@@ -89,6 +97,7 @@ type GetProxserveNodesFunction = (this: PseudoThis) => {
 interface DataNode {
     [NID]: {
         status?: NODE_STATUSES;
+        name: string;
     };
     [ND]: {
         proxyNode: ProxyNode;
@@ -159,6 +168,10 @@ type ProxserveInstance = PseudoThis & {
     $removeAllListeners: RemoveAllListenersFunction;
     getOriginalTarget: GetOriginalTargetFunction;
     $getOriginalTarget: GetOriginalTargetFunction;
+    getProxserveName: GetProxserveNameFunction;
+    $getProxserveName: GetProxserveNameFunction;
+    whoami: WhoAMI;
+    $whoami: WhoAMI;
     getProxserveNodes: GetProxserveNodesFunction;
     $getProxserveNodes: GetProxserveNodesFunction;
     [property: string | number | symbol]: any;

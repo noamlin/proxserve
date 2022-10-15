@@ -253,6 +253,8 @@ $parcel$export($f6f254486f25c78f$exports, "once", function () { return $f6f25448
 $parcel$export($f6f254486f25c78f$exports, "removeListener", function () { return $f6f254486f25c78f$export$b03e9483f936dccb; });
 $parcel$export($f6f254486f25c78f$exports, "removeAllListeners", function () { return $f6f254486f25c78f$export$6f2e3a6079f109b1; });
 $parcel$export($f6f254486f25c78f$exports, "getOriginalTarget", function () { return $f6f254486f25c78f$export$35f261dd63190ac1; });
+$parcel$export($f6f254486f25c78f$exports, "getProxserveName", function () { return $f6f254486f25c78f$export$e4722608b73ef3f1; });
+$parcel$export($f6f254486f25c78f$exports, "whoami", function () { return $f6f254486f25c78f$export$533e55abf9329f7b; });
 $parcel$export($f6f254486f25c78f$exports, "getProxserveNodes", function () { return $f6f254486f25c78f$export$c3c6db5039118967; });
 
 
@@ -351,6 +353,12 @@ const $f6f254486f25c78f$export$6f2e3a6079f109b1 = function removeAllListeners(pa
 };
 const $f6f254486f25c78f$export$35f261dd63190ac1 = function getOriginalTarget() {
     return this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].target;
+};
+const $f6f254486f25c78f$export$e4722608b73ef3f1 = function getProxserveName() {
+    return this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].name;
+};
+const $f6f254486f25c78f$export$533e55abf9329f7b = function whoami() {
+    return this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].name + this.dataNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].path;
 };
 const $f6f254486f25c78f$export$c3c6db5039118967 = function getProxserveNodes() {
     return {
@@ -597,12 +605,13 @@ class $643fcf18b2d2e76f$export$d402cf8388053971 {
     /**
 	 * make a new proxserve instance
 	 */ static make(target, options = {}) {
-        const { strict: strict = true , methodsEmitRaw: methodsEmitRaw = false , name: instanceName , debug: debug = {
+        const { strict: strict = true , methodsEmitRaw: methodsEmitRaw = false , name: rootName = "" , debug: debug = {
             destroyDelay: 1000
         } ,  } = options;
         let dataTreePrototype = {
             [(0, $cebd7357bd8525a2$export$d1c20e4ad7d32581)]: {
-                status: (0, $cebd7357bd8525a2$export$ee1d4171033e00ef).active
+                status: (0, $cebd7357bd8525a2$export$ee1d4171033e00ef).active,
+                name: rootName
             },
             [(0, $cebd7357bd8525a2$export$f7e0aa381a5261fc)]: {
                 isTreePrototype: true
