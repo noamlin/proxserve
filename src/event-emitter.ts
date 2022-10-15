@@ -117,7 +117,7 @@ export function initEmitEvent(
  * bubbling phase - go up the data tree and emit
  * @param dataNode
  * @param change
- * @param [property] - property name of the data-node (i.e. as the data-node is assigned to its parent)
+ * @param property - property name of the data-node (i.e. as the data-node is assigned to its parent)
  */
 function bubbleEmit(dataNode: DataNode, change: ChangeEvent, property?: string): void {
 	if(dataNode[NID].status === NODE_STATUSES.stopped) {

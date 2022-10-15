@@ -553,3 +553,29 @@ test('12. turn off methodsEmitRaw option', () => {
 	proxy.shift();
 	proxy.shift();
 });
+
+test('13. Assign unproxified sub-objects', () => {
+	const proxy = Proxserve.make(cloneDeep(testObject));
+	const subObj = {
+		level3_1: {
+			_$level4_1: {}
+		}
+	};
+
+	proxy.level1_2.on({ event: 'update', path: '.level2_2.level3_1._$level4_1', listener: function(change) {
+		throw new Error('Should not reach here!');
+	}});
+
+	proxy.level1_2.level2_2 = subObj; // invokes the captureEmit phase, with change type of 'create'.
+
+	expect(isProxy(proxy.level1_2.level2_2)).toBe(true);
+	expect(isProxy(proxy.level1_2.level2_2.level3_1)).toBe(true);
+	expect(isProxy(proxy.level1_2.level2_2.level3_1._$level4_1)).toBe(false);
+
+	proxy.level1_2.level2_2.level3_1._$level4_1.subArr = [];
+	proxy.level1_2.level2_2.level3_1._$level4_1.subArr.push(0);
+	proxy.level1_2.level2_2.level3_1._$level4_1.subPrimitive = 11;
+	proxy.level1_2.level2_2.level3_1._$level4_1.subPrimitive = 'abc';
+	proxy.level1_2.level2_2.level3_1._$level4_1 = [];
+	proxy.level1_2.level2_2.level3_1._$level4_1.push('z');
+});

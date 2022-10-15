@@ -16,7 +16,7 @@ export interface DataNode {
 	};
 	// Node Data
 	[ND]: {
-		proxyNode: ProxyNode;
+		proxyNode?: ProxyNode;
 		parentNode: DataNode;
 		listeners: {
 			shallow: ListenerData[];
@@ -27,6 +27,7 @@ export interface DataNode {
 		deferredEvents?: DeferredEvent[];
 		isTreePrototype?: boolean;
 	};
+	[childNode: string]: DataNode;
 };
 
 /**
@@ -46,7 +47,7 @@ export interface ProxyNode {
 		proxy?: ProxserveInstance;
 		revoke?: () => void;
 	};
-	[property: string]: ProxyNode;
+	[childNode: string]: ProxyNode;
 };
 
 export interface ProxserveInstanceMetadata {

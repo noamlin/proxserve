@@ -100,7 +100,7 @@ interface DataNode {
         name: string;
     };
     [ND]: {
-        proxyNode: ProxyNode;
+        proxyNode?: ProxyNode;
         parentNode: DataNode;
         listeners: {
             shallow: ListenerData[];
@@ -111,6 +111,7 @@ interface DataNode {
         deferredEvents?: DeferredEvent[];
         isTreePrototype?: boolean;
     };
+    [childNode: string]: DataNode;
 }
 /**
  * a node that holds data about the proxy-object
@@ -127,7 +128,7 @@ interface ProxyNode {
         proxy?: ProxserveInstance;
         revoke?: () => void;
     };
-    [property: string]: ProxyNode;
+    [childNode: string]: ProxyNode;
 }
 interface ProxserveInstanceMetadata {
     /** should destroy detached child-objects or deleted properties automatically */

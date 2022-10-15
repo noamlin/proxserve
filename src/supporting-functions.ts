@@ -87,7 +87,7 @@ export function createNodes(
 	property: string | number,
 	parentProxyNode?: ProxyNode,
 	target?: TargetVariable,
-): { dataNode: DataNode, proxyNode: ProxyNode } {
+): { dataNode: DataNode, proxyNode: ProxyNode | undefined } {
 	//handle property path
 	let propertyPath: string;
 	if(parentProxyNode?.[ND].target) {
@@ -128,7 +128,7 @@ export function createNodes(
 	}
 
 	// handle proxy node
-	let proxyNode: ProxyNode;
+	let proxyNode: ProxyNode | undefined;
 	if(parentProxyNode) {
 		proxyNode = {
 			[NID]: Object.create(parentProxyNode[NID]),
@@ -143,9 +143,8 @@ export function createNodes(
 		// attach nodes to each other
 		dataNode[ND].proxyNode = proxyNode;
 	} else {
-		// hack to satisfy TS.
 		// this scenario is dangerous and exists only for `on()` of future variables (paths) that don't yet exist
-		proxyNode = undefined as unknown as ProxyNode;
+		proxyNode = undefined;
 	}
 
 	return { dataNode, proxyNode };

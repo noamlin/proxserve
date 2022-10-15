@@ -833,3 +833,48 @@ test('10. Events for future sub objects and primitives not yet created', () => {
 
 	proxy.obj = true;
 });
+
+test('11. Assign unproxified sub-objects and listen to captureEmit events', () => {
+	const proxy = Proxserve.make(cloneDeep(testObject), { debug: { destroyDelay: 10 } });
+	const subObj = {
+		level3_1: {
+			_$level4_1: []
+		}
+	};
+
+	proxy.level1_2.on({ event: 'change', path: '.level2_2', listener: function(change) {
+		expect(change.oldValue).toBe(undefined);
+		expect(change.value).toBe(subObj);
+		expect(change.path).toBe('');
+		expect(change.type).toBe('create');
+	}});
+	proxy.level1_2.on({
+		event: 'change',
+		path: '.level2_2.level3_1',
+		id: 'lvl3',
+		listener: function(change) {
+			expect(change.oldValue).toBe(undefined);
+			expect(change.value).toBe(subObj.level3_1);
+			expect(change.path).toBe('');
+			expect(change.type).toBe('create');
+			proxy.level1_2.removeListener({ path: '.level2_2.level3_1', id: 'lvl3' });
+		}
+	});
+	proxy.level1_2.on({ event: 'change', path: '.level2_2.level3_1._$level4_1', listener: function(change) {
+		if (change.type === 'create') {
+			expect(change.oldValue).toBe(undefined);
+			expect(change.value).toBe(subObj.level3_1._$level4_1);
+			expect(change.path).toBe('');
+			expect(change.type).toBe('create');
+		} else {
+			expect(change.oldValue).toEqual([0, 1, 2]);
+			expect(change.value).toEqual(['a', 'b']);
+			expect(change.path).toBe('');
+			expect(change.type).toBe('update');
+		}
+	}});
+
+	proxy.level1_2.level2_2 = subObj; // invokes the captureEmit phase
+	proxy.level1_2.level2_2.level3_1._$level4_1 = [0, 1, 2]; // doesn't invoke the captureEmit phase
+	proxy.level1_2.level2_2.level3_1 = { _$level4_1: ['a', 'b'] }; // invokes the captureEmit phase
+});

@@ -235,8 +235,7 @@ function $d613cdccf4e92ac6$export$953dd193a01bd6ec(parentDataNode, property, par
         parentProxyNode[property] = proxyNode;
         // attach nodes to each other
         dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxyNode = proxyNode;
-    } else // hack to satisfy TS.
-    // this scenario is dangerous and exists only for `on()` of future variables (paths) that don't yet exist
+    } else // this scenario is dangerous and exists only for `on()` of future variables (paths) that don't yet exist
     proxyNode = undefined;
     return {
         dataNode: dataNode,
@@ -441,7 +440,7 @@ function $7b3021a3226a950a$export$febbc75e71f4ca1b(dataNode, property, oldValue,
  * bubbling phase - go up the data tree and emit
  * @param dataNode
  * @param change
- * @param [property] - property name of the data-node (i.e. as the data-node is assigned to its parent)
+ * @param property - property name of the data-node (i.e. as the data-node is assigned to its parent)
  */ function $7b3021a3226a950a$var$bubbleEmit(dataNode, change, property) {
     if (dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status === (0, $518557bad313f8f1$export$ee1d4171033e00ef).stopped) return; // not allowed to emit
     let thisValue = $7b3021a3226a950a$var$getProxyValue(dataNode, property);
@@ -593,6 +592,7 @@ const $ac07f5587380cee0$export$37cdb546b806ae87 = function unshift(...items) {
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */ "use strict";
+const $758ea81f4f7b53ee$var$doNotProxifyPrefix = "_$";
 const $758ea81f4f7b53ee$var$pseudoMethodsAlternativeNamingPrefix = "$";
 /**
  * save an array of all reserved function names
@@ -641,7 +641,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
     /**
 	 * create a new proxy and a new node for a property of the parent's target-object
 	 */ static createProxy(metadata, parentDataNode, targetProperty) {
-        let parentProxyNode = parentDataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxyNode;
+        const parentProxyNode = parentDataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxyNode;
         let dataNode;
         let proxyNode;
         if (targetProperty === undefined) {
@@ -678,17 +678,18 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
                 },
                 set: (target /*same as parent scope 'target'*/ , property, value, proxy)=>{
                     /**
-					 * property can be a regular object because of 3 possible reasons:
-					 * 1. proxy is deleted from tree but user keeps accessing it then it means he saved a reference
-					 * 2. it is a non-enumerable property which means it was intentionally hidden
+					 * property can be a regular object because of a few possible reasons:
+					 * 1. proxy is deleted from tree but user keeps accessing it then it means he saved a reference.
+					 * 2. it is a non-enumerable property which means it was intentionally hidden.
 					 * 3. property is a symbol and symbols can't be proxied because we can't create a normal path for them.
 					 *    these properties are not proxied and should not emit change-event.
 					 *    except for: length
+					 * 4. property is manually set as raw object with the special prefix.
 					 * TODO - make a list of all possible properties exceptions (maybe function 'name'?)
 					 */ if (dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status === (0, $518557bad313f8f1$export$ee1d4171033e00ef).blocked) {
                         console.error("object is blocked. can't change value of property:", property);
                         return true;
-                    } else if (typeof property === "symbol") {
+                    } else if (typeof property === "symbol" || property.indexOf($758ea81f4f7b53ee$var$doNotProxifyPrefix) === 0) {
                         target[property] = value;
                         return true;
                     } else if (property !== "length" && !target.propertyIsEnumerable(property)) {
@@ -782,6 +783,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
             if ((0, $518557bad313f8f1$export$94b8be4ec3303efd)[typeoftarget]) {
                 let keys = Object.keys(target); //handles both Objects and Arrays
                 for (let key of keys){
+                    if (key.indexOf($758ea81f4f7b53ee$var$doNotProxifyPrefix) === 0) continue;
                     let typeofproperty = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(target[key]);
                     if ((0, $518557bad313f8f1$export$94b8be4ec3303efd)[typeofproperty]) $758ea81f4f7b53ee$export$d402cf8388053971.createProxy(metadata, dataNode, key); //recursively make child objects also proxies
                 }
@@ -808,12 +810,15 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
         if ((0, $518557bad313f8f1$export$94b8be4ec3303efd)[typeofproxy]) {
             var _ND, ref;
             let keys = Object.keys(proxy); // handles both Objects and Arrays
-            for (let key of keys)try {
-                let typeofproperty = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(proxy[key]);
-                if ((0, $518557bad313f8f1$export$94b8be4ec3303efd)[typeofproperty]) // going to proxy[key], which is deleted, will return the original target so we will bypass it
-                $758ea81f4f7b53ee$export$d402cf8388053971.destroy(proxyNode[key][0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxy);
-            } catch (error1) {
-                console.error(error1); // don't throw and kill the whole process just if this iteration fails
+            for (let key of keys){
+                if (key.indexOf($758ea81f4f7b53ee$var$doNotProxifyPrefix) === 0) continue;
+                try {
+                    let typeofproperty = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(proxy[key]);
+                    if ((0, $518557bad313f8f1$export$94b8be4ec3303efd)[typeofproperty]) // going to proxy[key], which is deleted, will return the original target so we will bypass it
+                    $758ea81f4f7b53ee$export$d402cf8388053971.destroy(proxyNode[key][0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxy);
+                } catch (error1) {
+                    console.error(error1); // don't throw and kill the whole process just if this iteration fails
+                }
             }
             (ref = (_ND = proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc]).revoke) === null || ref === void 0 ? void 0 : ref.call(_ND);
             //proxyNode[ND].proxy = undefined;

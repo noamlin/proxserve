@@ -16,6 +16,7 @@ import * as proxyMethods from './proxy-methods';
 import { realtypeof, splitPath, evalPath } from './general-functions';
 import { initEmitEvent } from './event-emitter';
 
+const doNotProxifyPrefix = '_$';
 const pseudoMethodsAlternativeNamingPrefix = '$';
 
 /**
@@ -85,7 +86,7 @@ export class Proxserve {
 		parentDataNode: DataNode,
 		targetProperty?: string,
 	): ProxserveInstance & T {
-		let parentProxyNode = parentDataNode[ND].proxyNode
+		const parentProxyNode = parentDataNode[ND].proxyNode!;
 		let dataNode: DataNode;
 		let proxyNode: ProxyNode;
 
@@ -102,7 +103,7 @@ export class Proxserve {
 				parentProxyNode[ND].target[targetProperty],
 			);
 			dataNode = newNodes.dataNode;
-			proxyNode = newNodes.proxyNode;
+			proxyNode = newNodes.proxyNode!;
 		}
 
 		let target = proxyNode[ND].target;
@@ -123,9 +124,11 @@ export class Proxserve {
 					else if(!target.propertyIsEnumerable(property) || typeof property === 'symbol') {
 						return target[property]; // non-enumerable or non-path'able aren't proxied
 					}
-					else if(proxyNode[property] // there's a child node
-							&& proxyNode[property][ND].proxy // it holds a proxy
-							&& proxyNode[property][NID].status === PROXY_STATUSES.alive) {
+					else if(
+						proxyNode[property] // there's a child node
+						&& proxyNode[property][ND].proxy // it holds a proxy
+						&& proxyNode[property][NID].status === PROXY_STATUSES.alive
+					) {
 						return proxyNode[property][ND].proxy;
 					} else {
 						return target[property];
@@ -134,19 +137,23 @@ export class Proxserve {
 			
 				set: (target/*same as parent scope 'target'*/, property, value, proxy) => { //'receiver' is proxy
 					/**
-					 * property can be a regular object because of 3 possible reasons:
-					 * 1. proxy is deleted from tree but user keeps accessing it then it means he saved a reference
-					 * 2. it is a non-enumerable property which means it was intentionally hidden
+					 * property can be a regular object because of a few possible reasons:
+					 * 1. proxy is deleted from tree but user keeps accessing it then it means he saved a reference.
+					 * 2. it is a non-enumerable property which means it was intentionally hidden.
 					 * 3. property is a symbol and symbols can't be proxied because we can't create a normal path for them.
 					 *    these properties are not proxied and should not emit change-event.
 					 *    except for: length
+					 * 4. property is manually set as raw object with the special prefix.
 					 * TODO - make a list of all possible properties exceptions (maybe function 'name'?)
 					 */
 					if(dataNode[NID].status === NODE_STATUSES.blocked) { //blocked from changing values
 						console.error('object is blocked. can\'t change value of property:', property);
 						return true;
 					}
-					else if(typeof property === 'symbol') {
+					else if(
+						typeof property === 'symbol'
+						|| property.indexOf(doNotProxifyPrefix) === 0
+					) {
 						target[property] = value;
 						return true;
 					}
@@ -269,6 +276,9 @@ export class Proxserve {
 			if(proxyTypes[typeoftarget]) {
 				let keys = Object.keys(target); //handles both Objects and Arrays
 				for(let key of keys) {
+					if (key.indexOf(doNotProxifyPrefix) === 0) {
+						continue;
+					}
 					let typeofproperty = realtypeof(target[key]);
 					if(proxyTypes[typeofproperty]) {
 						Proxserve.createProxy(metadata, dataNode, key); //recursively make child objects also proxies
@@ -309,6 +319,9 @@ export class Proxserve {
 		if(proxyTypes[typeofproxy]) {
 			let keys = Object.keys(proxy); // handles both Objects and Arrays
 			for(let key of keys) {
+				if (key.indexOf(doNotProxifyPrefix) === 0) {
+					continue;
+				}
 				try {
 					let typeofproperty = realtypeof(proxy[key]);
 					if(proxyTypes[typeofproperty]) {
