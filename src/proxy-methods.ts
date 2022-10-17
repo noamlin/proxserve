@@ -22,6 +22,8 @@ export const splice: SpliceFunction = function splice(
 	...items
 ) {
 	if(this.dataNode[NID].status !== NODE_STATUSES.active) {
+		// if not active then run regular `splice`
+		// which will reach the `set` of the ProxyHandler and will be blocked or events stopped, etc.
 		return Array.prototype.splice.call(this.proxyNode[ND].proxy, start, deleteCount, ...items);
 	}
 
@@ -67,6 +69,8 @@ export const shift: ShiftFunction = function shift(this) {
 
 export const unshift: UnshiftFunction = function unshift(this, ...items) {
 	if(this.dataNode[NID].status !== NODE_STATUSES.active) {
+		// if not active then run regular `unshift`
+		// which will reach the `set` of the ProxyHandler and will be blocked or events stopped, etc.
 		return Array.prototype.shift.call(this.proxyNode[ND].proxy) as number;
 	}
 

@@ -9,14 +9,14 @@
 
 import { EVENTS, NODE_STATUSES, PROXY_STATUSES, ND, NID } from './globals';
 import type { EVENT_NAMES, ChangeEvent, DeferredEvent, ListenerData } from './types/globals';
-import type { DataNode } from './types/proxserve-class';
-import { property2path } from './supporting-functions';
+import type { DataNode, ProxserveInstanceMetadata } from './types/proxserve-class';
+import { property2path, stackTraceLog } from './supporting-functions';
 import { splitPath } from './general-functions';
 
 /**
  * try to get the proxy-object from a data-node. if can't then from it's parent's proxy
  * @param dataNode 
- * @param [property] - the property as the dataNode is assigned on its parent
+ * @param property - the property as the dataNode is assigned on its parent
  */
 function getProxyValue(dataNode: DataNode, property?: string): any {
 	if(dataNode[ND].proxyNode && dataNode[ND].proxyNode[NID].status === PROXY_STATUSES.alive) {
@@ -46,12 +46,6 @@ function getProxyValue(dataNode: DataNode, property?: string): any {
 
 /**
  * process event and then bubble up and capture down the data tree
- * @param dataNode
- * @param property
- * @param oldValue
- * @param wasOldValueProxy
- * @param value
- * @param isValueProxy
  */
 export function initEmitEvent(
 	dataNode: DataNode,
@@ -60,6 +54,7 @@ export function initEmitEvent(
 	wasOldValueProxy: boolean,
 	value: any,
 	isValueProxy: boolean,
+	trace?: ProxserveInstanceMetadata['trace'],
 ) {
 	if(oldValue === value // no new change was made
 	|| !dataNode[ND].proxyNode) { // proxy-node is detached from data-node
@@ -89,7 +84,7 @@ export function initEmitEvent(
 		deferredEvents = dataNode[ND].deferredEvents;
 	}
 
-	let path;
+	let path: string;
 	if(dataNode[property]) { // changed a property which has its own data node on the tree
 		dataNode = dataNode[property];
 		path = '';
@@ -102,6 +97,9 @@ export function initEmitEvent(
 	};
 
 	if(!deferredEvents) {
+		if (trace === 'normal' || trace === 'verbose') {
+			stackTraceLog(trace, dataNode, change);
+		}
 		bubbleEmit(dataNode, change, property);
 	
 		if(wasOldValueProxy || isValueProxy) { // old value or new value are proxy meaning they are objects with children

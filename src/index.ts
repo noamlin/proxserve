@@ -10,7 +10,7 @@
 import { proxyTypes, NODE_STATUSES, PROXY_STATUSES, ND, NID } from './globals';
 import type { TargetVariable, SomeObject } from './types/globals';
 import type { ProxserveInstance, DataNode, ProxyNode, ProxserveInstanceMetadata } from './types/proxserve-class';
-import { unproxify, createNodes } from './supporting-functions';
+import { unproxify, createNodes, stackTraceLog } from './supporting-functions';
 import * as pseudoMethods from './pseudo-methods';
 import * as proxyMethods from './proxy-methods';
 import { realtypeof, splitPath, evalPath } from './general-functions';
@@ -34,10 +34,11 @@ for(let i = pseudoMethodsNames.length - 1; i >= 0; i--) {
 interface MakeOptions {
 	strict?: ProxserveInstanceMetadata['strict'];
 	methodsEmitRaw?: ProxserveInstanceMetadata['methodsEmitRaw'];
-	/** internal name of the instance */
+	/** internal root name of the instance */
 	name?: string;
 	debug?: {
-		destroyDelay: ProxserveInstanceMetadata['destroyDelay'];
+		destroyDelay?: ProxserveInstanceMetadata['destroyDelay'];
+		trace?: ProxserveInstanceMetadata['trace'];
 	};
 }
 
@@ -49,14 +50,17 @@ export class Proxserve {
 		const {
 			strict = true,
 			methodsEmitRaw = false,
-			name: rootName = '',
-			debug = { destroyDelay: 1000 },
+			name = '',
+			debug,
 		} = options;
+
+		const destroyDelay = debug?.destroyDelay ?? 1000;
+		const trace = debug?.trace ?? 'none';
 
 		let dataTreePrototype: DataNode = {
 			[NID]: {
 				status: NODE_STATUSES.active,
-				name: rootName,
+				name,
 			},
 			[ND]: { isTreePrototype: true } as DataNode[typeof ND],
 		};
@@ -70,7 +74,8 @@ export class Proxserve {
 		const metadata = {
 			strict,
 			methodsEmitRaw,
-			destroyDelay: debug.destroyDelay,
+			destroyDelay,
+			trace,
 			dataTree: newNodes.dataNode,
 			proxyTree: newNodes.proxyNode,
 		} as ProxserveInstanceMetadata;
@@ -189,7 +194,7 @@ export class Proxserve {
 						isValueProxy = true;
 					}
 
-					initEmitEvent(dataNode, property, oldValue, isOldValueProxy, value, isValueProxy);
+					initEmitEvent(dataNode, property, oldValue, isOldValueProxy, value, isValueProxy, metadata.trace);
 
 					return true;
 				},

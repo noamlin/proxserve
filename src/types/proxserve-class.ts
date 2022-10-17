@@ -60,6 +60,8 @@ export interface ProxserveInstanceMetadata {
 	methodsEmitRaw: boolean;
 	/** delay before destroying a detached child-object */
 	destroyDelay: number;
+	/** stack trace log option */
+	trace: 'none' | 'normal' | 'verbose';
 	dataTree: DataNode;
 	proxyTree: ProxyNode;
 }

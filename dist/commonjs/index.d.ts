@@ -140,6 +140,8 @@ interface ProxserveInstanceMetadata {
     methodsEmitRaw: boolean;
     /** delay before destroying a detached child-object */
     destroyDelay: number;
+    /** stack trace log option */
+    trace: 'none' | 'normal' | 'verbose';
     dataTree: DataNode;
     proxyTree: ProxyNode;
 }
@@ -208,10 +210,11 @@ type ChangeEvent = {
 interface MakeOptions {
     strict?: ProxserveInstanceMetadata['strict'];
     methodsEmitRaw?: ProxserveInstanceMetadata['methodsEmitRaw'];
-    /** internal name of the instance */
+    /** internal root name of the instance */
     name?: string;
     debug?: {
-        destroyDelay: ProxserveInstanceMetadata['destroyDelay'];
+        destroyDelay?: ProxserveInstanceMetadata['destroyDelay'];
+        trace?: ProxserveInstanceMetadata['trace'];
     };
 }
 export class Proxserve {

@@ -151,99 +151,6 @@ function $e3f4344113dd8ef0$export$8ffa680996c65fde(obj, path) {
 }
 
 
-/**
- * 2022 Noam Lin <noamlin@gmail.com>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
- */ "use strict";
-function $d613cdccf4e92ac6$export$1b787634d8e3bf02(obj, property) {
-    if (typeof property === "symbol") throw new Error(`property of type "symbol" isn't path'able`);
-    const typeofobj = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(obj);
-    switch(typeofobj){
-        case "Object":
-            return `.${property}`;
-        case "Array":
-            return `[${property}]`;
-        default:
-            console.warn(`Not Implemented (type of '${typeofobj}')`);
-            return property;
-    }
-}
-function $d613cdccf4e92ac6$export$a58c3ed528c9c399(value) {
-    const typeofvalue = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(value);
-    if ((0, $518557bad313f8f1$export$94b8be4ec3303efd)[typeofvalue]) {
-        let target = value;
-        try {
-            target = value.$getOriginalTarget();
-        } catch (error) {}
-        switch(typeofvalue){
-            case "Object":
-                let keys = Object.keys(target);
-                for (let key of keys)target[key] = $d613cdccf4e92ac6$export$a58c3ed528c9c399(target[key]); // maybe alters target and maybe returning the exact same object
-                break;
-            case "Array":
-                for(let i = 0; i < target.length; i++)target[i] = $d613cdccf4e92ac6$export$a58c3ed528c9c399(target[i]); // maybe alters target and maybe returning the exact same object
-                break;
-            default:
-                console.warn(`Not Implemented (type of '${typeofvalue}')`);
-        }
-        return target;
-    } else return value; // primitive
-}
-function $d613cdccf4e92ac6$export$953dd193a01bd6ec(parentDataNode, property, parentProxyNode, target) {
-    //handle property path
-    let propertyPath;
-    if (parentProxyNode === null || parentProxyNode === void 0 ? void 0 : parentProxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].target) propertyPath = $d613cdccf4e92ac6$export$1b787634d8e3bf02(parentProxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].target, property);
-    else propertyPath = $d613cdccf4e92ac6$export$1b787634d8e3bf02({}, property); // if parent doesn't have target then treat it as object
-    //handle data node
-    let dataNode = parentDataNode[property]; // try to receive existing data-node
-    if (!dataNode) {
-        dataNode = {
-            [(0, $518557bad313f8f1$export$d1c20e4ad7d32581)]: Object.create(parentDataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581]),
-            [(0, $518557bad313f8f1$export$f7e0aa381a5261fc)]: {
-                parentNode: parentDataNode,
-                listeners: {
-                    shallow: [],
-                    deep: []
-                }
-            }
-        };
-        parentDataNode[property] = dataNode;
-    }
-    delete dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status; // clears old status in case a node previously existed
-    // updates path (for rare case where parent was array and then changed to object or vice versa)
-    if (!parentDataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].isTreePrototype) Object.assign(dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc], {
-        path: parentDataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].path + propertyPath,
-        propertyPath: propertyPath
-    });
-    else Object.assign(dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc], {
-        path: "",
-        propertyPath: ""
-    });
-    // handle proxy node
-    let proxyNode;
-    if (parentProxyNode) {
-        proxyNode = {
-            [(0, $518557bad313f8f1$export$d1c20e4ad7d32581)]: Object.create(parentProxyNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581]),
-            [(0, $518557bad313f8f1$export$f7e0aa381a5261fc)]: {
-                target: target,
-                dataNode: dataNode
-            }
-        };
-        parentProxyNode[property] = proxyNode;
-        // attach nodes to each other
-        dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxyNode = proxyNode;
-    } else // this scenario is dangerous and exists only for `on()` of future variables (paths) that don't yet exist
-    proxyNode = undefined;
-    return {
-        dataNode: dataNode,
-        proxyNode: proxyNode
-    };
-}
-
-
 var $62e27656781218cb$exports = {};
 
 $parcel$export($62e27656781218cb$exports, "stop", () => $62e27656781218cb$export$fa6813432f753b0d);
@@ -369,6 +276,142 @@ const $62e27656781218cb$export$c3c6db5039118967 = function getProxserveNodes() {
 };
 
 
+/**
+ * 2022 Noam Lin <noamlin@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ */ "use strict";
+function $d613cdccf4e92ac6$export$1b787634d8e3bf02(obj, property) {
+    if (typeof property === "symbol") throw new Error(`property of type "symbol" isn't path'able`);
+    const typeofobj = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(obj);
+    switch(typeofobj){
+        case "Object":
+            return `.${property}`;
+        case "Array":
+            return `[${property}]`;
+        default:
+            console.warn(`Not Implemented (type of '${typeofobj}')`);
+            return property;
+    }
+}
+function $d613cdccf4e92ac6$export$a58c3ed528c9c399(value) {
+    const typeofvalue = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(value);
+    if ((0, $518557bad313f8f1$export$94b8be4ec3303efd)[typeofvalue]) {
+        let target = value;
+        try {
+            target = value.$getOriginalTarget();
+        } catch (error) {}
+        switch(typeofvalue){
+            case "Object":
+                let keys = Object.keys(target);
+                for (let key of keys)target[key] = $d613cdccf4e92ac6$export$a58c3ed528c9c399(target[key]); // maybe alters target and maybe returning the exact same object
+                break;
+            case "Array":
+                for(let i = 0; i < target.length; i++)target[i] = $d613cdccf4e92ac6$export$a58c3ed528c9c399(target[i]); // maybe alters target and maybe returning the exact same object
+                break;
+            default:
+                console.warn(`Not Implemented (type of '${typeofvalue}')`);
+        }
+        return target;
+    } else return value; // primitive
+}
+function $d613cdccf4e92ac6$export$953dd193a01bd6ec(parentDataNode, property, parentProxyNode, target) {
+    //handle property path
+    let propertyPath;
+    if (parentProxyNode === null || parentProxyNode === void 0 ? void 0 : parentProxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].target) propertyPath = $d613cdccf4e92ac6$export$1b787634d8e3bf02(parentProxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].target, property);
+    else propertyPath = $d613cdccf4e92ac6$export$1b787634d8e3bf02({}, property); // if parent doesn't have target then treat it as object
+    //handle data node
+    let dataNode = parentDataNode[property]; // try to receive existing data-node
+    if (!dataNode) {
+        dataNode = {
+            [(0, $518557bad313f8f1$export$d1c20e4ad7d32581)]: Object.create(parentDataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581]),
+            [(0, $518557bad313f8f1$export$f7e0aa381a5261fc)]: {
+                parentNode: parentDataNode,
+                listeners: {
+                    shallow: [],
+                    deep: []
+                }
+            }
+        };
+        parentDataNode[property] = dataNode;
+    }
+    delete dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status; // clears old status in case a node previously existed
+    // updates path (for rare case where parent was array and then changed to object or vice versa)
+    if (!parentDataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].isTreePrototype) Object.assign(dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc], {
+        path: parentDataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].path + propertyPath,
+        propertyPath: propertyPath
+    });
+    else Object.assign(dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc], {
+        path: "",
+        propertyPath: ""
+    });
+    // handle proxy node
+    let proxyNode;
+    if (parentProxyNode) {
+        proxyNode = {
+            [(0, $518557bad313f8f1$export$d1c20e4ad7d32581)]: Object.create(parentProxyNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581]),
+            [(0, $518557bad313f8f1$export$f7e0aa381a5261fc)]: {
+                target: target,
+                dataNode: dataNode
+            }
+        };
+        parentProxyNode[property] = proxyNode;
+        // attach nodes to each other
+        dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxyNode = proxyNode;
+    } else // this scenario is dangerous and exists only for `on()` of future variables (paths) that don't yet exist
+    proxyNode = undefined;
+    return {
+        dataNode: dataNode,
+        proxyNode: proxyNode
+    };
+}
+let $d613cdccf4e92ac6$var$noStackFlag = false;
+function $d613cdccf4e92ac6$export$af0f09151be4a419(logLevel, dataNode, change) {
+    if (logLevel === "none") return;
+    const err = new Error();
+    const stack = err.stack;
+    if (!stack) {
+        if (!$d613cdccf4e92ac6$var$noStackFlag) {
+            // log this only once. no need to spam.
+            console.error("Can't log stack trace of proxserve. browser/runtime doesn't support Error.stack");
+            $d613cdccf4e92ac6$var$noStackFlag = true;
+        }
+        return;
+    }
+    // break stack to individual lines. each line will point to a file and function.
+    const lines = stack.split("\n").map((value)=>{
+        return value.trim();
+    });
+    // remove first and useless Error line.
+    if (lines[0].toLowerCase().indexOf("error") === 0) lines.shift();
+    // delete this function's own line.
+    lines.shift();
+    // delete `initEmitEvent` line.
+    lines.shift();
+    // write our message head.
+    const pathname = (0, $62e27656781218cb$export$533e55abf9329f7b).call({
+        dataNode: dataNode
+    });
+    let title = `${pathname} has been `;
+    switch(change.type){
+        case (0, $518557bad313f8f1$export$fa3d5b535a2458a1).create:
+            title += "created";
+            break;
+        case (0, $518557bad313f8f1$export$fa3d5b535a2458a1).update:
+            title += "updated";
+            break;
+        case (0, $518557bad313f8f1$export$fa3d5b535a2458a1).delete:
+            title += "deleted";
+            break;
+    }
+    lines.unshift(title);
+    console.log(lines.join("\n"));
+}
+
+
+
 var $ac07f5587380cee0$exports = {};
 
 $parcel$export($ac07f5587380cee0$exports, "splice", () => $ac07f5587380cee0$export$869882364835d202);
@@ -388,7 +431,7 @@ $parcel$export($ac07f5587380cee0$exports, "unshift", () => $ac07f5587380cee0$exp
 /**
  * try to get the proxy-object from a data-node. if can't then from it's parent's proxy
  * @param dataNode 
- * @param [property] - the property as the dataNode is assigned on its parent
+ * @param property - the property as the dataNode is assigned on its parent
  */ function $7b3021a3226a950a$var$getProxyValue(dataNode, property) {
     if (dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxyNode && dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxyNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status === (0, $518557bad313f8f1$export$3f0ec6107d502ceb).alive) return dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxy; // actual proxy of child node
     else {
@@ -400,7 +443,7 @@ $parcel$export($ac07f5587380cee0$exports, "unshift", () => $ac07f5587380cee0$exp
     }
     return undefined;
 }
-function $7b3021a3226a950a$export$febbc75e71f4ca1b(dataNode, property, oldValue, wasOldValueProxy, value, isValueProxy) {
+function $7b3021a3226a950a$export$febbc75e71f4ca1b(dataNode, property, oldValue, wasOldValueProxy, value, isValueProxy, trace) {
     if (oldValue === value // no new change was made
      || !dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxyNode) return;
     let proxyNode = dataNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxyNode;
@@ -428,6 +471,7 @@ function $7b3021a3226a950a$export$febbc75e71f4ca1b(dataNode, property, oldValue,
         type: changeType
     };
     if (!deferredEvents) {
+        if (trace === "normal" || trace === "verbose") (0, $d613cdccf4e92ac6$export$af0f09151be4a419)(trace, dataNode, change);
         $7b3021a3226a950a$var$bubbleEmit(dataNode, change, property);
         if (wasOldValueProxy || isValueProxy) $7b3021a3226a950a$var$captureEmit(dataNode, change);
     } else deferredEvents.push({
@@ -539,7 +583,9 @@ function $7b3021a3226a950a$export$29f2d3a310653bb4(dataNode, funcName, funcArgs,
 // the actual "splice" function internally
 "use strict";
 const $ac07f5587380cee0$export$869882364835d202 = function splice(start, deleteCount, ...items) {
-    if (this.dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status !== (0, $518557bad313f8f1$export$ee1d4171033e00ef).active) return Array.prototype.splice.call(this.proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxy, start, deleteCount, ...items);
+    if (this.dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status !== (0, $518557bad313f8f1$export$ee1d4171033e00ef).active) // if not active then run regular `splice`
+    // which will reach the `set` of the ProxyHandler and will be blocked or events stopped, etc.
+    return Array.prototype.splice.call(this.proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxy, start, deleteCount, ...items);
     let isActiveByInheritance = !this.dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].hasOwnProperty("status");
     this.dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status = (0, $518557bad313f8f1$export$ee1d4171033e00ef).splicing;
     let oldValue = this.proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].target.slice(0);
@@ -568,7 +614,9 @@ const $ac07f5587380cee0$export$fba63a578e423eb = function shift() {
     return deleted;
 };
 const $ac07f5587380cee0$export$37cdb546b806ae87 = function unshift(...items) {
-    if (this.dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status !== (0, $518557bad313f8f1$export$ee1d4171033e00ef).active) return Array.prototype.shift.call(this.proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxy);
+    if (this.dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status !== (0, $518557bad313f8f1$export$ee1d4171033e00ef).active) // if not active then run regular `unshift`
+    // which will reach the `set` of the ProxyHandler and will be blocked or events stopped, etc.
+    return Array.prototype.shift.call(this.proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxy);
     let isActiveByInheritance = !this.dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].hasOwnProperty("status");
     this.dataNode[0, $518557bad313f8f1$export$d1c20e4ad7d32581].status = (0, $518557bad313f8f1$export$ee1d4171033e00ef).splicing;
     let oldValue = this.proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].target.slice(0);
@@ -608,13 +656,15 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
     /**
 	 * make a new proxserve instance
 	 */ static make(target, options = {}) {
-        const { strict: strict = true , methodsEmitRaw: methodsEmitRaw = false , name: rootName = "" , debug: debug = {
-            destroyDelay: 1000
-        } ,  } = options;
+        const { strict: strict = true , methodsEmitRaw: methodsEmitRaw = false , name: name = "" , debug: debug ,  } = options;
+        var ref;
+        const destroyDelay = (ref = debug === null || debug === void 0 ? void 0 : debug.destroyDelay) !== null && ref !== void 0 ? ref : 1000;
+        var ref1;
+        const trace = (ref1 = debug === null || debug === void 0 ? void 0 : debug.trace) !== null && ref1 !== void 0 ? ref1 : "none";
         let dataTreePrototype = {
             [(0, $518557bad313f8f1$export$d1c20e4ad7d32581)]: {
                 status: (0, $518557bad313f8f1$export$ee1d4171033e00ef).active,
-                name: rootName
+                name: name
             },
             [(0, $518557bad313f8f1$export$f7e0aa381a5261fc)]: {
                 isTreePrototype: true
@@ -632,7 +682,8 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
         const metadata = {
             strict: strict,
             methodsEmitRaw: methodsEmitRaw,
-            destroyDelay: debug.destroyDelay,
+            destroyDelay: destroyDelay,
+            trace: trace,
             dataTree: newNodes.dataNode,
             proxyTree: newNodes.proxyNode
         };
@@ -718,7 +769,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
                         $758ea81f4f7b53ee$export$d402cf8388053971.createProxy(metadata, dataNode, property); // if trying to add a new value which is an object then make it a proxy
                         isValueProxy = true;
                     }
-                    (0, $7b3021a3226a950a$export$febbc75e71f4ca1b)(dataNode, property, oldValue, isOldValueProxy, value, isValueProxy);
+                    (0, $7b3021a3226a950a$export$febbc75e71f4ca1b)(dataNode, property, oldValue, isOldValueProxy, value, isValueProxy, metadata.trace);
                     return true;
                 },
                 /**

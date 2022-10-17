@@ -7,10 +7,11 @@
  */
 "use strict"
 
-import { proxyTypes, ND, NID } from './globals';
-import { TargetVariable, ListenerData } from './types/globals';
-import { DataNode, ProxyNode } from './types/proxserve-class';
+import { proxyTypes, ND, NID, EVENTS } from './globals';
+import type { TargetVariable, ListenerData, ChangeEvent } from './types/globals';
+import type { DataNode, ProxyNode, ProxserveInstanceMetadata, PseudoThis } from './types/proxserve-class';
 import { realtypeof } from './general-functions';
+import { whoami } from './pseudo-methods';
 
 /**
  * Convert property name to valid path segment
@@ -148,4 +149,52 @@ export function createNodes(
 	}
 
 	return { dataNode, proxyNode };
+}
+
+let noStackFlag = false;
+export function stackTraceLog(
+	logLevel: ProxserveInstanceMetadata['trace'],
+	dataNode: DataNode,
+	change: ChangeEvent,
+) {
+	if (logLevel === 'none') {
+		return;
+	}
+
+	const err = new Error();
+	const stack = err.stack;
+	
+	if (!stack) {
+		if (!noStackFlag) {
+			// log this only once. no need to spam.
+			console.error('Can\'t log stack trace of proxserve. browser/runtime doesn\'t support Error.stack');
+			noStackFlag = true;
+		}
+		return;
+	}
+
+	// break stack to individual lines. each line will point to a file and function.
+	const lines = stack.split('\n').map((value) => {
+		return value.trim();
+	});
+	// remove first and useless Error line.
+	if (lines[0].toLowerCase().indexOf('error') === 0) {
+		lines.shift();
+	}
+	// delete this function's own line.
+	lines.shift();
+	// delete `initEmitEvent` line.
+	lines.shift();
+
+	// write our message head.
+	const pathname = whoami.call({ dataNode } as PseudoThis);
+	let title = `${pathname} has been `;
+	switch (change.type) {
+		case EVENTS.create: title += 'created'; break;
+		case EVENTS.update: title += 'updated'; break;
+		case EVENTS.delete: title += 'deleted'; break;
+	}
+	lines.unshift(title);
+
+	console.log(lines.join('\n'));
 }
