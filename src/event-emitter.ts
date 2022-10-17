@@ -97,9 +97,9 @@ export function initEmitEvent(
 	};
 
 	if(!deferredEvents) {
-		if (trace === 'normal' || trace === 'verbose') {
-			stackTraceLog(trace, dataNode, change);
-		}
+		// (try to) log before emitting the event
+		stackTraceLog(dataNode, change, trace);
+
 		bubbleEmit(dataNode, change, property);
 	
 		if(wasOldValueProxy || isValueProxy) { // old value or new value are proxy meaning they are objects with children
@@ -212,10 +212,14 @@ export function initFunctionEmitEvent(
 	funcArgs: ChangeEvent['args'],
 	oldValue: any,
 	value: any,
+	trace?: ProxserveInstanceMetadata['trace'],
 ) {
 	let change: ChangeEvent = {
 		path: '', value, oldValue, type: funcName, args: funcArgs,
 	};
+
+	// (try to) log before emitting the event
+	stackTraceLog(dataNode, change, trace);
 
 	bubbleEmit(dataNode, change);
 

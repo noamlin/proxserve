@@ -39,7 +39,7 @@ export const splice: SpliceFunction = function splice(
 		this.dataNode[NID].status = NODE_STATUSES.active;
 	}
 
-	initFunctionEmitEvent(this.dataNode, EVENTS.splice, args, oldValue, this.proxyNode[ND].target);
+	initFunctionEmitEvent(this.dataNode, EVENTS.splice, args, oldValue, this.proxyNode[ND].target, this.metadata.trace);
 
 	return deleted;
 }
@@ -62,7 +62,7 @@ export const shift: ShiftFunction = function shift(this) {
 		this.dataNode[NID].status = NODE_STATUSES.active;
 	}
 
-	initFunctionEmitEvent(this.dataNode, EVENTS.shift, {}, oldValue, this.proxyNode[ND].target);
+	initFunctionEmitEvent(this.dataNode, EVENTS.shift, {}, oldValue, this.proxyNode[ND].target, this.metadata.trace);
 
 	return deleted;
 }
@@ -71,7 +71,7 @@ export const unshift: UnshiftFunction = function unshift(this, ...items) {
 	if(this.dataNode[NID].status !== NODE_STATUSES.active) {
 		// if not active then run regular `unshift`
 		// which will reach the `set` of the ProxyHandler and will be blocked or events stopped, etc.
-		return Array.prototype.shift.call(this.proxyNode[ND].proxy) as number;
+		return Array.prototype.unshift.call(this.proxyNode[ND].proxy, ...items);
 	}
 
 	let isActiveByInheritance = !this.dataNode[NID].hasOwnProperty('status');
@@ -86,7 +86,7 @@ export const unshift: UnshiftFunction = function unshift(this, ...items) {
 		this.dataNode[NID].status = NODE_STATUSES.active;
 	}
 
-	initFunctionEmitEvent(this.dataNode, EVENTS.unshift, args, oldValue, this.proxyNode[ND].target);
+	initFunctionEmitEvent(this.dataNode, EVENTS.unshift, args, oldValue, this.proxyNode[ND].target, this.metadata.trace);
 
 	return newLength;
 }

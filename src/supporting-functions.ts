@@ -153,9 +153,9 @@ export function createNodes(
 
 let noStackFlag = false;
 export function stackTraceLog(
-	logLevel: ProxserveInstanceMetadata['trace'],
 	dataNode: DataNode,
 	change: ChangeEvent,
+	logLevel?: ProxserveInstanceMetadata['trace'],
 ) {
 	if (logLevel !== 'normal' && logLevel !== 'verbose') {
 		return;
@@ -186,15 +186,9 @@ export function stackTraceLog(
 	// delete `initEmitEvent` line - overwrite it with a title.
 	functionsTrace[0] = 'Stack Trace:';
 
-	// write our message head.
-	const pathname = whoami.call({ dataNode } as PseudoThis);
-	let verb = '';
-	switch (change.type) {
-		case EVENTS.create: verb = 'created'; break;
-		case EVENTS.update: verb = 'updated'; break;
-		case EVENTS.delete: verb = 'deleted'; break;
-	}
-	// the log message header
+	// log the message header.
+	const pathname = whoami.call({ dataNode } as PseudoThis) + change.path;
+	const verb = `${change.type}d`;
 	console.log(
 		'%c                                                                ',
 		'border-bottom: 1px solid #008;',
@@ -205,7 +199,16 @@ export function stackTraceLog(
 		'color: #000;',
 	);
 
+	// verbose message with assigned values
 	if (logLevel === 'verbose') {
+		if (change.type === 'splice' || change.type === 'unshift') {
+			console.log(
+				`%cArguments of ${change.type}:`,
+				'color: #555; font-style: italic;',
+			);
+			console.log(change.args);
+		}
+
 		console.log(
 			'%cOld value was:',
 			'color: #555; font-style: italic;',

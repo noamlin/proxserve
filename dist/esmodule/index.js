@@ -366,7 +366,7 @@ function $431788524d5470e1$export$953dd193a01bd6ec(parentDataNode, property, par
     };
 }
 let $431788524d5470e1$var$noStackFlag = false;
-function $431788524d5470e1$export$af0f09151be4a419(logLevel, dataNode, change) {
+function $431788524d5470e1$export$af0f09151be4a419(dataNode, change, logLevel) {
     if (logLevel !== "normal" && logLevel !== "verbose") return;
     const err = new Error();
     const stack = err.stack;
@@ -388,26 +388,19 @@ function $431788524d5470e1$export$af0f09151be4a419(logLevel, dataNode, change) {
     functionsTrace.shift();
     // delete `initEmitEvent` line - overwrite it with a title.
     functionsTrace[0] = "Stack Trace:";
-    // write our message head.
+    // log the message header.
     const pathname = (0, $f6f254486f25c78f$export$533e55abf9329f7b).call({
         dataNode: dataNode
-    });
-    let verb = "";
-    switch(change.type){
-        case (0, $cebd7357bd8525a2$export$fa3d5b535a2458a1).create:
-            verb = "created";
-            break;
-        case (0, $cebd7357bd8525a2$export$fa3d5b535a2458a1).update:
-            verb = "updated";
-            break;
-        case (0, $cebd7357bd8525a2$export$fa3d5b535a2458a1).delete:
-            verb = "deleted";
-            break;
-    }
-    // the log message header
+    }) + change.path;
+    const verb = `${change.type}d`;
     console.log("%c                                                                ", "border-bottom: 1px solid #008;");
     console.log(`%c${pathname} %chas been ${verb}:`, "font-weight: bold; color: #008;", "color: #000;");
+    // verbose message with assigned values
     if (logLevel === "verbose") {
+        if (change.type === "splice" || change.type === "unshift") {
+            console.log(`%cArguments of ${change.type}:`, "color: #555; font-style: italic;");
+            console.log(change.args);
+        }
         console.log("%cOld value was:", "color: #555; font-style: italic;");
         console.log(change.oldValue);
         console.log("%cNew value is:", "color: #555; font-style: italic;");
@@ -478,7 +471,8 @@ function $590092d9df4e6b38$export$febbc75e71f4ca1b(dataNode, property, oldValue,
         type: changeType
     };
     if (!deferredEvents) {
-        if (trace === "normal" || trace === "verbose") (0, $431788524d5470e1$export$af0f09151be4a419)(trace, dataNode, change);
+        // (try to) log before emitting the event
+        (0, $431788524d5470e1$export$af0f09151be4a419)(dataNode, change, trace);
         $590092d9df4e6b38$var$bubbleEmit(dataNode, change, property);
         if (wasOldValueProxy || isValueProxy) $590092d9df4e6b38$var$captureEmit(dataNode, change);
     } else deferredEvents.push({
@@ -551,7 +545,7 @@ function $590092d9df4e6b38$export$febbc75e71f4ca1b(dataNode, property, oldValue,
         }
     }
 }
-function $590092d9df4e6b38$export$29f2d3a310653bb4(dataNode, funcName, funcArgs, oldValue, value) {
+function $590092d9df4e6b38$export$29f2d3a310653bb4(dataNode, funcName, funcArgs, oldValue, value, trace) {
     let change = {
         path: "",
         value: value,
@@ -559,6 +553,8 @@ function $590092d9df4e6b38$export$29f2d3a310653bb4(dataNode, funcName, funcArgs,
         type: funcName,
         args: funcArgs
     };
+    // (try to) log before emitting the event
+    (0, $431788524d5470e1$export$af0f09151be4a419)(dataNode, change, trace);
     $590092d9df4e6b38$var$bubbleEmit(dataNode, change);
     if (dataNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].deferredEvents) {
         // manually handle the side-effect events that were caught
@@ -604,7 +600,7 @@ const $26afb3b451fe81b5$export$869882364835d202 = function splice(start, deleteC
     };
     if (isActiveByInheritance) delete this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].status;
     else this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].status = (0, $cebd7357bd8525a2$export$ee1d4171033e00ef).active;
-    (0, $590092d9df4e6b38$export$29f2d3a310653bb4)(this.dataNode, (0, $cebd7357bd8525a2$export$fa3d5b535a2458a1).splice, args, oldValue, this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].target);
+    (0, $590092d9df4e6b38$export$29f2d3a310653bb4)(this.dataNode, (0, $cebd7357bd8525a2$export$fa3d5b535a2458a1).splice, args, oldValue, this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].target, this.metadata.trace);
     return deleted;
 };
 const $26afb3b451fe81b5$export$fba63a578e423eb = function shift() {
@@ -617,13 +613,13 @@ const $26afb3b451fe81b5$export$fba63a578e423eb = function shift() {
     let deleted = Array.prototype.shift.call(this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy); // creates many side-effect events
     if (isActiveByInheritance) delete this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].status;
     else this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].status = (0, $cebd7357bd8525a2$export$ee1d4171033e00ef).active;
-    (0, $590092d9df4e6b38$export$29f2d3a310653bb4)(this.dataNode, (0, $cebd7357bd8525a2$export$fa3d5b535a2458a1).shift, {}, oldValue, this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].target);
+    (0, $590092d9df4e6b38$export$29f2d3a310653bb4)(this.dataNode, (0, $cebd7357bd8525a2$export$fa3d5b535a2458a1).shift, {}, oldValue, this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].target, this.metadata.trace);
     return deleted;
 };
 const $26afb3b451fe81b5$export$37cdb546b806ae87 = function unshift(...items) {
     if (this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].status !== (0, $cebd7357bd8525a2$export$ee1d4171033e00ef).active) // if not active then run regular `unshift`
     // which will reach the `set` of the ProxyHandler and will be blocked or events stopped, etc.
-    return Array.prototype.shift.call(this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy);
+    return Array.prototype.unshift.call(this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].proxy, ...items);
     let isActiveByInheritance = !this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].hasOwnProperty("status");
     this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].status = (0, $cebd7357bd8525a2$export$ee1d4171033e00ef).splicing;
     let oldValue = this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].target.slice(0);
@@ -633,7 +629,7 @@ const $26afb3b451fe81b5$export$37cdb546b806ae87 = function unshift(...items) {
     };
     if (isActiveByInheritance) delete this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].status;
     else this.dataNode[0, $cebd7357bd8525a2$export$d1c20e4ad7d32581].status = (0, $cebd7357bd8525a2$export$ee1d4171033e00ef).active;
-    (0, $590092d9df4e6b38$export$29f2d3a310653bb4)(this.dataNode, (0, $cebd7357bd8525a2$export$fa3d5b535a2458a1).unshift, args, oldValue, this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].target);
+    (0, $590092d9df4e6b38$export$29f2d3a310653bb4)(this.dataNode, (0, $cebd7357bd8525a2$export$fa3d5b535a2458a1).unshift, args, oldValue, this.proxyNode[0, $cebd7357bd8525a2$export$f7e0aa381a5261fc].target, this.metadata.trace);
     return newLength;
 };
 
