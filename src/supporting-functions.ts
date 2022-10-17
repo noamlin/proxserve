@@ -157,7 +157,7 @@ export function stackTraceLog(
 	dataNode: DataNode,
 	change: ChangeEvent,
 ) {
-	if (logLevel === 'none') {
+	if (logLevel !== 'normal' && logLevel !== 'verbose') {
 		return;
 	}
 
@@ -174,27 +174,57 @@ export function stackTraceLog(
 	}
 
 	// break stack to individual lines. each line will point to a file and function.
-	const lines = stack.split('\n').map((value) => {
+	const functionsTrace = stack.split('\n').map((value) => {
 		return value.trim();
 	});
 	// remove first and useless Error line.
-	if (lines[0].toLowerCase().indexOf('error') === 0) {
-		lines.shift();
+	if (functionsTrace[0].toLowerCase().indexOf('error') === 0) {
+		functionsTrace.shift();
 	}
 	// delete this function's own line.
-	lines.shift();
-	// delete `initEmitEvent` line.
-	lines.shift();
+	functionsTrace.shift();
+	// delete `initEmitEvent` line - overwrite it with a title.
+	functionsTrace[0] = 'Stack Trace:';
 
 	// write our message head.
 	const pathname = whoami.call({ dataNode } as PseudoThis);
-	let title = `${pathname} has been `;
+	let verb = '';
 	switch (change.type) {
-		case EVENTS.create: title += 'created'; break;
-		case EVENTS.update: title += 'updated'; break;
-		case EVENTS.delete: title += 'deleted'; break;
+		case EVENTS.create: verb = 'created'; break;
+		case EVENTS.update: verb = 'updated'; break;
+		case EVENTS.delete: verb = 'deleted'; break;
 	}
-	lines.unshift(title);
+	// the log message header
+	console.log(
+		'%c                                                                ',
+		'border-bottom: 1px solid #008;',
+	);
+	console.log(
+		`%c${pathname} %chas been ${verb}:`,
+		'font-weight: bold; color: #008;',
+		'color: #000;',
+	);
 
-	console.log(lines.join('\n'));
+	if (logLevel === 'verbose') {
+		console.log(
+			'%cOld value was:',
+			'color: #555; font-style: italic;',
+		);
+		console.log(change.oldValue);
+		console.log(
+			'%cNew value is:',
+			'color: #555; font-style: italic;',
+		);
+		console.log(change.value);
+	}
+
+	// the files and lines list message
+	console.log(
+		`%c${functionsTrace.join('\n')}`,
+		'color: #999;',
+	);
+	console.log(
+		'%c                                                                ',
+		'border-top: 1px solid #008;',
+	);
 }

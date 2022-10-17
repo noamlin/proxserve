@@ -369,7 +369,7 @@ function $d613cdccf4e92ac6$export$953dd193a01bd6ec(parentDataNode, property, par
 }
 let $d613cdccf4e92ac6$var$noStackFlag = false;
 function $d613cdccf4e92ac6$export$af0f09151be4a419(logLevel, dataNode, change) {
-    if (logLevel === "none") return;
+    if (logLevel !== "normal" && logLevel !== "verbose") return;
     const err = new Error();
     const stack = err.stack;
     if (!stack) {
@@ -381,33 +381,43 @@ function $d613cdccf4e92ac6$export$af0f09151be4a419(logLevel, dataNode, change) {
         return;
     }
     // break stack to individual lines. each line will point to a file and function.
-    const lines = stack.split("\n").map((value)=>{
+    const functionsTrace = stack.split("\n").map((value)=>{
         return value.trim();
     });
     // remove first and useless Error line.
-    if (lines[0].toLowerCase().indexOf("error") === 0) lines.shift();
+    if (functionsTrace[0].toLowerCase().indexOf("error") === 0) functionsTrace.shift();
     // delete this function's own line.
-    lines.shift();
-    // delete `initEmitEvent` line.
-    lines.shift();
+    functionsTrace.shift();
+    // delete `initEmitEvent` line - overwrite it with a title.
+    functionsTrace[0] = "Stack Trace:";
     // write our message head.
     const pathname = (0, $62e27656781218cb$export$533e55abf9329f7b).call({
         dataNode: dataNode
     });
-    let title = `${pathname} has been `;
+    let verb = "";
     switch(change.type){
         case (0, $518557bad313f8f1$export$fa3d5b535a2458a1).create:
-            title += "created";
+            verb = "created";
             break;
         case (0, $518557bad313f8f1$export$fa3d5b535a2458a1).update:
-            title += "updated";
+            verb = "updated";
             break;
         case (0, $518557bad313f8f1$export$fa3d5b535a2458a1).delete:
-            title += "deleted";
+            verb = "deleted";
             break;
     }
-    lines.unshift(title);
-    console.log(lines.join("\n"));
+    // the log message header
+    console.log("%c                                                                ", "border-bottom: 1px solid #008;");
+    console.log(`%c${pathname} %chas been ${verb}:`, "font-weight: bold; color: #008;", "color: #000;");
+    if (logLevel === "verbose") {
+        console.log("%cOld value was:", "color: #555; font-style: italic;");
+        console.log(change.oldValue);
+        console.log("%cNew value is:", "color: #555; font-style: italic;");
+        console.log(change.value);
+    }
+    // the files and lines list message
+    console.log(`%c${functionsTrace.join("\n")}`, "color: #999;");
+    console.log("%c                                                                ", "border-top: 1px solid #008;");
 }
 
 

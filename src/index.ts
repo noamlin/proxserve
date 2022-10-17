@@ -10,7 +10,7 @@
 import { proxyTypes, NODE_STATUSES, PROXY_STATUSES, ND, NID } from './globals';
 import type { TargetVariable, SomeObject } from './types/globals';
 import type { ProxserveInstance, DataNode, ProxyNode, ProxserveInstanceMetadata } from './types/proxserve-class';
-import { unproxify, createNodes, stackTraceLog } from './supporting-functions';
+import { unproxify, createNodes } from './supporting-functions';
 import * as pseudoMethods from './pseudo-methods';
 import * as proxyMethods from './proxy-methods';
 import { realtypeof, splitPath, evalPath } from './general-functions';
