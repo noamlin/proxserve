@@ -10,7 +10,7 @@
 "use strict"
 
 import { Proxserve } from '../src/index';
-import { testObject, cloneDeep } from './common';
+import { testObject, cloneDeep, wakeConsole } from './common';
 
 test('1. splitPath - split path to segments', () => {
 	let path = Proxserve.splitPath('.level2_1.level3_1');
@@ -111,10 +111,80 @@ test('3. Who am I', () => {
 	const origin = cloneDeep(testObject);
 
 	let proxy = Proxserve.make(origin, { name: 'test_name' });
-	expect(proxy.whoami()).toEqual('test_name');
-	expect(proxy.level1_1.arr1.whoami()).toEqual('test_name.level1_1.arr1');
+	expect(proxy.whoami()).toBe('test_name');
+	expect(proxy.level1_1.arr1.whoami()).toBe('test_name.level1_1.arr1');
 
 	proxy = Proxserve.make(origin);
-	expect(proxy.whoami()).toEqual('');
-	expect(proxy.level1_1.arr1.whoami()).toEqual('.level1_1.arr1');
+	expect(proxy.whoami()).toBe('');
+	expect(proxy.level1_1.arr1.whoami()).toBe('.level1_1.arr1');
+});
+
+test('4. Debug Trace', () => {
+	let expected: string[] = [];
+	function catchLog(...args: any[]) {
+		const message = args.reduce<string>((previousValue, currentValue) => {
+			if (currentValue === undefined) {
+				return previousValue.concat('undefined');
+			} else if (currentValue === null) {
+				return previousValue.concat('null');
+			}
+			
+			return previousValue.concat(currentValue.toString().replace(/\n/gi, ''));
+		}, '');
+
+		expected.push(message);
+	}
+
+	console.log = catchLog;
+
+	const origin = cloneDeep(testObject);
+	let proxy = Proxserve.make(origin, { name: 'test_name', debug: { trace: 'none' } });
+	proxy.level1_1.arr1.push(3);
+
+	wakeConsole();
+
+	expect(expected.length).toBe(0);
+
+	console.log = catchLog;
+
+	proxy = Proxserve.make(origin, { name: 'test_name', debug: { trace: 'normal' } });
+	proxy.level1_1.prim1 = 44;
+	proxy.level1_1.arr1.splice(0, 1);
+
+	wakeConsole();
+
+	expect(expected[0].indexOf('border-bottom')).toBeGreaterThan(3);
+	expect(/test_name\.level1_1\.prim1.+has been created/gi.test(expected[1])).toBe(true);
+	expect(/Stack Trace.*at Object.set/gi.test(expected[2])).toBe(true);
+	expect(expected[3].indexOf('border-top')).toBeGreaterThan(3);
+	expect(expected[4].indexOf('border-bottom')).toBeGreaterThan(3);
+	expect(/test_name\.level1_1\.arr1.+has been spliced/gi.test(expected[5])).toBe(true);
+	expect(/Stack Trace.*at Object.splice/gi.test(expected[6])).toBe(true);
+
+	expected = [];
+	console.log = catchLog;
+
+	proxy = Proxserve.make(origin, { name: 'test_name', debug: { trace: 'verbose' } });
+	delete proxy.level1_1.prim1;
+	proxy.level1_1.arr1.unshift(19);
+
+	wakeConsole();
+
+	expect(expected[0].indexOf('border-bottom')).toBeGreaterThan(2);
+	expect(/test_name\.level1_1\.prim1.+has been deleted/gi.test(expected[1])).toBe(true);
+	expect(/Old value was/gi.test(expected[2])).toBe(true);
+	expect(expected[3].indexOf('44')).toBe(0);
+	expect(/New value is/gi.test(expected[4])).toBe(true);
+	expect(expected[5].indexOf('undefined')).toBe(0);
+	expect(/Stack Trace.*at Object.deleteProperty/gi.test(expected[6])).toBe(true);
+	expect(expected[7].indexOf('border-top')).toBeGreaterThan(3);
+	expect(expected[8].indexOf('border-bottom')).toBeGreaterThan(3);
+	expect(/test_name\.level1_1\.arr1.+has been unshifted/gi.test(expected[9])).toBe(true);
+	expect(/Arguments of unshift/gi.test(expected[10])).toBe(true);
+	expect(/object Object/gi.test(expected[11])).toBe(true);
+	expect(/Old value was/gi.test(expected[12])).toBe(true);
+	expect(expected[13].indexOf('1,2,3')).toBe(0);
+	expect(/New value is/gi.test(expected[14])).toBe(true);
+	expect(expected[15].indexOf('19,1,2,3')).toBe(0);
+	expect(/Stack Trace.*at Object.unshift/gi.test(expected[16])).toBe(true);
 });

@@ -394,7 +394,9 @@ function $d613cdccf4e92ac6$export$af0f09151be4a419(dataNode, change, logLevel) {
     const pathname = (0, $62e27656781218cb$export$533e55abf9329f7b).call({
         dataNode: dataNode
     }) + change.path;
-    const verb = `${change.type}d`;
+    let verb = change.type;
+    if (change.type === (0, $518557bad313f8f1$export$fa3d5b535a2458a1).shift || change.type === (0, $518557bad313f8f1$export$fa3d5b535a2458a1).unshift) verb += "ed";
+    else verb += "d";
     console.log("%c                                                                ", "border-bottom: 1px solid #008;");
     console.log(`%c${pathname} %chas been ${verb}:`, "font-weight: bold; color: #008;", "color: #000;");
     // verbose message with assigned values
@@ -805,7 +807,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
                         $758ea81f4f7b53ee$export$d402cf8388053971.createProxy(metadata, dataNode, property); //if trying to add a new value which is an object then make it a proxy
                         isValueProxy = true;
                     }
-                    (0, $7b3021a3226a950a$export$febbc75e71f4ca1b)(dataNode, property, oldValue, isOldValueProxy, value, isValueProxy);
+                    (0, $7b3021a3226a950a$export$febbc75e71f4ca1b)(dataNode, property, oldValue, isOldValueProxy, value, isValueProxy, metadata.trace);
                     return true;
                 },
                 deleteProperty: (target /*same as parent scope 'target'*/ , property)=>{
@@ -830,7 +832,7 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
                             setTimeout($758ea81f4f7b53ee$export$d402cf8388053971.destroy, metadata.destroyDelay, proxyNode[property][0, $518557bad313f8f1$export$f7e0aa381a5261fc].proxy);
                         }
                         delete target[property]; // actual delete
-                        (0, $7b3021a3226a950a$export$febbc75e71f4ca1b)(dataNode, property, oldValue, isOldValueProxy, undefined, false);
+                        (0, $7b3021a3226a950a$export$febbc75e71f4ca1b)(dataNode, property, oldValue, isOldValueProxy, undefined, false, metadata.trace);
                         return true;
                     } else return true; //do nothing because there's nothing to delete
                 }

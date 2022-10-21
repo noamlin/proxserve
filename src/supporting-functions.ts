@@ -188,7 +188,13 @@ export function stackTraceLog(
 
 	// log the message header.
 	const pathname = whoami.call({ dataNode } as PseudoThis) + change.path;
-	const verb = `${change.type}d`;
+	let verb = change.type;
+	if (change.type === EVENTS.shift || change.type === EVENTS.unshift) {
+		verb += 'ed';
+	} else {
+		verb += 'd';
+	}
+
 	console.log(
 		'%c                                                                ',
 		'border-bottom: 1px solid #008;',

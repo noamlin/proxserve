@@ -232,7 +232,7 @@ export class Proxserve {
 						isValueProxy = true;
 					}
 
-					initEmitEvent(dataNode, property, oldValue, isOldValueProxy, value, isValueProxy);
+					initEmitEvent(dataNode, property, oldValue, isOldValueProxy, value, isValueProxy, metadata.trace);
 
 					return true;
 				},
@@ -265,7 +265,7 @@ export class Proxserve {
 
 						delete target[property]; // actual delete
 
-						initEmitEvent(dataNode, property, oldValue, isOldValueProxy, undefined, false);
+						initEmitEvent(dataNode, property, oldValue, isOldValueProxy, undefined, false, metadata.trace);
 
 						return true;
 					}
