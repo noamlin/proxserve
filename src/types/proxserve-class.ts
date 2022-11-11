@@ -72,25 +72,36 @@ export type PseudoThis = {
 	proxyNode: ProxyNode
 };
 
-// extending `PseudoThis` is a hack to let typescript compile and interpret correctly even though
-// the methods have a completely different `this` than of the properties and methods of the `ProxserveInstance`
-export type ProxserveInstance = PseudoThis & {
+export type ProxserveInstance = {
 	/** for internal use - the node's data */
 	[ND]: ProxyNode[typeof ND];
 	/** for internal use - the node's inherited data */
 	[NID]: ProxyNode[typeof NID];
 
-	stop: StopFunction; $stop: StopFunction;
-	block: BlockFunction; $block: BlockFunction;
-	activate: ActivateFunction; $activate: ActivateFunction;
-	on: OnFunction; $on: OnFunction;
-	once: OnceFunction; $once: OnceFunction;
-	removeListener: RemoveListenerFunction; $removeListener: RemoveListenerFunction;
-	removeAllListeners: RemoveAllListenersFunction; $removeAllListeners: RemoveAllListenersFunction;
-	getOriginalTarget: GetOriginalTargetFunction; $getOriginalTarget: GetOriginalTargetFunction;
-	getProxserveName: GetProxserveNameFunction; $getProxserveName: GetProxserveNameFunction;
-	whoami: WhoAMI; $whoami: WhoAMI;
-	getProxserveNodes: GetProxserveNodesFunction; $getProxserveNodes: GetProxserveNodesFunction;
+	stop: StopFunction;
+	block: BlockFunction;
+	activate: ActivateFunction;
+	on: OnFunction;
+	once: OnceFunction;
+	removeListener: RemoveListenerFunction;
+	removeAllListeners: RemoveAllListenersFunction;
+	getOriginalTarget: GetOriginalTargetFunction;
+	getProxserveName: GetProxserveNameFunction;
+	whoami: WhoAMI;
+	getProxserveNodes: GetProxserveNodesFunction;
 
 	[property: string | number | symbol]: any;
+}
+export type ProxserveInstanceAlternatives = ProxserveInstance & {
+	$stop: StopFunction;
+	$block: BlockFunction;
+	$activate: ActivateFunction;
+	$on: OnFunction;
+	$once: OnceFunction;
+	$removeListener: RemoveListenerFunction;
+	$removeAllListeners: RemoveAllListenersFunction;
+	$getOriginalTarget: GetOriginalTargetFunction;
+	$getProxserveName: GetProxserveNameFunction;
+	$whoami: WhoAMI;
+	$getProxserveNodes: GetProxserveNodesFunction;
 }

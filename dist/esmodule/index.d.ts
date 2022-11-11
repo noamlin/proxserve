@@ -22,17 +22,17 @@ enum EVENTS {
 /**
  * stop object and children from emitting change events
  */
-type StopFunction = (this: PseudoThis) => void;
+type StopFunction = () => void;
 /**
  * block object and children from any changes.
  * user can't set nor delete any property
  */
-type BlockFunction = (this: PseudoThis) => void;
+type BlockFunction = () => void;
 /**
  * resume default behavior of emitting change events, inherited from parent
  * @param force - force being active regardless of parent
  */
-type ActivateFunction = (this: PseudoThis, force?: boolean) => void;
+type ActivateFunction = (force?: boolean) => void;
 /**
  * add event listener on a proxy or on a descending path
  *
@@ -43,7 +43,7 @@ type ActivateFunction = (this: PseudoThis, force?: boolean) => void;
  * @param args.options.id - identifier for removing this listener later
  * @param args.options.once - whether this listener will run only once or always
  */
-type OnFunction = (this: PseudoThis, args: {
+type OnFunction = (args: {
     event: EVENT_NAMES | EVENT_NAMES[] | 'change';
     path?: string;
     listener: (this: ProxserveInstance, change: ChangeEvent) => void;
@@ -63,7 +63,7 @@ type OnceFunction = OnFunction;
  * @param args.path - path selector
  * @param args.id - the listener(s) identifier or listener-function
  */
-type RemoveListenerFunction = (this: PseudoThis, args: {
+type RemoveListenerFunction = (args: {
     path?: string;
     id: string | number | Function;
 }) => void;
@@ -72,24 +72,24 @@ type RemoveListenerFunction = (this: PseudoThis, args: {
  *
  * @param args.path - path selector
  */
-type RemoveAllListenersFunction = (this: PseudoThis, path?: string) => void;
+type RemoveAllListenersFunction = (path?: string) => void;
 /**
  * get original variable that is behind the proxy
  */
-type GetOriginalTargetFunction = (this: PseudoThis) => TargetVariable;
+type GetOriginalTargetFunction = () => TargetVariable;
 /**
  * get the root name (if given) of the current proxserve
  */
-type GetProxserveNameFunction = (this: PseudoThis) => string;
+type GetProxserveNameFunction = () => string;
 /**
  * get the full name and path of current sub-object
  */
-type WhoAMI = (this: PseudoThis) => string;
+type WhoAMI = () => string;
 /**
  * get the data-node of a proxy (which holds all meta data)
  * and also get proxy-node of a proxy (which holds all related objects)
  */
-type GetProxserveNodesFunction = (this: PseudoThis) => {
+type GetProxserveNodesFunction = () => {
     dataNode: DataNode;
     proxyNode: ProxyNode;
 };
@@ -145,38 +145,22 @@ interface ProxserveInstanceMetadata {
     dataTree: DataNode;
     proxyTree: ProxyNode;
 }
-type PseudoThis = {
-    metadata: ProxserveInstanceMetadata;
-    dataNode: DataNode;
-    proxyNode: ProxyNode;
-};
-type ProxserveInstance = PseudoThis & {
+type ProxserveInstance = {
     /** for internal use - the node's data */
     [ND]: ProxyNode[typeof ND];
     /** for internal use - the node's inherited data */
     [NID]: ProxyNode[typeof NID];
     stop: StopFunction;
-    $stop: StopFunction;
     block: BlockFunction;
-    $block: BlockFunction;
     activate: ActivateFunction;
-    $activate: ActivateFunction;
     on: OnFunction;
-    $on: OnFunction;
     once: OnceFunction;
-    $once: OnceFunction;
     removeListener: RemoveListenerFunction;
-    $removeListener: RemoveListenerFunction;
     removeAllListeners: RemoveAllListenersFunction;
-    $removeAllListeners: RemoveAllListenersFunction;
     getOriginalTarget: GetOriginalTargetFunction;
-    $getOriginalTarget: GetOriginalTargetFunction;
     getProxserveName: GetProxserveNameFunction;
-    $getProxserveName: GetProxserveNameFunction;
     whoami: WhoAMI;
-    $whoami: WhoAMI;
     getProxserveNodes: GetProxserveNodesFunction;
-    $getProxserveNodes: GetProxserveNodesFunction;
     [property: string | number | symbol]: any;
 };
 type EVENT_NAMES = keyof typeof EVENTS;

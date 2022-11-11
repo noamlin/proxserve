@@ -1,22 +1,22 @@
 import { EVENT_NAMES, ChangeEvent, TargetVariable } from './globals';
-import { ProxserveInstance, PseudoThis, DataNode, ProxyNode } from './proxserve-class';
+import { ProxserveInstance, DataNode, ProxyNode } from './proxserve-class';
 
 /**
  * stop object and children from emitting change events
  */
-export type StopFunction = (this: PseudoThis) => void;
+export type StopFunction = () => void;
 
 /**
  * block object and children from any changes.
  * user can't set nor delete any property
  */
-export type BlockFunction = (this: PseudoThis) => void;
+export type BlockFunction = () => void;
 
 /**
  * resume default behavior of emitting change events, inherited from parent
  * @param force - force being active regardless of parent
  */
-export type ActivateFunction = (this: PseudoThis, force?: boolean) => void;
+export type ActivateFunction = (force?: boolean) => void;
 
 /**
  * add event listener on a proxy or on a descending path
@@ -29,7 +29,6 @@ export type ActivateFunction = (this: PseudoThis, force?: boolean) => void;
  * @param args.options.once - whether this listener will run only once or always
  */
 export type OnFunction = (
-	this: PseudoThis,
 	args: {
 		event: EVENT_NAMES | EVENT_NAMES[] | 'change',
 		path?: string,
@@ -54,7 +53,6 @@ export type OnceFunction = OnFunction;
  * @param args.id - the listener(s) identifier or listener-function
  */
 export type RemoveListenerFunction = (
-	this: PseudoThis,
 	args: { path?: string, id: string | number | Function },
 ) => void;
 
@@ -63,25 +61,25 @@ export type RemoveListenerFunction = (
  * 
  * @param args.path - path selector
  */
-export type RemoveAllListenersFunction = (this: PseudoThis, path?: string) => void;
+export type RemoveAllListenersFunction = (path?: string) => void;
 
 /**
  * get original variable that is behind the proxy
  */
-export type GetOriginalTargetFunction = (this: PseudoThis) => TargetVariable;
+export type GetOriginalTargetFunction = () => TargetVariable;
 
 /**
  * get the root name (if given) of the current proxserve
  */
-export type GetProxserveNameFunction = (this: PseudoThis) => string;
+export type GetProxserveNameFunction = () => string;
 
 /**
  * get the full name and path of current sub-object
  */
-export type WhoAMI = (this: PseudoThis) => string;
+export type WhoAMI = () => string;
 
 /**
  * get the data-node of a proxy (which holds all meta data)
  * and also get proxy-node of a proxy (which holds all related objects)
  */
-export type GetProxserveNodesFunction = (this: PseudoThis) => { dataNode: DataNode, proxyNode: ProxyNode };
+export type GetProxserveNodesFunction = () => { dataNode: DataNode, proxyNode: ProxyNode };

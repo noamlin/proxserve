@@ -9,7 +9,11 @@
 
 import { proxyTypes, NODE_STATUSES, PROXY_STATUSES, ND, NID } from './globals';
 import type { TargetVariable, SomeObject } from './types/globals';
-import type { ProxserveInstance, DataNode, ProxyNode, ProxserveInstanceMetadata } from './types/proxserve-class';
+import type {
+	ProxserveInstance, ProxserveInstanceAlternatives,
+	DataNode, ProxyNode,
+	ProxserveInstanceMetadata,
+} from './types/proxserve-class';
 import { unproxify, createNodes } from './supporting-functions';
 import * as pseudoMethods from './pseudo-methods';
 import * as proxyMethods from './proxy-methods';
@@ -309,7 +313,7 @@ export class Proxserve {
 	static destroy(proxy: ProxserveInstance) {
 		let proxyNode: ProxyNode;
 		try {
-			const nodes = proxy.$getProxserveNodes();
+			const nodes = (proxy as ProxserveInstanceAlternatives).$getProxserveNodes();
 			proxyNode = nodes.proxyNode;
 		} catch(error) {
 			return; // proxy variable isn't a proxy

@@ -11,12 +11,13 @@
 "use strict"
 
 import { NODE_STATUSES, EVENTS, ND, NID } from './globals';
-import { SpliceFunction, ShiftFunction, UnshiftFunction } from './types/proxy-methods';
+import type { PseudoThis } from './types/proxserve-class';
+import type { SpliceFunction, ShiftFunction, UnshiftFunction } from './types/proxy-methods';
 import { initFunctionEmitEvent } from './event-emitter';
 
 
 export const splice: SpliceFunction = function splice(
-	this,
+	this: PseudoThis,
 	start,
 	deleteCount,
 	...items
@@ -44,7 +45,7 @@ export const splice: SpliceFunction = function splice(
 	return deleted;
 }
 
-export const shift: ShiftFunction = function shift(this) {
+export const shift: ShiftFunction = function shift(this: PseudoThis) {
 	if(this.dataNode[NID].status !== NODE_STATUSES.active) {
 		// if not active then run regular `shift`
 		// which will reach the `set` of the ProxyHandler and will be blocked or events stopped, etc.
@@ -67,7 +68,7 @@ export const shift: ShiftFunction = function shift(this) {
 	return deleted;
 }
 
-export const unshift: UnshiftFunction = function unshift(this, ...items) {
+export const unshift: UnshiftFunction = function unshift(this: PseudoThis, ...items) {
 	if(this.dataNode[NID].status !== NODE_STATUSES.active) {
 		// if not active then run regular `unshift`
 		// which will reach the `set` of the ProxyHandler and will be blocked or events stopped, etc.

@@ -12,8 +12,9 @@
 "use strict"
 
 import { EVENTS, NODE_STATUSES, ND, NID } from './globals';
-import { ListenerData, EVENT_NAMES } from './types/globals';
-import {
+import type { ListenerData, EVENT_NAMES } from './types/globals';
+import type { PseudoThis } from './types/proxserve-class';
+import type {
 	StopFunction, BlockFunction, ActivateFunction,
 	OnFunction, OnceFunction,
 	RemoveListenerFunction, RemoveAllListenersFunction,
@@ -23,15 +24,15 @@ import {
 import { createNodes } from './supporting-functions';
 import { splitPath } from './general-functions';
 
-export const stop: StopFunction = function stop(this) {
+export const stop: StopFunction = function stop(this: PseudoThis) {
 	this.dataNode[NID].status = NODE_STATUSES.stopped;
 };
 
-export const block: BlockFunction = function block(this) {
+export const block: BlockFunction = function block(this: PseudoThis) {
 	this.dataNode[NID].status = NODE_STATUSES.blocked;
 };
 
-export const activate: ActivateFunction = function activate(this, force = false): void {
+export const activate: ActivateFunction = function activate(this: PseudoThis, force = false): void {
 	if(force || this.dataNode === this.metadata.dataTree) { // force activation or we are on root proxy
 		this.dataNode[NID].status = NODE_STATUSES.active;
 	}
@@ -40,7 +41,7 @@ export const activate: ActivateFunction = function activate(this, force = false)
 	}
 };
 
-export const on: OnFunction = function on(this, args) {
+export const on: OnFunction = function on(this: PseudoThis, args) {
 	const {
 		path = '',
 		listener,
@@ -93,7 +94,7 @@ export const on: OnFunction = function on(this, args) {
 	listenersPool.push(listenerObj);
 };
 
-export const once: OnceFunction = function once(this, args) {
+export const once: OnceFunction = function once(this: PseudoThis, args) {
 	args.once = true;
 	on.call(this, args);
 };
@@ -107,7 +108,7 @@ function removeById(listenersArr: ListenerData[], id: string | number | Function
 	}
 }
 
-export const removeListener: RemoveListenerFunction = function removeListener(this, args) {
+export const removeListener: RemoveListenerFunction = function removeListener(this: PseudoThis, args) {
 	const { id, path = '' } = args;
 	const fullPath = `${this.dataNode[ND].path}${path}`;
 	let dataNode = this.dataNode;
@@ -126,7 +127,7 @@ export const removeListener: RemoveListenerFunction = function removeListener(th
 	removeById(dataNode[ND].listeners.deep, id);
 };
 
-export const removeAllListeners: RemoveAllListenersFunction = function removeAllListeners(this, path = '') {
+export const removeAllListeners: RemoveAllListenersFunction = function removeAllListeners(this: PseudoThis, path = '') {
 	const fullPath = `${this.dataNode[ND].path}${path}`;
 	const segments = splitPath(path);
 	let dataNode = this.dataNode;
@@ -144,18 +145,18 @@ export const removeAllListeners: RemoveAllListenersFunction = function removeAll
 	dataNode[ND].listeners.deep = [] as ListenerData[];
 };
 
-export const getOriginalTarget: GetOriginalTargetFunction = function getOriginalTarget(this) {
+export const getOriginalTarget: GetOriginalTargetFunction = function getOriginalTarget(this: PseudoThis) {
 	return this.proxyNode[ND].target;
 };
 
-export const getProxserveName: GetProxserveNameFunction = function getProxserveName(this) {
+export const getProxserveName: GetProxserveNameFunction = function getProxserveName(this: PseudoThis) {
 	return this.dataNode[NID].name;
 };
 
-export const whoami: WhoAMI = function whoami(this) {
+export const whoami: WhoAMI = function whoami(this: PseudoThis) {
 	return this.dataNode[NID].name + this.dataNode[ND].path;
 };
 
-export const getProxserveNodes: GetProxserveNodesFunction = function getProxserveNodes(this) {
+export const getProxserveNodes: GetProxserveNodesFunction = function getProxserveNodes(this: PseudoThis) {
 	return { dataNode: this.dataNode, proxyNode: this.proxyNode };
 };

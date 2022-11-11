@@ -1,5 +1,3 @@
-import { PseudoThis } from './proxserve-class';
-
 /**
  * a wrapper function for the 'splice' method
  * 
@@ -8,7 +6,6 @@ import { PseudoThis } from './proxserve-class';
  * @param items - rest of arguments
  */
 export type SpliceFunction = (
-	this: PseudoThis,
 	start: number,
 	deleteCount: number,
 	items: any[],
@@ -17,11 +14,11 @@ export type SpliceFunction = (
 /**
  * a wrapper function for the 'shift' method
  */
-export type ShiftFunction = (this: PseudoThis) => any;
+export type ShiftFunction = () => any;
 
 /**
  * a wrapper function for the 'unshift' method
  * 
  * @param items 
  */
-export type UnshiftFunction = (this: PseudoThis, items: any[]) => number;
+export type UnshiftFunction = (items: any[]) => number;
