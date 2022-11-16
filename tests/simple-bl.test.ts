@@ -22,7 +22,8 @@ test('1. Initiate a proxserve and check if original object stays intact', () => 
 test('2. Object, child-objects and added-child-objects should convert to proxies', () => {
 	let proxy = Proxserve.make(cloneDeep(testObject));
 	proxy.level1_3 = {
-		level2_2: [0,2,4,6]
+		level2_2: [0,2,4,6],
+		['two words']: { a: 0, b: 1 },
 	};
 	expect(isProxy(testObject)).toBe(false);
 	expect(isProxy(proxy)).toBe(true);
@@ -30,6 +31,7 @@ test('2. Object, child-objects and added-child-objects should convert to proxies
 	expect(isProxy(proxy.level1_1.arr1)).toBe(true);
 	expect(isProxy(proxy.level1_3)).toBe(true);
 	expect(isProxy(proxy.level1_3.level2_2)).toBe(true);
+	expect(isProxy(proxy.level1_3['two words'])).toBe(true);
 });
 
 test('3. defineProperty should convert string/number properties to proxy', (done) => {
@@ -188,6 +190,21 @@ test('5. Basic events of changes', () => {
 	}});
 	proxy.new3 = 6;
 	proxy.new3 = 8;
+
+	proxy.removeAllListeners();
+	proxy.level1_1['two words'] = { ['more words']: { a: 1 }, oneWord: 'abcd' };
+	counter = 0;
+	proxy.on({ path: '.level1_1.two words', event: 'change', deep: true, listener: function(change) {
+		counter++;
+		if(counter === 1) {
+			expect(change).toEqual({ oldValue: 'abcd', value: 'efgh', path: ".oneWord", type: 'update' });
+		} else if(counter === 2) {
+			expect(change).toEqual({ oldValue: undefined, value: 2, path: ".more words.b", type: 'create' });
+		}
+		else throw new Error(`shouldn't have gotten here on step #${counter}`);
+	}});
+	proxy.level1_1['two words'].oneWord = 'efgh';
+	proxy.level1_1['two words']['more words'].b = 2;
 });
 
 test('6. Basic events of methods', () => {
