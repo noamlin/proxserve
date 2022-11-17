@@ -115,12 +115,12 @@ export class Proxserve {
 			proxyNode = newNodes.proxyNode!;
 		}
 
-		let target = proxyNode[ND].target;
+		const target = proxyNode[ND].target;
 
-		let typeoftarget = realtypeof(target);
+		const typeoftarget = realtypeof(target);
 
 		if(proxyTypes[typeoftarget]) {
-			let revocable = Proxy.revocable<TargetVariable>(target, {
+			const revocable = Proxy.revocable<TargetVariable>(target, {
 				get: (target: TargetVariable/*same as parent scope 'target'*/, property: string|symbol, proxy) => {
 					if(metadata.methodsEmitRaw === false && Object.prototype.hasOwnProperty.call(proxyMethods, property) && property in Object.getPrototypeOf(target)) {
 						// use a proxy method instead of the built-in method that is on the prototype chain

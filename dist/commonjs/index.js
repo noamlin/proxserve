@@ -712,10 +712,10 @@ class $758ea81f4f7b53ee$export$d402cf8388053971 {
             dataNode = newNodes.dataNode;
             proxyNode = newNodes.proxyNode;
         }
-        let target = proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].target;
-        let typeoftarget = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(target);
+        const target = proxyNode[0, $518557bad313f8f1$export$f7e0aa381a5261fc].target;
+        const typeoftarget = (0, $e3f4344113dd8ef0$export$99a2acdf670c1bf4)(target);
         if ((0, $518557bad313f8f1$export$94b8be4ec3303efd)[typeoftarget]) {
-            let revocable = Proxy.revocable(target, {
+            const revocable = Proxy.revocable(target, {
                 get: (target /*same as parent scope 'target'*/ , property, proxy)=>{
                     if (metadata.methodsEmitRaw === false && Object.prototype.hasOwnProperty.call($ac07f5587380cee0$exports, property) && property in Object.getPrototypeOf(target)) // use a proxy method instead of the built-in method that is on the prototype chain
                     return $ac07f5587380cee0$exports[property].bind({
