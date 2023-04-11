@@ -1,0 +1,12 @@
+import type { StopFunction, BlockFunction, ActivateFunction, OnFunction, OnceFunction, RemoveListenerFunction, RemoveAllListenersFunction, GetProxserveNameFunction, WhoAMI, GetOriginalTargetFunction, GetProxserveNodesFunction } from './types/pseudo-methods';
+export declare const stop: StopFunction;
+export declare const block: BlockFunction;
+export declare const activate: ActivateFunction;
+export declare const on: OnFunction;
+export declare const once: OnceFunction;
+export declare const removeListener: RemoveListenerFunction;
+export declare const removeAllListeners: RemoveAllListenersFunction;
+export declare const getOriginalTarget: GetOriginalTargetFunction;
+export declare const getProxserveName: GetProxserveNameFunction;
+export declare const whoami: WhoAMI;
+export declare const getProxserveNodes: GetProxserveNodesFunction;

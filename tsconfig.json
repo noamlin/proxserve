@@ -2,6 +2,8 @@
 	"extends": "@tsconfig/recommended/tsconfig.json",
 	"include": ["src/**/*"],
 	"compilerOptions": {
+		"declaration": true,
+		"declarationDir": "types",
 		"target": "ES2018",
 		"noImplicitAny": false,
 		"noImplicitThis": false

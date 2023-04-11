@@ -1,5 +1,5 @@
 /**
- * 2022 Noam Lin <noamlin@gmail.com>
+ * 2023 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@ import { NODE_STATUSES, EVENTS, ND, NID } from './globals';
 import type { PseudoThis } from './types/proxserve-class';
 import type { SpliceFunction, ShiftFunction, UnshiftFunction } from './types/proxy-methods';
 import { initFunctionEmitEvent } from './event-emitter';
-
 
 export const splice: SpliceFunction = function splice(
 	this: PseudoThis,

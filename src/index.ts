@@ -1,5 +1,5 @@
 /**
- * 2022 Noam Lin <noamlin@gmail.com>
+ * 2023 Noam Lin <noamlin@gmail.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,20 +19,21 @@ import * as pseudoMethods from './pseudo-methods';
 import * as proxyMethods from './proxy-methods';
 import { realtypeof, splitPath, evalPath } from './general-functions';
 import { initEmitEvent } from './event-emitter';
-
-const doNotProxifyPrefix = '_$';
-const pseudoMethodsAlternativeNamingPrefix = '$';
+import { DONT_PROXIFY_PREFIX, PSEUDO_METHODS_ALTERNATIVE_NAMING_PREFIX } from './constants';
 
 /**
  * save an array of all reserved function names
  * and also add synonyms to these functions
  */
 let pseudoMethodsNames = Object.keys(pseudoMethods);
+let pseudoMethodsExtended: Record<string | symbol, any> = {};
 for(let i = pseudoMethodsNames.length - 1; i >= 0; i--) {
 	let name = pseudoMethodsNames[i];
-	let synonym = pseudoMethodsAlternativeNamingPrefix + name;
-	pseudoMethods[synonym] = pseudoMethods[name];
+	let synonym = PSEUDO_METHODS_ALTERNATIVE_NAMING_PREFIX + name;
+
 	pseudoMethodsNames.push(synonym);
+	pseudoMethodsExtended[name] = pseudoMethods[name];
+	pseudoMethodsExtended[synonym] = pseudoMethods[name];
 }
 
 interface MakeOptions {
@@ -128,7 +129,7 @@ export class Proxserve {
 					}
 					else if(pseudoMethodsNames.includes(property as string) && typeof target[property] === 'undefined') {
 						// can access a pseudo function (or its synonym) if their keywords isn't used
-						return pseudoMethods[property].bind({ metadata, dataNode, proxyNode });
+						return pseudoMethodsExtended[property].bind({ metadata, dataNode, proxyNode });
 					}
 					else if(!target.propertyIsEnumerable(property) || typeof property === 'symbol') {
 						return target[property]; // non-enumerable or non-path'able aren't proxied
@@ -161,7 +162,7 @@ export class Proxserve {
 					}
 					else if(
 						typeof property === 'symbol'
-						|| property.indexOf(doNotProxifyPrefix) === 0
+						|| property.startsWith(DONT_PROXIFY_PREFIX)
 					) {
 						target[property] = value;
 						return true;
@@ -285,7 +286,7 @@ export class Proxserve {
 			if(proxyTypes[typeoftarget]) {
 				let keys = Object.keys(target); //handles both Objects and Arrays
 				for(let key of keys) {
-					if (key.indexOf(doNotProxifyPrefix) === 0) {
+					if (key.startsWith(DONT_PROXIFY_PREFIX)) {
 						continue;
 					}
 					let typeofproperty = realtypeof(target[key]);
@@ -328,7 +329,7 @@ export class Proxserve {
 		if(proxyTypes[typeofproxy]) {
 			let keys = Object.keys(proxy); // handles both Objects and Arrays
 			for(let key of keys) {
-				if (key.indexOf(doNotProxifyPrefix) === 0) {
+				if (key.startsWith(DONT_PROXIFY_PREFIX)) {
 					continue;
 				}
 				try {
