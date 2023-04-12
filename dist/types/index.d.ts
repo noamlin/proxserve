@@ -37,4 +37,4 @@ export declare class Proxserve {
         value: any;
     };
 }
-export {};
+export type { ProxserveInstance };

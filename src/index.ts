@@ -370,3 +370,6 @@ export class Proxserve {
 		return evalPath(obj, path);
 	}
 }
+
+// for importing this type from the main generated d.ts
+export type { ProxserveInstance };
